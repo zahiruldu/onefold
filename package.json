@@ -14,6 +14,8 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/onefold.min.js",
+  "jsdelivr": "dist/onefold.min.js",
   "sideEffects": false,
   "exports": {
     ".": {
