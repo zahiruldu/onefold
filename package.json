@@ -1,0 +1,180 @@
+{
+  "name": "onefold",
+  "version": "0.1.0",
+  "description": "Zero-dependency TypeScript UI framework: fine-grained reactive signals, real-DOM rendering, secure-by-default templating, and full-stack enterprise features in under 13kb gzipped.",
+  "author": "Md. Zahirul Haque <zahirul.arb@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zahiruldu/onefold.git"
+  },
+  "homepage": "https://github.com/zahiruldu/onefold#readme",
+  "bugs": {
+    "url": "https://github.com/zahiruldu/onefold/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./signals": {
+      "types": "./dist/core/signal.d.ts",
+      "import": "./dist/core/signal.js"
+    },
+    "./dom": {
+      "types": "./dist/core/dom.d.ts",
+      "import": "./dist/core/dom.js"
+    },
+    "./html": {
+      "types": "./dist/core/template.d.ts",
+      "import": "./dist/core/template.js"
+    },
+    "./css": {
+      "types": "./dist/core/css.d.ts",
+      "import": "./dist/core/css.js"
+    },
+    "./router": {
+      "types": "./dist/router/router.d.ts",
+      "import": "./dist/router/router.js"
+    },
+    "./store": {
+      "types": "./dist/store/store.d.ts",
+      "import": "./dist/store/store.js"
+    },
+    "./resource": {
+      "types": "./dist/core/resource.d.ts",
+      "import": "./dist/core/resource.js"
+    },
+    "./interop": {
+      "types": "./dist/interop/imperative.d.ts",
+      "import": "./dist/interop/imperative.js"
+    },
+    "./di": {
+      "types": "./dist/core/di.d.ts",
+      "import": "./dist/core/di.js"
+    },
+    "./form": {
+      "types": "./dist/core/form.d.ts",
+      "import": "./dist/core/form.js"
+    },
+    "./i18n": {
+      "types": "./dist/core/i18n.d.ts",
+      "import": "./dist/core/i18n.js"
+    },
+    "./observe": {
+      "types": "./dist/core/observe.d.ts",
+      "import": "./dist/core/observe.js"
+    },
+    "./plugin": {
+      "types": "./dist/core/plugin.d.ts",
+      "import": "./dist/core/plugin.js"
+    },
+    "./compiler": {
+      "types": "./dist/compiler/index.d.ts",
+      "import": "./dist/compiler/index.js"
+    },
+    "./persist": {
+      "types": "./dist/core/persist.d.ts",
+      "import": "./dist/core/persist.js"
+    },
+    "./guard": {
+      "types": "./dist/core/guard.d.ts",
+      "import": "./dist/core/guard.js"
+    },
+    "./theme": {
+      "types": "./dist/core/theme.d.ts",
+      "import": "./dist/core/theme.js"
+    },
+    "./http": {
+      "types": "./dist/core/http.d.ts",
+      "import": "./dist/core/http.js"
+    },
+    "./remote": {
+      "types": "./dist/core/remote.d.ts",
+      "import": "./dist/core/remote.js"
+    },
+    "./error-boundary": {
+      "types": "./dist/core/error-boundary.d.ts",
+      "import": "./dist/core/error-boundary.js"
+    },
+    "./suspense": {
+      "types": "./dist/core/suspense.d.ts",
+      "import": "./dist/core/suspense.js"
+    },
+    "./transition": {
+      "types": "./dist/core/transition.d.ts",
+      "import": "./dist/core/transition.js"
+    },
+    "./meta": {
+      "types": "./dist/core/meta.d.ts",
+      "import": "./dist/core/meta.js"
+    },
+    "./stream": {
+      "types": "./dist/core/stream.d.ts",
+      "import": "./dist/core/stream.js"
+    },
+    "./a11y": {
+      "types": "./dist/core/a11y.d.ts",
+      "import": "./dist/core/a11y.js"
+    },
+    "./devtools": {
+      "types": "./dist/core/devtools.d.ts",
+      "import": "./dist/core/devtools.js"
+    },
+    "./ssr": {
+      "types": "./dist/core/ssr.d.ts",
+      "import": "./dist/core/ssr.js"
+    },
+    "./testing": {
+      "types": "./dist/core/testing.d.ts",
+      "import": "./dist/core/testing.js"
+    },
+    "./utils": {
+      "types": "./dist/core/utils.d.ts",
+      "import": "./dist/core/utils.js"
+    }
+  },
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "bundle": "esbuild src/index.ts --bundle --minify --format=esm --outfile=dist/onefold.min.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import ./tests/register.mjs --test tests/**/*.test.ts",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test",
+    "examples:hero": "esbuild examples/hero-app/main.ts --bundle --format=esm --outfile=examples/hero-app/dist/hero-app.js",
+    "examples:blog": "esbuild examples/blog-app/main.ts --bundle --format=esm --outfile=examples/blog-app/dist/blog-app.js",
+    "examples:comprehensive": "esbuild examples/comprehensive-app/main.ts --bundle --format=esm --outfile=examples/comprehensive-app/dist/app.js",
+    "examples:mfe": "esbuild examples/microfrontend/host/main.ts --bundle --format=esm --outfile=examples/microfrontend/dist/host.js && esbuild examples/microfrontend/remotes/billing-widget.ts --bundle --format=esm --outfile=examples/microfrontend/dist/billing-widget.js && esbuild examples/microfrontend/remotes/analytics-widget.ts --bundle --format=esm --outfile=examples/microfrontend/dist/analytics-widget.js",
+    "examples": "npm run examples:hero && npm run examples:blog && npm run examples:comprehensive && npm run examples:mfe"
+  },
+  "keywords": [
+    "ui",
+    "framework",
+    "signals",
+    "reactive",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.25.11",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  }
+}

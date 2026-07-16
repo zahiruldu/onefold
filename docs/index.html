@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>onefold — Zero-dependency TypeScript UI Framework</title>
+  <meta name="description" content="Fine-grained reactive signals, real DOM rendering, secure-by-default templating, and full-stack enterprise features in under 13kb gzipped." />
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e4e7ef;
+      --muted: #8b90a0;
+      --accent: #6366f1;
+      --accent-soft: rgba(99,102,241,0.1);
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --code-bg: #131620;
+      --radius: 10px;
+      --max-w: 860px;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 16px 0;
+    }
+    pre code { background: none; padding: 0; }
+
+    /* Layout */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 { font-size: 48px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; }
+    .hero .tagline { color: var(--muted); font-size: 18px; max-width: 600px; margin: 0 auto 24px; }
+    .hero .badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: rgba(34,197,94,0.12); color: var(--green); }
+    .badge-yellow { background: rgba(234,179,8,0.12); color: var(--yellow); }
+    .badge-accent { background: var(--accent-soft); color: var(--accent); }
+    .install-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 24px;
+      display: inline-block;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 15px;
+    }
+
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 48px 20px; }
+    .section { margin-bottom: 64px; }
+    .section h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section h3 { font-size: 18px; font-weight: 600; margin: 32px 0 8px; }
+    .section p { margin-bottom: 12px; color: var(--muted); }
+    .section ul { padding-left: 20px; margin-bottom: 16px; }
+    .section li { margin-bottom: 6px; color: var(--muted); }
+    .section li code { color: var(--text); }
+
+    /* API table */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    th { background: var(--surface); font-weight: 600; color: var(--text); }
+    td { color: var(--muted); }
+    td code { color: var(--text); }
+
+    /* Feature grid */
+    .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin: 24px 0; }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .feature h4 { font-size: 15px; margin-bottom: 6px; color: var(--text); }
+    .feature p { font-size: 13px; margin: 0; }
+
+    /* Nav */
+    nav {
+      position: sticky;
+      top: 0;
+      background: rgba(15,17,23,0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .brand { font-weight: 700; font-size: 18px; color: var(--text); }
+    nav .links { display: flex; gap: 20px; font-size: 14px; }
+    nav .links a { color: var(--muted); }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 32px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 32px; }
+      .features { grid-template-columns: 1fr; }
+      nav .links { gap: 12px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">onefold</span>
+    <div class="links">
+      <a href="#quickstart">Quickstart</a>
+      <a href="#api">API</a>
+      <a href="#features">Features</a>
+      <a href="#examples">Examples</a>
+      <a href="https://github.com/zahiruldu/onefold">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>onefold</h1>
+    <p class="tagline">Zero-dependency TypeScript UI framework. Fine-grained signals, real DOM, secure by default. Everything you need, nothing you don't.</p>
+    <div class="badges">
+      <span class="badge badge-green">~3kb gzipped (minimal)</span>
+      <span class="badge badge-yellow">~13kb gzipped (full)</span>
+      <span class="badge badge-accent">0 dependencies</span>
+      <span class="badge badge-accent">224 tests</span>
+    </div>
+    <div class="install-box">npm install onefold</div>
+  </div>
+
+  <div class="container">
+
+    <!-- QUICKSTART -->
+    <section class="section" id="quickstart">
+      <h2>Quickstart</h2>
+      <pre><code>import { createSignal, html, mount } from 'onefold';
+
+function Counter() {
+  const count = createSignal(0);
+
+  return html`
+    &lt;div class="counter"&gt;
+      &lt;h2&gt;${`\${() => \`Count: \${count()}\`}`}&lt;/h2&gt;
+      &lt;button onclick=${`\${() => count.set(c =&gt; c + 1)}`}&gt;+&lt;/button&gt;
+      &lt;button onclick=${`\${() => count.set(0)}`}&gt;Reset&lt;/button&gt;
+    &lt;/div&gt;
+  `;
+}
+
+mount(Counter(), document.getElementById('app')!);</code></pre>
+      <p>That's a complete, reactive, type-safe component. No build step required, no JSX, no virtual DOM.</p>
+    </section>
+
+    <!-- CORE CONCEPTS -->
+    <section class="section" id="concepts">
+      <h2>Core Concepts</h2>
+
+      <h3>Signals (Reactivity)</h3>
+      <p>Signals are reactive values. Reading a signal inside a closure creates a subscription — when the signal changes, only that specific binding updates.</p>
+      <pre><code>const name = createSignal('World');
+const upper = createComputed(() =&gt; name().toUpperCase());
+
+// Only the text node updates when name changes — nothing else re-renders
+html`&lt;h1&gt;${`\${() => \`Hello, \${upper()}\`}`}&lt;/h1&gt;`</code></pre>
+
+      <h3>Templates (Rendering)</h3>
+      <p><code>html</code> is the one templating primitive. Write HTML naturally with <code>${`\${}`}</code> for dynamic values.</p>
+      <pre><code>// Static values
+html`&lt;div class="card"&gt;${`\${title}`}&lt;/div&gt;`
+
+// Reactive values (wrap in a closure)
+html`&lt;div class=${`\${() => isActive() ? 'active' : ''}`}&gt;...&lt;/div&gt;`
+
+// Event handlers
+html`&lt;button onclick=${`\${() => count.set(c => c + 1)}`}&gt;Click&lt;/button&gt;`
+
+// Lists
+html`&lt;ul&gt;${`\${() => items().map(i => html\`&lt;li&gt;\${i.name}&lt;/li&gt;\`)}`}&lt;/ul&gt;`
+
+// Conditionals
+html`&lt;div&gt;${`\${() => loggedIn() ? Dashboard() : LoginForm()}`}&lt;/div&gt;`</code></pre>
+
+      <h3>Components</h3>
+      <p>A component is just a function that returns a Node. No classes, no decorators, no lifecycle methods.</p>
+      <pre><code>interface Props { label: string; }
+
+function Toggle({ label }: Props): Node {
+  const on = createSignal(false);
+  return html`
+    &lt;button onclick=${`\${() => on.set(v => !v)}`}&gt;
+      ${`\${() => \`\${label}: \${on() ? 'On' : 'Off'}\`}`}
+    &lt;/button&gt;
+  `;
+}</code></pre>
+
+      <h3>Scoped CSS</h3>
+      <p>The <code>css</code> tagged template scopes styles to a component. No leaking, no naming collisions.</p>
+      <pre><code>const styles = css`
+  .card { background: white; border-radius: 8px; padding: 16px; }
+  .title { color: #333; font-size: 20px; }
+`;
+
+function Card() {
+  return html`&lt;div class=${`\${styles.scope}`}&gt;
+    &lt;div class="card"&gt;&lt;h2 class="title"&gt;Scoped!&lt;/h2&gt;&lt;/div&gt;
+  &lt;/div&gt;`;
+}</code></pre>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="features">
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature"><h4>Signals</h4><p>Fine-grained reactivity. O(1) updates per binding.</p></div>
+        <div class="feature"><h4>html Templates</h4><p>Write real HTML with reactive interpolation. No compiler.</p></div>
+        <div class="feature"><h4>Scoped CSS</h4><p>Component-scoped styles via css tagged template.</p></div>
+        <div class="feature"><h4>Router</h4><p>Client-side routing with dynamic params, guards, Link.</p></div>
+        <div class="feature"><h4>Forms + Validation</h4><p>createForm with 8 built-in rules and typed fields.</p></div>
+        <div class="feature"><h4>HTTP Client</h4><p>Typed fetch wrapper with interceptor pipeline.</p></div>
+        <div class="feature"><h4>DI</h4><p>provide/inject with scoped providers per subtree.</p></div>
+        <div class="feature"><h4>i18n</h4><p>Reactive translations with lazy-load support.</p></div>
+        <div class="feature"><h4>Theming</h4><p>CSS custom properties driven by signals.</p></div>
+        <div class="feature"><h4>Persistence</h4><p>Signals that auto-save to localStorage/sessionStorage.</p></div>
+        <div class="feature"><h4>RBAC Guards</h4><p>Permission-based route and component guards.</p></div>
+        <div class="feature"><h4>Observability</h4><p>Structured error/render/metric event system.</p></div>
+        <div class="feature"><h4>Plugins</h4><p>Isolated, sandboxed, versioned plugin system.</p></div>
+        <div class="feature"><h4>Microfrontends</h4><p>loadRemote with SRI, trusted origins, Shadow DOM.</p></div>
+        <div class="feature"><h4>WebSocket/SSE</h4><p>Reactive streaming data as signals.</p></div>
+        <div class="feature"><h4>Accessibility</h4><p>FocusTrap, announce, keyboard shortcuts, SkipLink.</p></div>
+        <div class="feature"><h4>Transitions</h4><p>CSS enter/leave animations with out-in mode.</p></div>
+        <div class="feature"><h4>Error Boundaries</h4><p>Catch render errors per subtree with retry.</p></div>
+        <div class="feature"><h4>Suspense</h4><p>Async boundaries with loading fallback.</p></div>
+        <div class="feature"><h4>VirtualList</h4><p>Windowed rendering for 50k+ row tables.</p></div>
+        <div class="feature"><h4>SSR</h4><p>renderToString for server-side rendering.</p></div>
+        <div class="feature"><h4>DevTools</h4><p>Effect hook with render perf tracking.</p></div>
+        <div class="feature"><h4>Testing</h4><p>render, fireEvent, waitFor — like React Testing Library.</p></div>
+        <div class="feature"><h4>Utilities</h4><p>formatDate, currency, timeAgo, debounce, pipe.</p></div>
+        <div class="feature"><h4>Security</h4><p>XSS-safe by default, CSP, Trusted Types, SRI.</p></div>
+        <div class="feature"><h4>Tree-shaking</h4><p>sideEffects:false + subpath exports. Pay only for what you use.</p></div>
+        <div class="feature"><h4>AI-native</h4><p>AGENTS.md, component metadata, manifest plugin.</p></div>
+      </div>
+    </section>
+
+    <!-- API REFERENCE -->
+    <section class="section" id="api">
+      <h2>API Reference</h2>
+
+      <h3>Reactivity</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>createSignal(initial)</code></td><td>Create a reactive value. Read with <code>sig()</code>, write with <code>sig.set(v)</code>.</td></tr>
+        <tr><td><code>createEffect(fn)</code></td><td>Re-run fn when any signal it reads changes. Returns a disposer.</td></tr>
+        <tr><td><code>createComputed(fn)</code></td><td>Read-only derived signal.</td></tr>
+        <tr><td><code>batch(fn)</code></td><td>Group multiple signal writes into one effect flush.</td></tr>
+      </table>
+
+      <h3>Rendering</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>html`...`</code></td><td>Tagged template — builds real DOM with reactive bindings.</td></tr>
+        <tr><td><code>mount(node, container)</code></td><td>Attach a node to the page.</td></tr>
+        <tr><td><code>css`...`</code></td><td>Scoped CSS — returns <code>{ scope }</code> class to apply to root.</td></tr>
+        <tr><td><code>raw(htmlStr)</code></td><td>Explicitly insert sanitized HTML (escape hatch).</td></tr>
+        <tr><td><code>VirtualList(opts)</code></td><td>Windowed rendering for large lists.</td></tr>
+        <tr><td><code>lazy(loader, fallback)</code></td><td>Code-split a component behind dynamic import.</td></tr>
+        <tr><td><code>Transition(source, opts)</code></td><td>Animate enter/leave when content changes.</td></tr>
+        <tr><td><code>ErrorBoundary(render, fallback)</code></td><td>Catch render errors with retry.</td></tr>
+        <tr><td><code>Suspense(asyncFn, opts)</code></td><td>Show fallback while async render resolves.</td></tr>
+      </table>
+
+      <h3>Routing</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>Router(routes, notFound)</code></td><td>Match path to view, swap reactively on navigate.</td></tr>
+        <tr><td><code>Link(href, child, class?)</code></td><td>SPA navigation link with reactive active class.</td></tr>
+        <tr><td><code>navigate(path)</code></td><td>Programmatic navigation.</td></tr>
+        <tr><td><code>currentRoute()</code></td><td>Read current path reactively.</td></tr>
+        <tr><td><code>guard(check, view, fallback?)</code></td><td>Permission-gated route handler.</td></tr>
+      </table>
+
+      <h3>Data</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>createStore(initial)</code></td><td>Signal over an object + <code>.update(patch)</code>.</td></tr>
+        <tr><td><code>createPersisted(key, initial, opts?)</code></td><td>Signal that auto-saves to storage.</td></tr>
+        <tr><td><code>createResource(source, fetcher)</code></td><td>Reactive async data fetching with loading/error/refetch.</td></tr>
+        <tr><td><code>createHttpClient(opts?)</code></td><td>Typed HTTP client with interceptor pipeline.</td></tr>
+        <tr><td><code>createWebSocket(url, opts?)</code></td><td>Reactive WebSocket with auto-reconnect.</td></tr>
+        <tr><td><code>createEventSource(url, opts?)</code></td><td>Reactive Server-Sent Events stream.</td></tr>
+      </table>
+
+      <h3>DI & Enterprise</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>createToken(name)</code></td><td>Create a typed injection token.</td></tr>
+        <tr><td><code>provide(token, value)</code></td><td>Register a value for injection.</td></tr>
+        <tr><td><code>inject(token)</code></td><td>Retrieve a provided value (throws if missing).</td></tr>
+        <tr><td><code>createForm(config)</code></td><td>Reactive form with validation rules.</td></tr>
+        <tr><td><code>createI18n(config)</code></td><td>Reactive i18n with lazy-loading.</td></tr>
+        <tr><td><code>createTheme(themes, default?)</code></td><td>CSS variable theming driven by signals.</td></tr>
+        <tr><td><code>createObserver()</code></td><td>Structured telemetry event bus.</td></tr>
+        <tr><td><code>createPluginHost()</code></td><td>Plugin system with lifecycle and sandboxing.</td></tr>
+      </table>
+
+      <h3>Security & Microfrontends</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>configureSecurity(config)</code></td><td>Set trusted origins, SRI requirements, timeout.</td></tr>
+        <tr><td><code>loadRemote(opts)</code></td><td>Load a remote ES module with isolation options.</td></tr>
+        <tr><td><code>setPermissions(signal)</code></td><td>Set the RBAC permissions source signal.</td></tr>
+        <tr><td><code>hasPermission(perm)</code></td><td>Check a single permission reactively.</td></tr>
+        <tr><td><code>cssValue(str)</code></td><td>Sanitize a value for safe CSS interpolation.</td></tr>
+      </table>
+
+      <h3>Utilities</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>formatDate(date, format?)</code></td><td>Format dates as short/long/iso/datetime.</td></tr>
+        <tr><td><code>timeAgo(date)</code></td><td>Relative time ("3 minutes ago").</td></tr>
+        <tr><td><code>formatCurrency(amount, code, locale?)</code></td><td>Locale-aware currency formatting.</td></tr>
+        <tr><td><code>truncate(str, max, suffix?)</code></td><td>Truncate with ellipsis.</td></tr>
+        <tr><td><code>slugify(str)</code></td><td>URL-safe slug.</td></tr>
+        <tr><td><code>pluralize(count, singular, plural?)</code></td><td>Simple pluralization.</td></tr>
+        <tr><td><code>debounce(fn, ms)</code></td><td>Debounced function with cancel.</td></tr>
+        <tr><td><code>throttle(fn, ms)</code></td><td>Throttled function.</td></tr>
+        <tr><td><code>pipe(value, ...fns)</code></td><td>Left-to-right function composition.</td></tr>
+      </table>
+
+      <h3>Testing</h3>
+      <table>
+        <tr><th>Function</th><th>Description</th></tr>
+        <tr><td><code>render(componentFn)</code></td><td>Render a component for testing. Returns query helpers.</td></tr>
+        <tr><td><code>fireEvent.click(el)</code></td><td>Simulate DOM events.</td></tr>
+        <tr><td><code>waitFor(assertion)</code></td><td>Poll until an assertion passes.</td></tr>
+        <tr><td><code>flushEffects()</code></td><td>Flush pending microtasks and effects.</td></tr>
+      </table>
+    </section>
+
+    <!-- EXAMPLES -->
+    <section class="section" id="examples">
+      <h2>Examples</h2>
+      <ul>
+        <li><a href="https://github.com/zahiruldu/onefold/tree/main/examples/hero-app">Hero App</a> — API calls, reusable components, createResource</li>
+        <li><a href="https://github.com/zahiruldu/onefold/tree/main/examples/blog-app">Blog App</a> — Routing, scoped CSS, theming, transitions</li>
+        <li><a href="https://github.com/zahiruldu/onefold/tree/main/examples/comprehensive-app">Comprehensive App</a> — DI, forms, i18n, HTTP, guards, observability</li>
+        <li><a href="https://github.com/zahiruldu/onefold/tree/main/examples/microfrontend">Microfrontend</a> — Cross-origin remotes, Shadow DOM isolation, SRI</li>
+      </ul>
+    </section>
+
+    <!-- PHILOSOPHY -->
+    <section class="section" id="philosophy">
+      <h2>Philosophy</h2>
+      <ul>
+        <li><strong>One way to do things.</strong> One templating primitive (<code>html</code>), one reactive model (signals), one list pattern (<code>.map()</code> or <code>VirtualList</code>). No second API to learn "for advanced use cases."</li>
+        <li><strong>Zero runtime dependencies.</strong> The <code>onefold</code> package ships only its own code. Nothing else runs in your users' browsers.</li>
+        <li><strong>Functions, not classes.</strong> Components are functions returning Nodes. No decorators, no lifecycle methods, no class hierarchies.</li>
+        <li><strong>Security by default.</strong> Text goes through textContent, never innerHTML. URLs block javascript:/data: schemes. Sanitizer strips scripts. Trusted Types supported.</li>
+        <li><strong>Tree-shake everything.</strong> Import only what you use. A counter app is 3kb. A full enterprise app with every feature is 13kb.</li>
+        <li><strong>AI-friendly.</strong> AGENTS.md tells any AI assistant how to write correct onefold code. Component metadata makes apps machine-readable.</li>
+      </ul>
+    </section>
+
+    <!-- COMPARISON -->
+    <section class="section" id="comparison">
+      <h2>How onefold compares</h2>
+      <table>
+        <tr><th></th><th>onefold</th><th>React</th><th>Vue</th><th>Angular</th><th>Solid</th></tr>
+        <tr><td>Bundle (min gz)</td><td><strong>3–13kb</strong></td><td>42kb+</td><td>34kb</td><td>150kb+</td><td>7kb</td></tr>
+        <tr><td>Runtime deps</td><td><strong>0</strong></td><td>0</td><td>0</td><td>RxJS</td><td>0</td></tr>
+        <tr><td>Rendering</td><td><strong>Real DOM</strong></td><td>VDOM</td><td>VDOM</td><td>VDOM</td><td>Real DOM</td></tr>
+        <tr><td>Update cost</td><td><strong>O(1)</strong></td><td>O(tree)</td><td>O(tree)</td><td>O(tree)</td><td>O(1)</td></tr>
+        <tr><td>Built-in Router</td><td>✅</td><td>❌</td><td>❌</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Built-in Forms</td><td>✅</td><td>❌</td><td>❌</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Built-in HTTP</td><td>✅</td><td>❌</td><td>❌</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Built-in DI</td><td>✅</td><td>❌</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Built-in i18n</td><td>✅</td><td>❌</td><td>❌</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Microfrontends</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+        <tr><td>Build step required</td><td><strong>No</strong></td><td>Yes (JSX)</td><td>Yes (SFC)</td><td>Yes</td><td>Yes (JSX)</td></tr>
+      </table>
+    </section>
+
+  </div>
+
+  <footer>
+    <p>onefold — created by <a href="https://github.com/zahiruldu">Md. Zahirul Haque</a> · <a href="https://github.com/zahiruldu/onefold">GitHub</a> · MIT License</p>
+  </footer>
+</body>
+</html>

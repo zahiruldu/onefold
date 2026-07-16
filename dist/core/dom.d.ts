@@ -1,0 +1,7 @@
+/**
+ * DOM mounting. `html`\`...\`` (template.ts) is the only element-construction API —
+ * this file just attaches a built node to the page.
+ */
+/** Replace a container's contents with a node. The one place a framework user calls "render". */
+export declare function mount(node: Node, container: Element): void;
+export { raw } from '../security/sanitize';

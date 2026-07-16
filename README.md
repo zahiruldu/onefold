@@ -1,4 +1,4 @@
-# zyro
+# onefold
 
 A tiny, dependency-free TypeScript UI library: fine-grained reactivity (signals),
 real DOM rendering (no virtual DOM), secure-by-default templating, a minimal router,
@@ -37,15 +37,15 @@ would just make the security/perf guarantees harder to audit.
 ## Install
 
 ```bash
-npm install zyro
+npm install onefold
 ```
 
-Or, since it's dependency-free and small, drop `dist/zyro.min.js` in directly.
+Or, since it's dependency-free and small, drop `dist/onefold.min.js` in directly.
 
 ## Quickstart
 
 ```ts
-import { createSignal, html, mount } from 'zyro';
+import { createSignal, html, mount } from 'onefold';
 
 function Counter() {
   const count = createSignal(0);
@@ -115,7 +115,7 @@ to `.map()`, but because mounting one real DOM node per row is the actual
 bottleneck at that scale, and only windowing avoids it:
 
 ```ts
-import { createSignal, VirtualList, html } from 'zyro';
+import { createSignal, VirtualList, html } from 'onefold';
 
 const rows = createSignal(fetchedRows); // could be 100,000+ items
 
@@ -141,25 +141,25 @@ const table = VirtualList({
 | `VirtualList(options)` | Windowed rendering for large tables/lists — constant DOM node count regardless of row count |
 | `lazy(loader, fallback)` | Code-split a component behind `import()`, for route/feature-level bundle splitting |
 | `wrapImperative(adapter)` | Mount any imperative npm package (Chart.js, D3, Leaflet, Monaco, ...) with automatic cleanup |
-| `embedForeign(adapter)` | Embed a component from another framework (React, Vue) inside a zyro tree |
+| `embedForeign(adapter)` | Embed a component from another framework (React, Vue) inside a onefold tree |
 | `registerDirective(name, handler)` | Add a custom `d-name` attribute behavior, reusable across components |
 | `setEffectHook(hook)` | Intercept every effect run — for devtools, logging, time-travel debugging |
 | `createStore(initial)` | A signal over an object plus `.update(patch)` for partial merges |
 | `Router(routes, notFound)`, `navigate(path)` | Minimal client-side routing via the History API |
 
-zyro ships considerably more than this table (DI, forms, i18n, HTTP client
+onefold ships considerably more than this table (DI, forms, i18n, HTTP client
 with interceptors, persisted signals, RBAC guards, theming, observability,
 plugins, microfrontend loading, Suspense/ErrorBoundary/Transition, WebSocket/SSE
 streams, a11y helpers, SSR primitives) — this table covers only the rendering
 core. See `src/index.ts` for the full export list, and `AGENTS.md` for the rules
-an AI assistant should follow when writing zyro code.
+an AI assistant should follow when writing onefold code.
 
 See `examples/counter.ts`, `examples/todo.ts`, and `examples/bench-virtual-list.ts` for
 working code.
 
 ## Real DOM vs virtual DOM — and large tables
 
-zyro uses fine-grained signals bound directly to real DOM nodes, not a virtual DOM.
+onefold uses fine-grained signals bound directly to real DOM nodes, not a virtual DOM.
 There's no diffing phase: when a signal changes, exactly the DOM node or attribute that
 reads it updates — nothing is re-rendered or compared. This is the same architecture
 class as Solid.js and Svelte 5 runes, and it's measurably faster than virtual-DOM
@@ -176,12 +176,12 @@ signal update only re-runs the one row's binding, not a re-render of the list.
 
 ## npm interop and framework embedding
 
-Because a zyro component is just a function returning a real DOM `Node`, any
+Because a onefold component is just a function returning a real DOM `Node`, any
 imperative npm package works via a plain `ref`-style pattern — `wrapImperative()` wraps
 this into a reusable shape with automatic teardown when the element is removed from the
-DOM (via `MutationObserver`, no dependency on zyro's own lifecycle). `embedForeign()`
+DOM (via `MutationObserver`, no dependency on onefold's own lifecycle). `embedForeign()`
 does the same for mounting a component from another framework (e.g. a React island) inside
-a zyro tree, without zyro taking a hard dependency on that framework.
+a onefold tree, without onefold taking a hard dependency on that framework.
 
 ## Extensibility
 
@@ -207,7 +207,7 @@ All security-relevant code lives in `src/security/sanitize.ts` — one file to a
   library's sanitizer is a safety net for developer mistakes, not a defense against
   adversarial input.
 - **Trusted Types**: on browsers that support it (Chrome/Edge), if your CSP sets
-  `require-trusted-types-for 'script'`, zyro registers its own Trusted Types
+  `require-trusted-types-for 'script'`, onefold registers its own Trusted Types
   policy so `raw()` keeps working instead of being blocked outright — and that
   policy re-runs `minimalSanitize`, so it's a second enforcement layer, not a bypass.
 
@@ -215,5 +215,5 @@ All security-relevant code lives in `src/security/sanitize.ts` — one file to a
 
 ```bash
 npm run build       # tsc, emits dist/ with .d.ts files
-npx esbuild src/index.ts --bundle --minify --format=esm --outfile=dist/zyro.min.js
+npx esbuild src/index.ts --bundle --minify --format=esm --outfile=dist/onefold.min.js
 ```
