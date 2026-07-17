@@ -2,11 +2,13 @@ import { createSignal, createEffect, type Signal } from '../core/signal';
 import { disposeOnRemove } from '../core/lifecycle';
 
 export type RouteParams = Record<string, string>;
-export type RouteHandler = (params: RouteParams) => Node;
+export type RouteHandler = (params: RouteParams, outlet?: Node) => Node;
 
 export interface RouteDefinition {
   path: string;
   view: RouteHandler;
+  /** Nested child routes. The parent's view receives an `outlet` Node for rendering children. */
+  children?: RouteDefinition[];
 }
 
 export type Routes = Record<string, () => Node> | RouteDefinition[];
@@ -42,7 +44,7 @@ function getPathSignal(): Signal<string> {
 
 /* ────────────────── Public API ────────────────── */
 
-/** Navigate without a full page reload. Updates history and every subscribed route. */
+/** Navigate without a full page reload. */
 export function navigate(path: string): void {
   if (typeof window === 'undefined') return;
   const signal = getPathSignal();
@@ -59,14 +61,15 @@ export function currentRoute(): string {
   return getPathSignal()();
 }
 
+/* ────────────────── Route matching ────────────────── */
+
 /**
- * Match a route pattern (e.g. `/posts/:id`) against a path.
- * Returns params if matched, or null if no match.
+ * Match a route pattern against a path (exact match).
+ * Supports dynamic segments: `/posts/:id`
  */
-function matchRoute(pattern: string, path: string): RouteParams | null {
+function matchExact(pattern: string, path: string): RouteParams | null {
   const patternParts = pattern.split('/');
   const pathParts = path.split('/');
-
   if (patternParts.length !== pathParts.length) return null;
 
   const params: RouteParams = {};
@@ -83,11 +86,92 @@ function matchRoute(pattern: string, path: string): RouteParams | null {
 }
 
 /**
- * Mounts the view matching the current path, swapping it reactively on navigate().
+ * Match a route pattern as a prefix of a path (for parent routes with children).
+ * Returns params if the path starts with the pattern.
+ */
+function matchPrefix(pattern: string, path: string): RouteParams | null {
+  if (pattern === '/') {
+    // Root prefix matches everything
+    return {};
+  }
+  const patternParts = pattern.split('/').filter(Boolean);
+  const pathParts = path.split('/').filter(Boolean);
+  if (pathParts.length < patternParts.length) return null;
+
+  const params: RouteParams = {};
+  for (let i = 0; i < patternParts.length; i++) {
+    const pat = patternParts[i]!;
+    const val = pathParts[i]!;
+    if (pat.startsWith(':')) {
+      params[pat.slice(1)] = decodeURIComponent(val);
+    } else if (pat !== val) {
+      return null;
+    }
+  }
+  return params;
+}
+
+/**
+ * Resolve nested routes recursively against the current path.
+ * Child route paths are RELATIVE to their parent — the router prepends the parent prefix automatically.
  *
- * Supports two route formats:
+ * Example:
+ *   { path: '/settings', children: [
+ *     { path: '/profile', ... },   ← matches /settings/profile
+ *     { path: '/billing', ... },   ← matches /settings/billing
+ *   ]}
+ */
+function resolveRoutes(routes: RouteDefinition[], path: string, notFound: () => Node, parentPath = ''): Node | null {
+  for (const route of routes) {
+    const fullPath = joinPaths(parentPath, route.path);
+
+    if (route.children && route.children.length > 0) {
+      // Parent route — use prefix matching
+      const params = matchPrefix(fullPath, path);
+      if (params !== null) {
+        // Try to match a child route (children are relative to this parent's full path)
+        const childView = resolveRoutes(route.children, path, notFound, fullPath);
+        const outlet = childView ?? notFound();
+        return route.view(params, outlet);
+      }
+    } else {
+      // Leaf route — exact match
+      const params = matchExact(fullPath, path);
+      if (params !== null) {
+        return route.view(params);
+      }
+    }
+  }
+  return null;
+}
+
+/** Join parent and child path segments, avoiding double slashes. */
+function joinPaths(parent: string, child: string): string {
+  if (!parent || parent === '/') return child;
+  if (child === '/') return parent;
+  const base = parent.endsWith('/') ? parent.slice(0, -1) : parent;
+  const segment = child.startsWith('/') ? child : '/' + child;
+  return base + segment;
+}
+
+/* ────────────────── Router component ────────────────── */
+
+/**
+ * Mounts the view matching the current path, swapping reactively on navigate().
+ *
+ * Supports:
  * - Simple record: `{ '/': HomeView, '/about': AboutView }`
  * - Route definitions with params: `[{ path: '/posts/:id', view: (params) => ... }]`
+ * - Nested routes with children:
+ *   ```ts
+ *   Router([
+ *     { path: '/', view: () => HomePage() },
+ *     { path: '/settings', view: (params, outlet) => SettingsLayout(outlet), children: [
+ *       { path: '/settings/profile', view: () => ProfilePage() },
+ *       { path: '/settings/billing', view: () => BillingPage() },
+ *     ]},
+ *   ], NotFound);
+ *   ```
  */
 export function Router(routes: Routes, notFound: () => Node): Node {
   const pathSignal = getPathSignal();
@@ -97,13 +181,7 @@ export function Router(routes: Routes, notFound: () => Node): Node {
     let view: Node | null = null;
 
     if (Array.isArray(routes)) {
-      for (const route of routes) {
-        const params = matchRoute(route.path, path);
-        if (params !== null) {
-          view = route.view(params);
-          break;
-        }
-      }
+      view = resolveRoutes(routes, path, notFound, '');
     } else {
       const handler = routes[path];
       if (handler) view = handler();
@@ -112,17 +190,12 @@ export function Router(routes: Routes, notFound: () => Node): Node {
     container.textContent = '';
     container.appendChild(view ?? notFound());
   });
-  // `pathSignal` is a module-level singleton that outlives any single Router()
-  // call — without disposing on removal, mounting/unmounting a Router region
-  // (nested routers, conditional router regions) leaks one effect per mount
-  // for the lifetime of the whole app. See lifecycle.ts.
   disposeOnRemove(container, dispose);
   return container;
 }
 
 /**
  * A reactive link component that uses client-side navigation.
- * Intercepts clicks and calls navigate() instead of a full page reload.
  */
 export function Link(href: string, child: Node | string, className?: string | (() => string)): Node {
   const el = document.createElement('a');

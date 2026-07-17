@@ -28,7 +28,7 @@ function getPathSignal() {
     return _currentPath;
 }
 /* ────────────────── Public API ────────────────── */
-/** Navigate without a full page reload. Updates history and every subscribed route. */
+/** Navigate without a full page reload. */
 export function navigate(path) {
     if (typeof window === 'undefined')
         return;
@@ -45,11 +45,12 @@ export function navigate(path) {
 export function currentRoute() {
     return getPathSignal()();
 }
+/* ────────────────── Route matching ────────────────── */
 /**
- * Match a route pattern (e.g. `/posts/:id`) against a path.
- * Returns params if matched, or null if no match.
+ * Match a route pattern against a path (exact match).
+ * Supports dynamic segments: `/posts/:id`
  */
-function matchRoute(pattern, path) {
+function matchExact(pattern, path) {
     const patternParts = pattern.split('/');
     const pathParts = path.split('/');
     if (patternParts.length !== pathParts.length)
@@ -68,11 +69,91 @@ function matchRoute(pattern, path) {
     return params;
 }
 /**
- * Mounts the view matching the current path, swapping it reactively on navigate().
+ * Match a route pattern as a prefix of a path (for parent routes with children).
+ * Returns params if the path starts with the pattern.
+ */
+function matchPrefix(pattern, path) {
+    if (pattern === '/') {
+        // Root prefix matches everything
+        return {};
+    }
+    const patternParts = pattern.split('/').filter(Boolean);
+    const pathParts = path.split('/').filter(Boolean);
+    if (pathParts.length < patternParts.length)
+        return null;
+    const params = {};
+    for (let i = 0; i < patternParts.length; i++) {
+        const pat = patternParts[i];
+        const val = pathParts[i];
+        if (pat.startsWith(':')) {
+            params[pat.slice(1)] = decodeURIComponent(val);
+        }
+        else if (pat !== val) {
+            return null;
+        }
+    }
+    return params;
+}
+/**
+ * Resolve nested routes recursively against the current path.
+ * Child route paths are RELATIVE to their parent — the router prepends the parent prefix automatically.
  *
- * Supports two route formats:
+ * Example:
+ *   { path: '/settings', children: [
+ *     { path: '/profile', ... },   ← matches /settings/profile
+ *     { path: '/billing', ... },   ← matches /settings/billing
+ *   ]}
+ */
+function resolveRoutes(routes, path, notFound, parentPath = '') {
+    for (const route of routes) {
+        const fullPath = joinPaths(parentPath, route.path);
+        if (route.children && route.children.length > 0) {
+            // Parent route — use prefix matching
+            const params = matchPrefix(fullPath, path);
+            if (params !== null) {
+                // Try to match a child route (children are relative to this parent's full path)
+                const childView = resolveRoutes(route.children, path, notFound, fullPath);
+                const outlet = childView ?? notFound();
+                return route.view(params, outlet);
+            }
+        }
+        else {
+            // Leaf route — exact match
+            const params = matchExact(fullPath, path);
+            if (params !== null) {
+                return route.view(params);
+            }
+        }
+    }
+    return null;
+}
+/** Join parent and child path segments, avoiding double slashes. */
+function joinPaths(parent, child) {
+    if (!parent || parent === '/')
+        return child;
+    if (child === '/')
+        return parent;
+    const base = parent.endsWith('/') ? parent.slice(0, -1) : parent;
+    const segment = child.startsWith('/') ? child : '/' + child;
+    return base + segment;
+}
+/* ────────────────── Router component ────────────────── */
+/**
+ * Mounts the view matching the current path, swapping reactively on navigate().
+ *
+ * Supports:
  * - Simple record: `{ '/': HomeView, '/about': AboutView }`
  * - Route definitions with params: `[{ path: '/posts/:id', view: (params) => ... }]`
+ * - Nested routes with children:
+ *   ```ts
+ *   Router([
+ *     { path: '/', view: () => HomePage() },
+ *     { path: '/settings', view: (params, outlet) => SettingsLayout(outlet), children: [
+ *       { path: '/settings/profile', view: () => ProfilePage() },
+ *       { path: '/settings/billing', view: () => BillingPage() },
+ *     ]},
+ *   ], NotFound);
+ *   ```
  */
 export function Router(routes, notFound) {
     const pathSignal = getPathSignal();
@@ -81,13 +162,7 @@ export function Router(routes, notFound) {
         const path = pathSignal();
         let view = null;
         if (Array.isArray(routes)) {
-            for (const route of routes) {
-                const params = matchRoute(route.path, path);
-                if (params !== null) {
-                    view = route.view(params);
-                    break;
-                }
-            }
+            view = resolveRoutes(routes, path, notFound, '');
         }
         else {
             const handler = routes[path];
@@ -97,16 +172,11 @@ export function Router(routes, notFound) {
         container.textContent = '';
         container.appendChild(view ?? notFound());
     });
-    // `pathSignal` is a module-level singleton that outlives any single Router()
-    // call — without disposing on removal, mounting/unmounting a Router region
-    // (nested routers, conditional router regions) leaks one effect per mount
-    // for the lifetime of the whole app. See lifecycle.ts.
     disposeOnRemove(container, dispose);
     return container;
 }
 /**
  * A reactive link component that uses client-side navigation.
- * Intercepts clicks and calls navigate() instead of a full page reload.
  */
 export function Link(href, child, className) {
     const el = document.createElement('a');

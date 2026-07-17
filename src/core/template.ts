@@ -310,7 +310,13 @@ function applyAttr(el: HTMLElement, name: string, value: unknown): void {
     return;
   }
   if (name === 'style') {
-    bindReactive(value, (v) => Object.assign(el.style, v ?? {}), el);
+    bindReactive(value, (v) => {
+      if (typeof v === 'string') {
+        el.style.cssText = v;
+      } else {
+        Object.assign(el.style, v ?? {});
+      }
+    }, el);
     return;
   }
   if (isEventAttribute(name) && typeof value === 'function') {

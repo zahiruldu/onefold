@@ -112,6 +112,44 @@ describe('html tagged template', () => {
     size.set('20px');
     assert.equal(el.style.fontSize, '20px');
   });
+
+  it('applies a style as a CSS string (inline HTML syntax)', () => {
+    const el = html`<div style="color: red; font-size: 14px;"></div>` as HTMLElement;
+    assert.equal(el.style.color, 'red');
+    assert.equal(el.style.fontSize, '14px');
+  });
+
+  it('applies a style as a dynamic CSS string via interpolation', () => {
+    const el = html`<div style=${'color: blue; padding: 10px;'}></div>` as HTMLElement;
+    assert.equal(el.style.color, 'blue');
+    assert.equal(el.style.padding, '10px');
+  });
+
+  it('applies a reactive style that returns a string', () => {
+    const theme = createSignal('light');
+    const el = html`<div style=${() => theme() === 'dark' ? 'background: black; color: white;' : 'background: white; color: black;'}></div>` as HTMLElement;
+    assert.equal(el.style.background, 'white');
+    assert.equal(el.style.color, 'black');
+    theme.set('dark');
+    assert.equal(el.style.background, 'black');
+    assert.equal(el.style.color, 'white');
+  });
+
+  it('does not crash when style string contains complex CSS values', () => {
+    const el = html`<div style="border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;"></div>` as HTMLElement;
+    assert.equal(el.style.borderRadius, '8px');
+    assert.equal(el.style.marginTop, '16px');
+  });
+
+  it('handles empty style string gracefully', () => {
+    const el = html`<div style=""></div>` as HTMLElement;
+    assert.equal(el.style.cssText, '');
+  });
+
+  it('handles null/undefined style without crashing', () => {
+    const el = html`<div style=${null}></div>` as HTMLElement;
+    assert.equal(el.style.cssText, '');
+  });
 });
 
 describe('html reactive-binding disposal (memory leak regression)', () => {
