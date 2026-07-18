@@ -1,0 +1,15 @@
+{
+  "name": "onefold-example-hero",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+     "onefold": "^0.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.11"
+  }
+}

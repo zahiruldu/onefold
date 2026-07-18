@@ -1,117 +1,134 @@
-# AGENTS.md — Conventions for AI coding assistants
+# AGENTS.md
 
-This file exists so any AI assistant (Claude, Copilot, Cursor, etc.) can generate
-correct onefold code on the first try, without re-deriving the framework's rules
-from examples. Read this before writing onefold code.
+Coding conventions for AI assistants (Claude, Copilot, Cursor, etc.) working with onefold. Read this before generating onefold code.
 
-## Mental model
+Full API documentation: [zahiruldu.github.io/onefold](https://zahiruldu.github.io/onefold)
 
-There is no virtual DOM and no compiler step. The `html`\`...\` tagged template
-literal (from `onefold`) parses its template string once and builds real DOM
-nodes directly. Reactivity is per-binding: a signal read inside a closure passed
-as a child, attribute, or class/style value creates one `effect` that updates
-only that binding when the signal changes. Nothing else re-runs.
+## Architecture
 
-**`html` is the only templating primitive.** There is no separate hyperscript
-function, no JSX, and no second "keyed list" API — see "Rendering lists" below
-for why one function (`.map()`) covers every list size that isn't already large
-enough to need windowing.
+onefold has no virtual DOM and no compiler. The `html` tagged template literal parses its template string at runtime and builds real DOM nodes directly. Reactivity is per-binding: a signal read inside a closure creates one effect that updates only that specific DOM node when the signal changes. Nothing else re-renders.
 
-## Hard rules (violating these breaks security or reactivity guarantees)
+## Rules
 
-1. **Never use `innerHTML` directly.** Text interpolated by `html` always goes
-   through `textContent`/`createTextNode`. The only sanctioned way to insert
-   markup is `raw()` from `onefold`, and only for developer-authored,
-   non-user-controlled HTML.
-2. **Never use `eval`, `new Function`, or string-based `setTimeout`/`setInterval`.**
-   The library has none; keep it that way so CSP with no `unsafe-eval` always works.
-3. **Wrap dynamic values in a closure to make them reactive.** `html\`<p>${count}</p>\``
-   renders once, frozen at whatever `count` was when the template ran.
-   `html\`<p>${() => count()}</p>\`` updates whenever `count` changes. This is
-   the single most common mistake — if a UI "isn't updating," this is why.
-4. **Event handler attributes start with `on` and take a plain function**, e.g.
-   `` html`<button onclick=${() => ...}>` ``. Do not pass strings.
-5. **Never build a URL attribute (`href`, `src`, `action`) by concatenating raw
-   user input.** `html` already blocks `javascript:`/`data:` schemes on those
-   attributes, but treat that as a last-resort net, not a design choice.
-6. **Do not mutate arrays/objects in place and expect updates.** Signals compare
-   by reference (`Object.is`). Always call `.set()` with a new array/object:
-   `items.set(prev => [...prev, next])`, not `items.peek().push(next)`.
-7. **To integrate a non-onefold npm package** (charts, editors, maps, video, or
-   a component from another framework), use `wrapImperative()` or
-   `embedForeign()` from `onefold` instead of manually calling
-   `document.createElement` and managing its lifecycle by hand. These give you
-   automatic cleanup when the node is removed.
-8. **To add a custom reusable DOM behavior**, register a directive with
-   `registerDirective(name, handler)` and use it as a `d-name` attribute in
-   `html`, rather than writing one-off imperative code inside a component body.
-9. **`createResource()` returns a `dispose()` you must call yourself** if the
-   component that created it can be torn down while a fetch could still be
-   pending (e.g. it's created outside of a template's reactive scope, or kept
-   in module-level state). Unlike `html`'s own bindings, a resource has no DOM
-   node for the framework to key automatic cleanup off of.
+These are non-negotiable. Violating them breaks security or reactivity guarantees.
 
-## Rendering lists
+### Reactivity
 
-There is exactly one pattern below the windowing threshold, and exactly one
-above it — do not reach for anything else:
+1. **Wrap dynamic values in a closure to make them reactive.**
+   ```ts
+   // Static (renders once, never updates)
+   html`<p>${count}</p>`
+
+   // Reactive (updates when count changes)
+   html`<p>${() => count()}</p>`
+   ```
+   This is the single most common mistake. If the UI "isn't updating," this is why.
+
+2. **Never mutate arrays or objects in place.** Signals compare by reference (`Object.is`). Always produce a new reference:
+   ```ts
+   // Wrong
+   items.peek().push(newItem);
+
+   // Correct
+   items.set(prev => [...prev, newItem]);
+   ```
+
+3. **Use `batch()` for multiple signal writes** that should trigger effects only once:
+   ```ts
+   batch(() => {
+     name.set('Alice');
+     age.set(30);
+   });
+   ```
+
+### Security
+
+4. **Never use `innerHTML` directly.** The only sanctioned way to insert markup is `raw()` from onefold, and only for developer-authored content — never for user input.
+
+5. **Never use `eval`, `new Function`, or string-based timers.** The library uses none; keep it that way so CSP with no `unsafe-eval` always works.
+
+6. **Never concatenate user input into URL attributes** (`href`, `src`, `action`). The framework blocks `javascript:` and `data:` schemes, but treat that as a safety net, not a design choice.
+
+### Events
+
+7. **Event handlers start with `on` and take a function**, not a string:
+   ```ts
+   html`<button onclick=${() => save()}>Save</button>`
+   ```
+
+### Integration
+
+8. **Use `wrapImperative()` for imperative libraries** (Chart.js, D3, Leaflet, etc.) instead of manual `document.createElement` and lifecycle management. It provides automatic cleanup when the node leaves the DOM.
+
+9. **Use `embedForeign()` for other frameworks** (React, Vue components) instead of manual mounting/unmounting.
+
+10. **Use `registerDirective()` for reusable DOM behaviors** instead of one-off imperative code inside components:
+    ```ts
+    registerDirective('tooltip', (el, value) => { /* ... */ });
+    // Then in templates:
+    html`<button d-tooltip="Save changes">Save</button>`
+    ```
+
+### Cleanup
+
+11. **`createResource()` requires manual disposal** if the component can be torn down while a fetch is pending. Call `.dispose()` yourself — resources have no DOM node for automatic cleanup.
+
+## Templates
+
+`html` is the only templating primitive. There is no JSX, no hyperscript function, and no separate list API.
 
 ```ts
-// Any list, any size up to roughly 500–1000 visible rows:
-html`
-  <ul>
-    ${() => items().map((item) => html`<li>${item.name}</li>`)}
-  </ul>
-`
+// Text (reactive)
+html`<p>${() => message()}</p>`
+
+// Attributes (reactive)
+html`<div class=${() => active() ? 'on' : 'off'}>...</div>`
+
+// Style (object)
+html`<div style=${{ color: 'red', fontSize: '16px' }}>...</div>`
+
+// Events
+html`<button onclick=${handleClick}>Click</button>`
+
+// Refs
+html`<input ref=${(el) => el.focus()} />`
+
+// Lists
+html`<ul>${() => items().map(item => html`<li>${item.name}</li>`)}</ul>`
+
+// Directives
+html`<div d-tooltip="Hello">Hover me</div>`
+
+// Spread props
+html`<div ${{ id: 'main', role: 'region' }}>...</div>`
 ```
 
-This is not "the simple but slow option." `html`'s reactive-child binding
-already diffs at the anchor level — when `items()` changes, only the content
-between that expression's start/end anchor comments is torn down and rebuilt,
-not the whole surrounding template. For lists that reorder, filter, or grow
-below the windowing threshold, this is the correct default, full stop.
+## Rendering Lists
 
-**Above ~500–1000 rows** (or whenever a list is described as a "table",
-"grid", or "feed" that could grow large), reach for `VirtualList` instead —
-not because `.map()` is "slow" at that point, but because *any* approach that
-mounts one real DOM node per row is the bottleneck, and only windowing avoids
-that cost:
+Two patterns. Choose by size:
 
+**Below ~1000 visible rows** — use `.map()`:
 ```ts
-import { createSignal, VirtualList, html } from 'onefold';
+html`<ul>${() => items().map(item => html`<li>${item.name}</li>`)}</ul>`
+```
 
-const rows = createSignal(fetchedRows); // could be 100,000+ items
+This is not "the simple option." The reactive binding already diffs at the anchor level — only the content produced by that expression is replaced, not the surrounding template.
 
-const table = VirtualList({
+**Above ~1000 rows** — use `VirtualList`:
+```ts
+VirtualList({
   items: rows,
-  itemHeight: 32,       // fixed row height in px — required for windowing math
-  height: 600,          // visible viewport height in px
-  renderRow: (row) => html`<div class="row">${row.name} — ${row.value}</div>`,
+  itemHeight: 40,
+  height: 600,
+  renderRow: (row) => html`<div>${row.name}</div>`,
 });
 ```
 
-`VirtualList` only mounts nodes for rows in the visible viewport (+ overscan),
-so DOM node count stays constant regardless of dataset size — this is the
-actual fix for large tables, not a stylistic alternative to `.map()`.
+Do not introduce a third list API. These two cover every case.
 
-## File/folder layout to follow in consumer apps
+## Component Pattern
 
-```
-src/
-  components/   one file per component, named export, PascalCase filename
-  state/        signals and stores shared across components
-  routes/       one file per route, default export is `() => Node`
-  main.ts       calls mount() once
-```
-
-Component functions are plain functions returning `Node`. No classes, no decorators,
-no lifecycle methods to remember — a component's "lifecycle" is just the closures and
-`createEffect` calls made while building the node. `html`'s own bindings clean
-themselves up automatically when their element leaves the document; if you call
-`createEffect` yourself outside of `html` (rare — most components never need to),
-capture its disposer and call it when the parent removes the node.
-
-## Idiomatic component template
+Components are plain functions returning `Node`. No classes, no decorators, no lifecycle methods.
 
 ```ts
 import { createSignal, html, type Signal } from 'onefold';
@@ -125,31 +142,32 @@ export function Toggle({ label }: Props): Node {
 
   return html`
     <button
-      onclick=${() => on.set((v) => !v)}
-      class=${() => (on() ? 'active' : '')}
+      onclick=${() => on.set(v => !v)}
+      class=${() => on() ? 'active' : ''}
     >${() => `${label}: ${on() ? 'On' : 'Off'}`}</button>
   `;
 }
 ```
 
-## Type-checking
+## Project Structure
 
-The library builds under `strict: true` with `noUncheckedIndexedAccess: true`. Match
-that in consumer `tsconfig.json` — onefold's types are written to make illegal
-states (e.g. writing to a computed signal) fail at compile time, and loosening strict
-mode throws that away.
+```
+src/
+  components/    One file per component, PascalCase filename
+  state/         Signals and stores shared across components
+  routes/        One file per route, default export is () => Node
+  main.ts        Calls mount() once
+```
 
-## What not to add
+## TypeScript
 
-Don't reach for a virtual DOM diffing layer, a compiler/JSX transform, or a global
-store singleton to "extend" this framework — those are different architectures with
-different tradeoffs. If a task needs them, say so explicitly rather than bolting them
-on; grafting a vdom onto a fine-grained-signals renderer produces double-updates and
-is the most likely way an AI-generated PR against this repo goes subtly wrong.
+The library builds under `strict: true` with `noUncheckedIndexedAccess: true`. Match this in consumer `tsconfig.json`. The types are designed to make illegal states fail at compile time — loosening strict mode defeats that.
 
-Don't reintroduce a second element-construction API (a hyperscript function, JSX,
-etc.) or a second list-rendering API (a keyed-diff helper) alongside `html` and
-`.map()`/`VirtualList`. onefold deliberately has exactly one way to build a node
-and exactly two ways to render a list (by size, not by preference) — adding a third
-option to either is the "multiple ways to do the same thing" problem this framework
-exists to avoid, even if the new option is individually reasonable in isolation.
+## What Not To Do
+
+- Do not add a virtual DOM diffing layer or JSX transform. These are different architectures with different tradeoffs.
+- Do not introduce a second element-construction API (hyperscript, JSX) alongside `html`.
+- Do not add a keyed-list helper alongside `.map()` and `VirtualList`.
+- Do not create global store singletons. Use signals, `createStore`, or the DI system (`provide`/`inject`).
+
+onefold deliberately has one way to build nodes and two ways to render lists (by size threshold, not preference). Adding alternatives creates the "multiple ways to do the same thing" problem this framework exists to avoid.
