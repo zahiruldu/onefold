@@ -77,10 +77,9 @@ export type { WebSocketStream, WebSocketOptions, EventSourceStream, EventSourceO
 export { FocusTrap, announce, useKeyboard, SkipLink } from './core/a11y';
 export type { FocusTrapInstance, KeyMap, KeyboardShortcuts } from './core/a11y';
 
-export { enableDevtools, disableDevtools } from './core/devtools';
-export type { DevtoolsAPI, RenderEntry, DevtoolsStats } from './core/devtools';
+export { enableDevtools, disableDevtools, _devRegisterSignal, _devSignalUpdated, _devRegisterEffect, _devEffectRan, _devEffectDisposed, _devRegisterStore, _devRouteChanged } from './core/devtools';
+export type { DevtoolsAPI, RenderEntry, DevtoolsStats, SignalInfo, EffectInfo, StoreInfo, RouteInfo } from './core/devtools';
 
-export { renderToString, renderToStringAsync } from './core/ssr';
-export type { SSROptions } from './core/ssr';
+export { renderHTML } from './core/ssr';
 
 export { formatDate, timeAgo, formatCurrency, formatNumber, truncate, slugify, pluralize, capitalize, debounce, throttle, pipe } from './core/utils';

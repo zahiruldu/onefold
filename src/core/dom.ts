@@ -5,8 +5,7 @@
 
 /** Replace a container's contents with a node. The one place a framework user calls "render". */
 export function mount(node: Node, container: Element): void {
-  container.textContent = '';
-  container.appendChild(node);
+  container.replaceChildren(node);
 }
 
 export { raw } from '../security/sanitize';
