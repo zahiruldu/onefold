@@ -7,7 +7,7 @@
     "dev": "node build.mjs --watch"
   },
   "dependencies": {
-     "onefold": "^0.1.1"
+    "onefold": "file:../.."
   },
   "devDependencies": {
     "esbuild": "^0.25.11"
