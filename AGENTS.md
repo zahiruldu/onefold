@@ -43,7 +43,7 @@ These are non-negotiable. Violating them breaks security or reactivity guarantee
 
 ### Security
 
-4. **Never use `innerHTML` directly.** The only sanctioned way to insert markup is `raw()` from onefold, and only for developer-authored content — never for user input.
+4. **Never use `innerHTML` directly.** The only sanctioned way to insert markup is `raw()` from onefold, and only for developer-authored content — never for user input. For user-generated HTML (comments, rich text editors, markdown output), pipe through [DOMPurify](https://github.com/cure53/DOMPurify) before calling `raw()`.
 
 5. **Never use `eval`, `new Function`, or string-based timers.** The library uses none; keep it that way so CSP with no `unsafe-eval` always works.
 
@@ -92,6 +92,10 @@ html`<button onclick=${handleClick}>Click</button>`
 
 // Refs
 html`<input ref=${(el) => el.focus()} />`
+
+// Two-way input binding (value reads signal, oninput writes signal)
+// Required for form.reset() or signal.set('') to visually clear the input
+html`<input value=${() => name()} oninput=${(e) => name.set(e.target.value)} />`
 
 // Lists
 html`<ul>${() => items().map(item => html`<li>${item.name}</li>`)}</ul>`

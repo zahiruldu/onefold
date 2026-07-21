@@ -95,6 +95,7 @@ More examples are available in the repository:
 - **hero-app** — Full-stack app with auth, forms, and API integration
 - **comprehensive-app** — Feature showcase across the full API surface
 - **microfrontend** — Host shell with independently-deployed remote widgets
+- **ssr-app** — Server-side rendering with Express, selective hydration, async data
 
 ## Contributing
 
