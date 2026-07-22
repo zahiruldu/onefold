@@ -14,7 +14,7 @@
  * html`<div>${() => hero.loading() ? 'Loading...' : hero.data()?.name}</div>`
  * ```
  */
-import { createSignal, createEffect } from './signal';
+import { createSignal, createEffect } from './signal.js';
 /**
  * Create a reactive resource that fetches data whenever the source signal changes.
  *

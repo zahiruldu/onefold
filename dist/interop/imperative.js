@@ -1,5 +1,5 @@
-import { createEffect } from '../core/signal';
-import { disposeOnRemove } from '../core/lifecycle';
+import { createEffect } from '../core/signal.js';
+import { disposeOnRemove } from '../core/lifecycle.js';
 export function wrapImperative(adapter) {
     const el = document.createElement(adapter.tag);
     const instance = adapter.mount(el);

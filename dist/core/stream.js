@@ -18,7 +18,7 @@
  * feed.close();
  * ```
  */
-import { createSignal } from './signal';
+import { createSignal } from './signal.js';
 /**
  * Create a reactive WebSocket connection.
  */

@@ -5,10 +5,14 @@
  * effects unsubscribe from stale dependencies on every run so there are no
  * leaks and no wasted re-computation (same model class as Solid/Preact Signals).
  */
-import { runWithHook } from './extend';
+import { runWithHook } from './extend.js';
 let activeEffect = null;
 let batchDepth = 0;
 const pendingEffects = new Set();
+/* ────────────────── Dev-mode: infinite loop detection ────────────────── */
+let _devUpdateCounter = 0;
+let _devUpdateResetTimer = null;
+const _DEV_UPDATE_THRESHOLD = 200;
 class ReactiveEffect {
     constructor(fn, label) {
         this.deps = new Set();
@@ -59,6 +63,16 @@ class SignalImpl {
         if (Object.is(newValue, this.value))
             return;
         this.value = newValue;
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            _devUpdateCounter++;
+            if (!_devUpdateResetTimer) {
+                _devUpdateResetTimer = setTimeout(() => { _devUpdateCounter = 0; _devUpdateResetTimer = null; }, 1000);
+            }
+            if (_devUpdateCounter > _DEV_UPDATE_THRESHOLD) {
+                console.warn(`[onefold] Signal updated ${_devUpdateCounter} times in <1s. Possible infinite loop in an effect.`);
+                _devUpdateCounter = 0;
+            }
+        }
         this.notify();
     }
     peek() {
@@ -92,7 +106,40 @@ export function createSignal(initial) {
  *   Purely diagnostic — has no effect on scheduling or dependency tracking.
  */
 export function createEffect(fn, label = 'effect') {
-    const effect = new ReactiveEffect(fn, label);
+    // In dev mode, auto-generate a meaningful label from the call stack
+    // e.g. "App (app.js:142)" or "App" instead of generic "effect"
+    let resolvedLabel = label;
+    if (typeof __DEV__ !== 'undefined' && __DEV__ && label === 'effect') {
+        try {
+            const stack = new Error().stack ?? '';
+            const lines = stack.split('\n');
+            // Skip: Error line, createEffect itself — find the caller
+            for (let i = 2; i < lines.length && i < 8; i++) {
+                const line = lines[i]?.trim() ?? '';
+                if (!line)
+                    continue;
+                // Skip framework internals (both .ts source and bundled names)
+                if (/\bcreateEffect\b|\bcreateComputed\b|\bbindReactive\b|\bapplyAttr\b|\bbuildDom\b|\bappendExpr\b|\brunWithHook\b|ReactiveEffect/.test(line))
+                    continue;
+                // Try to extract function name: "at FunctionName (...)"
+                const fnMatch = line.match(/at\s+([A-Z]\w+)\s+\(/);
+                if (fnMatch) {
+                    // Extract file:line if available
+                    const locMatch = line.match(/:(\d+):\d+\)?$/);
+                    resolvedLabel = locMatch ? `${fnMatch[1]} (:${locMatch[1]})` : fnMatch[1];
+                    break;
+                }
+                // Anonymous but has a location
+                const locOnly = line.match(/([^/\\:]+):(\d+):\d+\)?$/);
+                if (locOnly) {
+                    resolvedLabel = `${locOnly[1]}:${locOnly[2]}`;
+                    break;
+                }
+            }
+        }
+        catch { /* stack not available */ }
+    }
+    const effect = new ReactiveEffect(fn, resolvedLabel);
     effect.run();
     return () => effect.dispose();
 }

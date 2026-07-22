@@ -11,7 +11,7 @@
  * // On next page load, user() returns { theme: 'light', lang: 'en' }
  * ```
  */
-import { createSignal, createEffect } from './signal';
+import { createSignal, createEffect } from './signal.js';
 /* ────────────────── Security: prototype pollution guard ────────────────── */
 const POISONED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 /** Recursively strip prototype-polluting keys from parsed JSON. */

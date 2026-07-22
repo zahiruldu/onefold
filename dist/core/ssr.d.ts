@@ -1,48 +1,49 @@
 /**
- * SSR Primitives — renderToString for server-side rendering.
+ * Token-level string renderer for SSR.
  *
- * Converts a onefold component tree into an HTML string for sending
- * from a server to the client. This enables SEO, faster initial paint,
- * and works with any Node.js server framework (Express, Fastify, Hono, etc.).
+ * Zero dependencies. No jsdom. No DOM API. Pure string output.
+ * Reuses the same tokenizer as the client-side `html` template —
+ * same parsing, same escaping, different output target.
  *
- * Note: Requires a DOM implementation in Node (jsdom). The framework already
- * uses jsdom for testing, so this adds no new dependency.
+ * Tree-shakable: if you never import `renderHTML`, this module is
+ * completely eliminated from the client bundle.
  *
  * Usage:
  * ```ts
- * // server.ts
- * import { renderToString } from 'onefold/ssr';
- * import { App } from './App';
+ * // server.ts — only runs on server
+ * import { renderHTML } from 'onefold';
+ * import { HomePage } from './pages/Home';
  *
- * const html = renderToString(() => App());
- * res.send(`<!DOCTYPE html><html><body><div id="app">${html}</div></body></html>`);
+ * const html = renderHTML(() => HomePage());
+ * res.send(`<div id="app">${html}</div>`);
  *
- * // For components with async data (Suspense boundaries), use the async variant:
- * const html = await renderToStringAsync(async () => { ...; return App(); });
+ * // Async (with data fetching):
+ * const html = await renderHTML(async () => {
+ *   const data = await fetch('/api/data').then(r => r.json());
+ *   return DataPage({ data });
+ * });
  * ```
- *
- * Streaming SSR (renderToStream) is not implemented in core — it requires a
- * Node/Web Streams integration that belongs in a platform-specific adapter
- * package, not the zero-dependency core.
- *
- * Hydration: The client picks up where SSR left off by calling mount()
- * on the same container — signals bind to the existing DOM nodes.
  */
-export interface SSROptions {
-    /** Strip data- attributes used internally (data-remote, data-transition, etc.). Default: true. */
-    stripInternalAttrs?: boolean;
-    /** Pretty-print the HTML output. Default: false. */
-    prettyPrint?: boolean;
-}
 /**
- * Render a component to an HTML string.
- * Executes the component synchronously and serializes the resulting DOM.
+ * Render a component to an HTML string on the server.
+ * Zero dependencies — no jsdom, no DOM API required.
  *
- * Requires a DOM environment (jsdom in Node, or native in browser/Deno).
+ * The component function runs with a special `html` that returns strings
+ * instead of DOM nodes. Reactive expressions are evaluated once (snapshot).
+ * Event handlers are stripped from output.
+ *
+ * @example
+ * ```ts
+ * import { renderHTML } from 'onefold';
+ *
+ * // Sync
+ * const result = renderHTML(() => html`<h1>Hello</h1>`);
+ *
+ * // Async (with data fetching)
+ * const result = await renderHTML(async () => {
+ *   const users = await db.getUsers();
+ *   return html`<ul>${users.map(u => html`<li>${u.name}</li>`)}</ul>`;
+ * });
+ * ```
  */
-export declare function renderToString(componentFn: () => Node, options?: SSROptions): string;
-/**
- * Render a component to an HTML string (async version).
- * Waits for any top-level promises (Suspense boundaries) to resolve before serializing.
- */
-export declare function renderToStringAsync(componentFn: () => Node | Promise<Node>, options?: SSROptions): Promise<string>;
+export declare function renderHTML(componentFn: () => unknown | Promise<unknown>): string | Promise<string>;
