@@ -47,9 +47,9 @@ describe('enableDevtools (effect-hook wiring regression)', () => {
     assert.equal(api.stats().totalErrors, 1);
   });
 
-  it('exposes the global __NANOFRAME_DEVTOOLS__ handle', () => {
+  it('exposes the global __ONEFOLD_DEVTOOLS__ handle', () => {
     enableDevtools();
-    assert.ok((window as any).__NANOFRAME_DEVTOOLS__);
+    assert.ok((window as any).__ONEFOLD_DEVTOOLS__);
   });
 
   it('disableDevtools() stops further tracking and removes the global handle', () => {
@@ -61,7 +61,7 @@ describe('enableDevtools (effect-hook wiring regression)', () => {
     createEffect(() => { s(); });
 
     assert.equal(api.stats().totalRenders, before, 'no new renders should be recorded on the now-detached api object');
-    assert.equal((window as any).__NANOFRAME_DEVTOOLS__, undefined);
+    assert.equal((window as any).__ONEFOLD_DEVTOOLS__, undefined);
   });
 
   it('clear() resets render history and error count', () => {

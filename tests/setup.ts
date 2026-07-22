@@ -12,6 +12,7 @@ const dom = new JSDOM('<!DOCTYPE html><html><body><div id="app"></div></body></h
 (globalThis as any).window = dom.window;
 (globalThis as any).document = dom.window.document;
 (globalThis as any).HTMLElement = dom.window.HTMLElement;
+(globalThis as any).SVGElement = dom.window.SVGElement ?? dom.window.HTMLElement;
 (globalThis as any).Node = dom.window.Node;
 (globalThis as any).NodeFilter = dom.window.NodeFilter;
 (globalThis as any).DocumentFragment = dom.window.DocumentFragment;
