@@ -7,12 +7,21 @@ export function lazy(loader, fallback) {
     return (props) => {
         const placeholder = document.createElement('div');
         placeholder.appendChild(fallback());
+        let hadParent = false;
         loader().then((mod) => {
+            // If the placeholder was parented (rendered) then removed, skip the update
+            if (hadParent && !placeholder.parentNode)
+                return;
             placeholder.textContent = '';
             placeholder.appendChild(mod.default(props));
         }).catch((err) => {
+            if (hadParent && !placeholder.parentNode)
+                return;
             console.error('[onefold] lazy() failed to load module:', err);
         });
+        // Track when the placeholder gets attached to a parent
+        queueMicrotask(() => { if (placeholder.parentNode)
+            hadParent = true; });
         return placeholder;
     };
 }

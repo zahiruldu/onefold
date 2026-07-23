@@ -24,8 +24,8 @@
  * })}</div>`
  * ```
  */
-import { createEffect } from './signal';
-import { disposeOnRemove } from './lifecycle';
+import { createEffect } from './signal.js';
+import { disposeOnRemove } from './lifecycle.js';
 /* ────────────────── Implementation ────────────────── */
 /**
  * Wrap a reactive node source with enter/leave transitions.

@@ -24,7 +24,7 @@
  * theme.current() // 'dark' (reactive)
  * ```
  */
-import { createSignal, createEffect } from './signal';
+import { createSignal, createEffect } from './signal.js';
 /* ────────────────── Implementation ────────────────── */
 /**
  * Create a reactive theme system. Applies CSS custom properties to

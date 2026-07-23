@@ -104,6 +104,7 @@ function AnalyticsOverview(): Node {
 
 function PerformanceTab(): Node {
   const stats = devtools.stats();
+  console.log('stats',stats);
 
   return html`
     <div>

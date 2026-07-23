@@ -91,17 +91,17 @@ export function SettingsPage(): Node {
           <div class="form-body">
             <div class="form-group">
               <label class="form-label">${() => i18n.t('form.name')}</label>
-              <input class="form-input" type="text" oninput=${contactForm.fields.name.handle} placeholder="Your name" />
+              <input class="form-input" type="text" value=${() => contactForm.fields.name.value()} oninput=${contactForm.fields.name.handle} placeholder="Your name" />
               <div class="form-error">${() => contactForm.fields.name.error()}</div>
             </div>
             <div class="form-group">
               <label class="form-label">${() => i18n.t('form.email')}</label>
-              <input class="form-input" type="email" oninput=${contactForm.fields.contactEmail.handle} placeholder="your@email.com" />
+              <input class="form-input" type="email" value=${() => contactForm.fields.contactEmail.value()} oninput=${contactForm.fields.contactEmail.handle} placeholder="your@email.com" />
               <div class="form-error">${() => contactForm.fields.contactEmail.error()}</div>
             </div>
             <div class="form-group">
               <label class="form-label">Bio</label>
-              <textarea class="form-input" rows="4" oninput=${contactForm.fields.bio.handle} placeholder="Tell us about yourself..."></textarea>
+              <textarea class="form-input" rows="4" value=${() => contactForm.fields.bio.value()} oninput=${contactForm.fields.bio.handle} placeholder="Tell us about yourself..."></textarea>
               <div class="form-error">${() => contactForm.fields.bio.error()}</div>
             </div>
             <div class="btn-row">

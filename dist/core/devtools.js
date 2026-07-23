@@ -1,6 +1,8 @@
 /**
- * DevTools protocol — exposes the signal graph, component tree, and render
- * performance data to a browser devtools extension.
+ * onefold DevTools — enhanced console-based debugging API.
+ *
+ * Exposes `window.__ONEFOLD_DEVTOOLS__` with signal tracking, dependency
+ * graph inspection, render performance profiling, and store state viewing.
  *
  * Usage:
  * ```ts
@@ -9,32 +11,131 @@
  * }
  * ```
  *
- * Once enabled, the devtools extension (or console) can access:
- * - `__NANOFRAME_DEVTOOLS__.signals` — list of active signals with values
- * - `__NANOFRAME_DEVTOOLS__.components` — component tree with metadata
- * - `__NANOFRAME_DEVTOOLS__.renders` — recent render performance data
- * - `__NANOFRAME_DEVTOOLS__.inspect(el)` — inspect a DOM element's bindings
+ * Console API:
+ * ```
+ * __ONEFOLD_DEVTOOLS__.signals()        — list all tracked signals with values
+ * __ONEFOLD_DEVTOOLS__.effects()        — list all active effects with dependencies
+ * __ONEFOLD_DEVTOOLS__.renders          — render performance timeline
+ * __ONEFOLD_DEVTOOLS__.stats()          — { totalRenders, avgDuration, slowestRender }
+ * __ONEFOLD_DEVTOOLS__.inspect(el)      — inspect a DOM element's bindings
+ * __ONEFOLD_DEVTOOLS__.highlight(el)    — flash-highlight an element
+ * __ONEFOLD_DEVTOOLS__.trace(label)     — log when a named signal/effect runs
+ * __ONEFOLD_DEVTOOLS__.stores()         — snapshot of all registered stores
+ * __ONEFOLD_DEVTOOLS__.routes()         — current route + navigation history
+ * __ONEFOLD_DEVTOOLS__.clear()          — reset all collected data
+ * __ONEFOLD_DEVTOOLS__.on(event, fn)    — subscribe to devtools events
+ * ```
  */
-import { setEffectHook } from './extend';
+import { setEffectHook } from './extend.js';
+let nextSignalId = 1;
+let nextEffectId = 1;
+const trackedSignals = new Map();
+const trackedEffects = new Map();
+const trackedStores = [];
+const routeHistory = [];
+const traceLabels = new Set();
+/* ────────────────── Public registration hooks ────────────────── */
+/**
+ * Register a signal for devtools tracking. Called internally by createSignal
+ * when devtools are enabled. No-op when devtools are disabled.
+ */
+export function _devRegisterSignal(label, getValue, getSubscriberCount) {
+    if (!devtoolsInstance)
+        return 0;
+    const id = nextSignalId++;
+    trackedSignals.set(id, { id, label, getValue, getSubscriberCount, lastUpdated: Date.now() });
+    return id;
+}
+/**
+ * Notify devtools that a signal value changed.
+ */
+export function _devSignalUpdated(id) {
+    if (!devtoolsInstance)
+        return;
+    const entry = trackedSignals.get(id);
+    if (entry) {
+        entry.lastUpdated = Date.now();
+        emit('signal', { id, label: entry.label, value: entry.getValue() });
+        if (traceLabels.has(entry.label)) {
+            console.log(`%c[onefold trace]%c ${entry.label} →`, 'color:#4338CA;font-weight:bold', 'color:inherit', entry.getValue());
+        }
+    }
+}
+/**
+ * Register an effect for devtools tracking.
+ */
+export function _devRegisterEffect(label, getDependencyCount) {
+    if (!devtoolsInstance)
+        return 0;
+    const id = nextEffectId++;
+    trackedEffects.set(id, { id, label, getDependencyCount, runCount: 0, lastRun: Date.now(), active: true });
+    return id;
+}
+/**
+ * Notify devtools that an effect ran.
+ */
+export function _devEffectRan(id) {
+    if (!devtoolsInstance)
+        return;
+    const entry = trackedEffects.get(id);
+    if (entry) {
+        entry.runCount++;
+        entry.lastRun = Date.now();
+        if (traceLabels.has(entry.label)) {
+            console.log(`%c[onefold trace]%c effect "${entry.label}" ran (${entry.runCount}x)`, 'color:#4338CA;font-weight:bold', 'color:inherit');
+        }
+    }
+}
+/**
+ * Mark an effect as disposed.
+ */
+export function _devEffectDisposed(id) {
+    if (!devtoolsInstance)
+        return;
+    const entry = trackedEffects.get(id);
+    if (entry)
+        entry.active = false;
+}
+/**
+ * Register a store for devtools inspection.
+ */
+export function _devRegisterStore(label, getState) {
+    if (!devtoolsInstance)
+        return;
+    trackedStores.push({ label, get state() { return getState(); } });
+}
+/**
+ * Notify devtools of a route change.
+ */
+export function _devRouteChanged(path) {
+    if (!devtoolsInstance)
+        return;
+    routeHistory.push(path);
+    if (routeHistory.length > 50)
+        routeHistory.shift();
+    emit('navigate', { from: routeHistory[routeHistory.length - 2] ?? '/', to: path });
+}
 /* ────────────────── Implementation ────────────────── */
 let devtoolsInstance = null;
+const listeners = new Map();
+function emit(event, ...args) {
+    const set = listeners.get(event);
+    if (set)
+        for (const handler of set)
+            handler(...args);
+}
 /**
  * Enable devtools integration. Call once at app startup (dev mode only).
- * Installs a global `__NANOFRAME_DEVTOOLS__` object and hooks into the
- * effect system to track render performance.
+ * Installs `window.__ONEFOLD_DEVTOOLS__` and hooks into the effect system.
+ *
+ * Zero overhead when not called — all tracking functions are no-ops
+ * until enableDevtools() creates the instance.
  */
 export function enableDevtools() {
     if (devtoolsInstance)
         return devtoolsInstance;
     const renders = [];
-    const listeners = new Map();
     let errorCount = 0;
-    function emit(event, ...args) {
-        const set = listeners.get(event);
-        if (set)
-            for (const handler of set)
-                handler(...args);
-    }
     // Hook into the effect system to measure render durations
     setEffectHook((label, fn) => {
         const start = performance.now();
@@ -47,36 +148,126 @@ export function enableDevtools() {
             throw err;
         }
         const duration = performance.now() - start;
-        const entry = { label, duration, timestamp: Date.now() };
+        // Capture a meaningful source location from the stack trace.
+        // Skip internal frames (devtools.ts, signal.ts, template.ts, extend.ts)
+        let source = '';
+        try {
+            const stack = new Error().stack ?? '';
+            const lines = stack.split('\n');
+            const internalPatterns = /devtools|signal|template|extend|lifecycle|runWithHook/i;
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i]?.trim() ?? '';
+                if (line && !internalPatterns.test(line)) {
+                    // Extract "at FunctionName (file:line:col)" or "at file:line:col"
+                    const match = line.match(/at\s+(\S+)\s+\((.+)\)/) ?? line.match(/at\s+(.+)/);
+                    if (match) {
+                        source = match[1] ?? line;
+                        // Clean up long paths — keep just filename:line
+                        const pathMatch = source.match(/([^/\\]+\.\w+:\d+)/);
+                        if (pathMatch)
+                            source = pathMatch[1];
+                    }
+                    break;
+                }
+            }
+        }
+        catch { /* stack trace not available in all environments */ }
+        const entry = { label, duration, timestamp: Date.now(), source };
         renders.push(entry);
-        // Keep only last 500 entries
-        if (renders.length > 500)
+        if (renders.length > 1000)
             renders.shift();
         emit('render', entry);
     });
     const api = {
-        version: '0.1.0',
+        version: '0.1.1',
         active: true,
         renders,
+        signals: () => {
+            const result = [];
+            for (const [, s] of trackedSignals) {
+                result.push({
+                    id: s.id,
+                    label: s.label,
+                    value: s.getValue(),
+                    subscribers: s.getSubscriberCount(),
+                    lastUpdated: s.lastUpdated,
+                });
+            }
+            return result;
+        },
+        effects: () => {
+            const result = [];
+            for (const [, e] of trackedEffects) {
+                result.push({
+                    id: e.id,
+                    label: e.label,
+                    dependencies: e.getDependencyCount(),
+                    runCount: e.runCount,
+                    lastRun: e.lastRun,
+                    active: e.active,
+                });
+            }
+            return result;
+        },
+        stores: () => [...trackedStores],
+        routes: () => ({
+            current: routeHistory[routeHistory.length - 1] ?? '/',
+            history: [...routeHistory],
+        }),
         inspect: (el) => {
-            console.group('[onefold devtools] Inspect:', el);
+            console.group('%c[onefold] Inspect Element', 'color:#4338CA;font-weight:bold');
+            console.log('Element:', el);
             console.log('Tag:', el.tagName.toLowerCase());
-            console.log('Attributes:', Array.from(el.attributes).map((a) => `${a.name}="${a.value}"`));
+            console.log('Classes:', el.className || '(none)');
+            console.log('Attributes:', Object.fromEntries(Array.from(el.attributes).map(a => [a.name, a.value])));
             console.log('Children:', el.childNodes.length);
-            console.log('Data-remote:', el.getAttribute('data-remote') ?? 'none');
+            console.log('Text:', el.textContent?.substring(0, 100) ?? '');
+            console.log('Parent:', el.parentElement?.tagName.toLowerCase() ?? '(none)');
+            console.log('Data attrs:', Object.fromEntries(Array.from(el.attributes).filter(a => a.name.startsWith('data-')).map(a => [a.name, a.value])));
             console.groupEnd();
+        },
+        highlight: (el) => {
+            const prev = el.style.outline;
+            const prevTransition = el.style.transition;
+            el.style.transition = 'outline 0.1s';
+            el.style.outline = '2px solid #4338CA';
+            setTimeout(() => {
+                el.style.outline = '2px solid transparent';
+                setTimeout(() => {
+                    el.style.outline = prev;
+                    el.style.transition = prevTransition;
+                }, 300);
+            }, 600);
+        },
+        trace: (label) => {
+            traceLabels.add(label);
+            console.log(`%c[onefold] Tracing "${label}" — changes will be logged`, 'color:#4338CA');
+            return () => { traceLabels.delete(label); };
         },
         stats: () => {
             const total = renders.length;
             const avg = total > 0 ? renders.reduce((s, r) => s + r.duration, 0) / total : 0;
-            const slowest = total > 0
-                ? renders.reduce((max, r) => r.duration > max.duration ? r : max, renders[0])
-                : null;
-            return { totalRenders: total, avgDuration: avg, slowestRender: slowest, totalErrors: errorCount };
+            const sorted = [...renders].sort((a, b) => a.duration - b.duration);
+            return {
+                totalRenders: total,
+                avgDuration: Math.round(avg * 100) / 100,
+                slowestRender: sorted.length > 0 ? sorted[sorted.length - 1] : null,
+                fastestRender: sorted.length > 0 ? sorted[0] : null,
+                totalErrors: errorCount,
+                activeSignals: trackedSignals.size,
+                activeEffects: [...trackedEffects.values()].filter(e => e.active).length,
+            };
         },
         clear: () => {
             renders.length = 0;
             errorCount = 0;
+            trackedSignals.clear();
+            trackedEffects.clear();
+            trackedStores.length = 0;
+            routeHistory.length = 0;
+            traceLabels.clear();
+            nextSignalId = 1;
+            nextEffectId = 1;
         },
         on: (event, handler) => {
             if (!listeners.has(event))
@@ -84,11 +275,61 @@ export function enableDevtools() {
             listeners.get(event).add(handler);
             return () => { listeners.get(event)?.delete(handler); };
         },
+        dump: () => {
+            const s = api.stats();
+            console.group('%c[onefold devtools] State Dump', 'color:#4338CA;font-weight:bold;font-size:14px');
+            console.log('Version:', api.version);
+            console.log('');
+            console.log('%cSignals (%d)', 'font-weight:bold', s.activeSignals);
+            console.table(api.signals().map(sig => ({
+                id: sig.id,
+                label: sig.label,
+                value: typeof sig.value === 'object' ? JSON.stringify(sig.value) : sig.value,
+                subscribers: sig.subscribers,
+            })));
+            console.log('');
+            console.log('%cEffects (%d active)', 'font-weight:bold', s.activeEffects);
+            console.table(api.effects().filter(e => e.active).map(eff => ({
+                id: eff.id,
+                label: eff.label,
+                deps: eff.dependencies,
+                runs: eff.runCount,
+            })));
+            console.log('');
+            console.log('%cPerformance', 'font-weight:bold');
+            console.log(`  Renders: ${s.totalRenders}`);
+            console.log(`  Avg duration: ${s.avgDuration}ms`);
+            console.log(`  Slowest: ${s.slowestRender ? `${s.slowestRender.label} (${s.slowestRender.duration.toFixed(2)}ms) @ ${s.slowestRender.source}` : 'N/A'}`);
+            console.log(`  Errors: ${s.totalErrors}`);
+            if (renders.length > 0) {
+                console.log('');
+                console.log('%cRecent Renders (last 10)', 'font-weight:bold');
+                console.table(renders.slice(-10).map(r => ({
+                    label: r.label,
+                    duration: r.duration.toFixed(3) + 'ms',
+                    source: r.source || '(internal)',
+                    time: new Date(r.timestamp).toLocaleTimeString(),
+                })));
+            }
+            console.log('');
+            if (trackedStores.length > 0) {
+                console.log('%cStores', 'font-weight:bold');
+                for (const store of trackedStores) {
+                    console.log(`  ${store.label}:`, store.state);
+                }
+                console.log('');
+            }
+            const r = api.routes();
+            console.log('%cRouting', 'font-weight:bold');
+            console.log(`  Current: ${r.current}`);
+            console.log(`  History: ${r.history.join(' → ')}`);
+            console.groupEnd();
+        },
     };
     devtoolsInstance = api;
-    // Expose globally for browser devtools extension
     if (typeof window !== 'undefined') {
-        window.__NANOFRAME_DEVTOOLS__ = api;
+        window.__ONEFOLD_DEVTOOLS__ = api;
+        console.log('%c🔷 onefold devtools enabled %cv' + api.version + '%c — type __ONEFOLD_DEVTOOLS__.dump() for full state', 'background:#4338CA;color:#fff;padding:2px 8px;border-radius:3px;font-weight:bold', 'background:#818CF8;color:#fff;padding:2px 6px;border-radius:3px;margin-left:4px', 'color:#64748b;margin-left:8px');
     }
     return api;
 }
@@ -100,8 +341,14 @@ export function disableDevtools() {
         return;
     setEffectHook(null);
     devtoolsInstance.active = false;
+    listeners.clear();
+    trackedSignals.clear();
+    trackedEffects.clear();
+    trackedStores.length = 0;
+    routeHistory.length = 0;
+    traceLabels.clear();
     if (typeof window !== 'undefined') {
-        delete window.__NANOFRAME_DEVTOOLS__;
+        delete window.__ONEFOLD_DEVTOOLS__;
     }
     devtoolsInstance = null;
 }

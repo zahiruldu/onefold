@@ -51,9 +51,14 @@ export function Suspense(
   if (fallback) container.appendChild(fallback());
 
   const startTime = Date.now();
+  let wasConnected = false;
 
   asyncRender()
     .then(async (node) => {
+      // Track if container was ever in the DOM
+      if (container.isConnected || container.parentNode) wasConnected = true;
+      // Skip if container was removed after being connected
+      if (wasConnected && !container.isConnected && !container.parentNode) return;
       // Respect minimum loading time to avoid flash
       if (minLoadingMs > 0) {
         const elapsed = Date.now() - startTime;
@@ -61,10 +66,12 @@ export function Suspense(
           await delay(minLoadingMs - elapsed);
         }
       }
+      if (wasConnected && !container.isConnected && !container.parentNode) return;
       container.textContent = '';
       container.appendChild(node);
     })
     .catch((err) => {
+      if (wasConnected && !container.isConnected && !container.parentNode) return;
       container.textContent = '';
       const error = err instanceof Error ? err : new Error(String(err));
       if (onError) {

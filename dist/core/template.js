@@ -10,10 +10,15 @@
  *
  * Reactive values (signals or closures) are bound via `createEffect` just like `h()`.
  */
-import { createEffect } from './signal';
-import { isEventAttribute, isRawHtml, isUnsafeUrl, toTrustedHtml } from '../security/sanitize';
-import { getDirective } from './extend';
-import { disposeOnRemove } from './lifecycle';
+import { createEffect } from './signal.js';
+import { isEventAttribute, isRawHtml, isUnsafeUrl, toTrustedHtml } from '../security/sanitize.js';
+import { getDirective } from './extend.js';
+import { disposeOnRemove } from './lifecycle.js';
+let _ssrInterceptor = null;
+/** @internal Used by ssr.ts to temporarily redirect html`` output to string mode. */
+export function _setSSRMode(interceptor) {
+    _ssrInterceptor = interceptor;
+}
 /* ────────────────────────── Placeholder ────────────────────────── */
 const PLACEHOLDER_PREFIX = '\x00nf_';
 const PLACEHOLDER_RE = /\x00nf_(\d+)\x00/g;
@@ -209,6 +214,7 @@ function resolveAttrValue(rawVal, values) {
         parts.push(rawVal.slice(lastPh));
     return () => parts.map(p => typeof p === 'function' ? p() : p).join('');
 }
+/* ────────────────────────── SVG namespace support ────────────────────────── */
 /* ────────────────────────── Builder (tokens → DOM) ────────────────────────── */
 function buildDom(tokens) {
     const root = document.createDocumentFragment();
@@ -224,6 +230,19 @@ function buildDom(tokens) {
                 break;
             }
             case 1 /* TokenKind.CloseTag */: {
+                if (typeof __DEV__ !== 'undefined' && __DEV__) {
+                    // Warn if an input/textarea has oninput/onchange but no value binding
+                    const closedEl = current;
+                    const tag = closedEl.tagName?.toLowerCase();
+                    if ((tag === 'input' || tag === 'textarea') && !closedEl.hasAttribute('value')) {
+                        const hasInputHandler = closedEl.getAttribute('data-nf-has-input') === '1';
+                        if (hasInputHandler) {
+                            console.warn(`[onefold] <${tag}> has oninput/onchange but no value=\${() => signal()} binding. ` +
+                                `The input won't clear on signal.set('') or form.reset(). ` +
+                                `Add: value=\${() => yourSignal()} for two-way binding.`, closedEl);
+                        }
+                    }
+                }
                 stack.pop();
                 current = stack.length > 0 ? stack[stack.length - 1] : root;
                 break;
@@ -272,6 +291,12 @@ function applyAttr(el, name, value) {
     }
     if (isEventAttribute(name) && typeof value === 'function') {
         el.addEventListener(name.slice(2).toLowerCase(), value);
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            const evtName = name.slice(2).toLowerCase();
+            if (evtName === 'input' || evtName === 'change') {
+                el.setAttribute('data-nf-has-input', '1');
+            }
+        }
         return;
     }
     if (name.startsWith('d-')) {
@@ -326,9 +351,29 @@ function setAttr(el, key, value) {
         return;
     }
     const str = String(value);
-    if ((key === 'href' || key === 'src' || key === 'action' || key === 'formaction') && isUnsafeUrl(str)) {
+    // Block on* event handler attributes set as strings (XSS via SVG onload/onbegin/etc.)
+    if (isEventAttribute(key)) {
+        console.warn(`[onefold] Blocked string event handler "${key}". Use a function instead.`);
+        return;
+    }
+    if ((key === 'href' || key === 'src' || key === 'action' || key === 'formaction' || key === 'xlink:href') && isUnsafeUrl(str)) {
         console.warn(`[onefold] Blocked unsafe "${key}" value:`, str);
         el.removeAttribute(key);
+        return;
+    }
+    // Properties that must be set via DOM property, not attribute.
+    // setAttribute('value', '') does NOT update the displayed text in an input
+    // that the user has already typed into — the .value property controls display.
+    if (key === 'value' && 'value' in el) {
+        el.value = str;
+        return;
+    }
+    if (key === 'checked' && el instanceof HTMLInputElement) {
+        el.checked = value === true || str === 'true' || str === '';
+        return;
+    }
+    if (key === 'selected' && el instanceof HTMLOptionElement) {
+        el.selected = value === true || str === 'true' || str === '';
         return;
     }
     el.setAttribute(key, str);
@@ -419,6 +464,12 @@ function toNode(value) {
  * ```
  */
 export function html(strings, ...values) {
+    // SSR mode: if renderHTML() is active, produce string output instead of DOM
+    if (_ssrInterceptor) {
+        return _ssrInterceptor(strings, ...values);
+    }
     const tokens = tokenize(strings, values);
     return buildDom(tokens);
 }
+// Export tokenize for SSR (server-side string rendering without DOM)
+export { tokenize as _tokenize };

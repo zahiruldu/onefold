@@ -1,2 +1,2 @@
-export { onefoldPlugin } from './esbuild-plugin';
-export { manifestPlugin } from './manifest-plugin';
+export { onefoldPlugin } from './esbuild-plugin.js';
+export { manifestPlugin } from './manifest-plugin.js';

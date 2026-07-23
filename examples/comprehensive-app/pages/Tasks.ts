@@ -74,6 +74,7 @@ export function TasksPage(): Node {
           class="search-input"
           type="text"
           placeholder="Search tasks..."
+          value=${() => appStore().searchQuery}
           oninput=${handleSearch}
           aria-label="Search tasks"
         />
@@ -129,13 +130,13 @@ function TaskFormModal(
 
         <div class="form-group">
           <label class="form-label">Title</label>
-          <input class="form-input" type="text" oninput=${form.fields.title.handle} placeholder="Task title..." />
+          <input class="form-input" type="text" value=${() => form.fields.title.value()} oninput=${form.fields.title.handle} placeholder="Task title..." />
           <div class="form-error">${() => form.fields.title.error()}</div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea class="form-input" rows="3" oninput=${form.fields.description.handle} placeholder="Task description..."></textarea>
+          <textarea class="form-input" rows="3" value=${() => form.fields.description.value()} oninput=${form.fields.description.handle} placeholder="Task description..."></textarea>
           <div class="form-error">${() => form.fields.description.error()}</div>
         </div>
 
@@ -150,7 +151,7 @@ function TaskFormModal(
 
         <div class="form-group">
           <label class="form-label">Assignee</label>
-          <input class="form-input" type="text" oninput=${form.fields.assignee.handle} placeholder="Assignee name..." />
+          <input class="form-input" type="text" value=${() => form.fields.assignee.value()} oninput=${form.fields.assignee.handle} placeholder="Assignee name..." />
           <div class="form-error">${() => form.fields.assignee.error()}</div>
         </div>
 

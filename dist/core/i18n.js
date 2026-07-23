@@ -21,7 +21,7 @@
  * i18n.setLocale('es');
  * ```
  */
-import { createSignal } from './signal';
+import { createSignal } from './signal.js';
 /* ────────────────── Implementation ────────────────── */
 /**
  * Create an i18n instance. Lightweight, no global state — you can have

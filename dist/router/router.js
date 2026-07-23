@@ -1,5 +1,6 @@
-import { createSignal, createEffect } from '../core/signal';
-import { disposeOnRemove } from '../core/lifecycle';
+import { createSignal, createEffect } from '../core/signal.js';
+import { disposeOnRemove } from '../core/lifecycle.js';
+import { isUnsafeUrl } from '../security/sanitize.js';
 /* ────────────────── Lazy singleton state ────────────────── */
 let _currentPath = null;
 let _useHash = null;
@@ -60,7 +61,12 @@ function matchExact(pattern, path) {
         const pat = patternParts[i];
         const val = pathParts[i];
         if (pat.startsWith(':')) {
-            params[pat.slice(1)] = decodeURIComponent(val);
+            try {
+                params[pat.slice(1)] = decodeURIComponent(val);
+            }
+            catch {
+                params[pat.slice(1)] = val;
+            }
         }
         else if (pat !== val) {
             return null;
@@ -86,7 +92,12 @@ function matchPrefix(pattern, path) {
         const pat = patternParts[i];
         const val = pathParts[i];
         if (pat.startsWith(':')) {
-            params[pat.slice(1)] = decodeURIComponent(val);
+            try {
+                params[pat.slice(1)] = decodeURIComponent(val);
+            }
+            catch {
+                params[pat.slice(1)] = val;
+            }
         }
         else if (pat !== val) {
             return null;
@@ -180,7 +191,14 @@ export function Router(routes, notFound) {
  */
 export function Link(href, child, className) {
     const el = document.createElement('a');
-    el.setAttribute('href', useHash() ? `#${href}` : href);
+    if (isUnsafeUrl(href)) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            console.warn(`[onefold] Blocked unsafe URL in Link: "${href}"`);
+        }
+    }
+    else {
+        el.setAttribute('href', useHash() ? `#${href}` : href);
+    }
     if (className) {
         if (typeof className === 'function') {
             const dispose = createEffect(() => { el.className = className(); });

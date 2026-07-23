@@ -1,4 +1,4 @@
-import { createSignal } from '../core/signal';
+import { createSignal } from '../core/signal.js';
 /**
  * A signal that holds an object, plus a convenience `update()` for partial merges.
  * For large or deeply nested state, prefer several small signals over one big store —

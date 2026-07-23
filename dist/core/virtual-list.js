@@ -1,5 +1,5 @@
-import { createSignal, createEffect } from './signal';
-import { disposeOnRemove } from './lifecycle';
+import { createSignal, createEffect } from './signal.js';
+import { disposeOnRemove } from './lifecycle.js';
 /**
  * Renders only the rows intersecting the scroll viewport (+ overscan), not the full list.
  * DOM node count stays constant regardless of `items.length` — this is what makes 50k-row

@@ -23,7 +23,7 @@
  * form.submit((values) => { ... });
  * ```
  */
-import { createSignal, createEffect, batch } from './signal';
+import { createSignal, createEffect, batch } from './signal.js';
 /* ────────────────── Built-in validation rules ────────────────── */
 /** Field must have a non-empty value. */
 export function required(msg = 'Required') {
