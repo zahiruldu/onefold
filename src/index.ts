@@ -27,7 +27,7 @@ export type { EffectHook, Directive } from './core/extend';
 export { createStore } from './store/store';
 export type { Store } from './store/store';
 
-export { Router, navigate, currentRoute, Link } from './router/router';
+export { Router, navigate, currentRoute, Link, configureRouter } from './router/router';
 export type { Routes, RouteDefinition, RouteParams } from './router/router';
 
 export { createToken, provide, inject, tryInject, runWithProviders } from './core/di';

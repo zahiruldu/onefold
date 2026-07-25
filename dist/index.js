@@ -9,7 +9,7 @@ export { createResource } from './core/resource.js';
 export { wrapImperative, embedForeign } from './interop/imperative.js';
 export { setEffectHook, registerDirective } from './core/extend.js';
 export { createStore } from './store/store.js';
-export { Router, navigate, currentRoute, Link } from './router/router.js';
+export { Router, navigate, currentRoute, Link, configureRouter } from './router/router.js';
 export { createToken, provide, inject, tryInject, runWithProviders } from './core/di.js';
 export { createForm, required, email, minLength, maxLength, pattern, min, max, custom } from './core/form.js';
 export { createI18n } from './core/i18n.js';

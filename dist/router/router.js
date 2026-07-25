@@ -4,6 +4,28 @@ import { isUnsafeUrl } from '../security/sanitize.js';
 /* ────────────────── Lazy singleton state ────────────────── */
 let _currentPath = null;
 let _useHash = null;
+/**
+ * Configure the router mode. Call BEFORE creating any Router or calling navigate().
+ *
+ * By default, the router uses **path-based** routing (history.pushState),
+ * falling back to hash routing automatically on `file:` protocol.
+ *
+ * Set `hash: true` for static hosting (GitHub Pages, S3, Netlify without redirects)
+ * where the server can't handle SPA fallback.
+ *
+ * @example
+ * // Hash-based — for static hosting without server config
+ * configureRouter({ hash: true });
+ */
+export function configureRouter(opts) {
+    if (opts.hash !== undefined)
+        _useHash = opts.hash;
+}
+/** @internal Reset router state for testing. Not part of the public API. */
+export function _resetRouter() {
+    _currentPath = null;
+    _useHash = null;
+}
 function useHash() {
     if (_useHash === null) {
         _useHash = typeof window !== 'undefined' && window.location.protocol === 'file:';
@@ -36,6 +58,7 @@ export function navigate(path) {
     const signal = getPathSignal();
     if (useHash()) {
         window.location.hash = path;
+        signal.set(path);
     }
     else {
         window.history.pushState({}, '', path);
@@ -209,10 +232,8 @@ export function Link(href, child, className) {
         }
     }
     el.addEventListener('click', (e) => {
-        if (!useHash()) {
-            e.preventDefault();
-            navigate(href);
-        }
+        e.preventDefault();
+        navigate(href);
     });
     if (typeof child === 'string') {
         el.textContent = child;

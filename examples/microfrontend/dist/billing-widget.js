@@ -1,5 +1,723 @@
-var I=null;function j(e,t){I?I(e,t):t()}var V=new Map;function D(e){return V.get(e)}var x=null,X=0,K=new Set,A=class{constructor(t,n){this.deps=new Set,this.active=!0,this.fn=t,this.label=n}run(){if(!this.active)return;this.cleanup();let t=x;x=this;try{j(this.label,this.fn)}finally{x=t}}cleanup(){for(let t of this.deps)t.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},C=class{constructor(t){this.value=t,this.subscribers=new Set}get(){return x&&(this.subscribers.add(x),x.deps.add(this)),this.value}set(t){let n=typeof t=="function"?t(this.value):t;Object.is(n,this.value)||(this.value=n,this.notify())}peek(){return this.value}notify(){if(X>0)for(let t of this.subscribers)K.add(t);else{let t=Array.from(this.subscribers);for(let n=0;n<t.length;n++)t[n].run()}}};function T(e){let t=new C(e),n=(()=>t.get());return n.set=i=>t.set(i),n.peek=()=>t.peek(),n}function y(e,t="effect"){let n=new A(e,t);return n.run(),()=>n.dispose()}var Q=/^\s*(javascript|data|vbscript):/i,G=/^on/i;function $(e){return Q.test(e)}function N(e){return G.test(e)}function z(e){let t=document.createElement("template");t.innerHTML=e;let n=i=>{let r=[];i.childNodes.forEach(s=>{if(s.nodeType===Node.ELEMENT_NODE){let o=s,c=o.tagName.toLowerCase();if(c==="script"||c==="style"||c==="iframe"||c==="object"||c==="embed"||c==="form"){r.push(s);return}Array.from(o.attributes).forEach(f=>{(N(f.name)||(f.name==="href"||f.name==="src")&&$(f.value))&&o.removeAttribute(f.name)}),n(o)}}),r.forEach(s=>s.remove())};return n(t.content),t.innerHTML}var w=null;function Y(){return w||(typeof window<"u"&&window.trustedTypes&&(w=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:e=>z(e)})),w)}function P(e){let t=Y();return t?t.createHTML(e):z(e)}function L(e){return typeof e=="object"&&e!==null&&e.__onefoldRaw===!0}var E=new WeakMap,M=null;function Z(){if(M||typeof MutationObserver>"u"||typeof document>"u")return;M=new MutationObserver(t=>{for(let n of t)n.removedNodes.forEach(_)});let e=document.documentElement??document;M.observe(e,{childList:!0,subtree:!0})}function _(e){let t=E.get(e);if(t){for(let n of t)try{n()}catch(i){console.error("[onefold] Error while disposing a reactive binding:",i)}E.delete(e)}e.childNodes.forEach(_)}function R(e,t){Z();let n=E.get(e);n||(n=new Set,E.set(e,n)),n.add(t)}var h="\0nf_",g=/\x00nf_(\d+)\x00/g;function ee(e){return`${h}${e}\0`}function d(e,t){return e.charAt(t)}function H(e){return parseInt(e[1]??"0",10)}function te(e,t){let n="";for(let o=0;o<e.length;o++)n+=e[o],o<t.length&&(n+=ee(o));let i=[],r=0,s=n.length;for(;r<s;){if(d(n,r)==="<"){if(n.startsWith("<!--",r)){let m=n.indexOf("-->",r+4);r=m===-1?s:m+3;continue}if(d(n,r+1)==="/"){let m=n.indexOf(">",r),S=n.slice(r+2,m).trim();i.push({kind:1,tag:S}),r=m+1;continue}let f=ne(n,r),l=d(n,f-1)==="/",a=n.slice(r+1,l?f-1:f),{tag:u,attrs:p}=re(a,t);i.push({kind:0,tag:u});for(let m of p)i.push(m);l&&i.push({kind:1,tag:u}),r=f+1;continue}let o=n.indexOf("<",r),c=o===-1?n.slice(r):n.slice(r,o);if(r=o===-1?s:o,c.trim()||g.test(c)){g.lastIndex=0;let f=0,l;for(;(l=g.exec(c))!==null;){let u=c.slice(f,l.index);u&&i.push({kind:3,value:u}),i.push({kind:4,value:t[H(l)]}),f=l.index+l[0].length}let a=c.slice(f);a&&a.trim()&&i.push({kind:3,value:a})}}return i}function ne(e,t){let n=null;for(let i=t+1;i<e.length;i++){let r=d(e,i);if(n)r===n&&(n=null);else if(r==='"'||r==="'")n=r;else if(r===">")return i}return e.length-1}function b(e){return e===" "||e==="	"||e===`
-`||e==="\r"||e==="\f"}function re(e,t){let n=e.search(/[\s/]/),i=n===-1?e:e.slice(0,n),r=[];if(n===-1)return{tag:i,attrs:r};let s=e.slice(n).trim();if(!s)return{tag:i,attrs:r};let o=0,c=s.length;for(;o<c;){for(;o<c&&b(d(s,o));)o++;if(o>=c)break;if(s.startsWith(h,o)){let a=s.indexOf("\0",o+h.length),u=parseInt(s.slice(o+h.length,a),10),p=t[u];if(p&&typeof p=="object")for(let[m,S]of Object.entries(p))r.push({kind:2,name:m,value:S});o=a+1;continue}let f=o;for(;o<c&&d(s,o)!=="="&&!b(d(s,o));)o++;let l=s.slice(f,o);if(!l){o++;continue}for(;o<c&&b(d(s,o));)o++;if(o>=c||d(s,o)!=="="){r.push({kind:2,name:l,value:!0});continue}for(o++;o<c&&b(d(s,o));)o++;if(s.startsWith(h,o)){let a=s.indexOf("\0",o+h.length),u=parseInt(s.slice(o+h.length,a),10);r.push({kind:2,name:l,value:t[u]}),o=a+1}else if(d(s,o)==='"'||d(s,o)==="'"){let a=d(s,o);o++;let u=o;for(;o<c&&d(s,o)!==a;)o++;let p=s.slice(u,o);o++,r.push({kind:2,name:l,value:W(p,t)})}else{let a=o;for(;o<c&&!b(d(s,o));)o++;let u=s.slice(a,o);r.push({kind:2,name:l,value:W(u,t)})}}return{tag:i,attrs:r}}function W(e,t){g.lastIndex=0;let n=g.exec(e);if(!n)return e;if(n.index===0&&n[0].length===e.length)return t[H(n)];g.lastIndex=0;let i=[],r=0,s;for(;(s=g.exec(e))!==null;){s.index>r&&i.push(e.slice(r,s.index));let o=t[H(s)];i.push(typeof o=="function"?o:()=>o),r=s.index+s[0].length}return r<e.length&&i.push(e.slice(r)),()=>i.map(o=>typeof o=="function"?o():o).join("")}function oe(e){let t=document.createDocumentFragment(),n=[t],i=t;for(let r of e)switch(r.kind){case 0:{let s=document.createElement(r.tag);i.appendChild(s),n.push(s),i=s;break}case 1:{n.pop(),i=n.length>0?n[n.length-1]:t;break}case 2:{ie(i,r.name,r.value);break}case 3:{i.appendChild(document.createTextNode(r.value));break}case 4:{B(i,r.value);break}}return t.childNodes.length===1&&t.firstChild instanceof HTMLElement?t.firstChild:t}function ie(e,t,n){if(t==="ref"){typeof n=="function"&&n(e);return}if(t==="class"){k(n,i=>se(e,i),e);return}if(t==="style"){k(n,i=>Object.assign(e.style,i??{}),e);return}if(N(t)&&typeof n=="function"){e.addEventListener(t.slice(2).toLowerCase(),n);return}if(t.startsWith("d-")){let i=D(t.slice(2));i?k(n,r=>i(e,r),e):console.warn(`[onefold] No directive registered for "${t}". Call registerDirective() first.`);return}k(n,i=>ce(e,t,i),e)}function k(e,t,n){if(typeof e=="function"){let i=y(()=>t(e()));R(n,i)}else t(e)}function se(e,t){t?typeof t=="string"?e.className=t:typeof t=="object"&&(e.className=Object.entries(t).filter(([,n])=>n).map(([n])=>n).join(" ")):e.className=""}function ce(e,t,n){if(n===!1||n==null){e.removeAttribute(t);return}if(n===!0){e.setAttribute(t,"");return}let i=String(n);if((t==="href"||t==="src"||t==="action"||t==="formaction")&&$(i)){console.warn(`[onefold] Blocked unsafe "${t}" value:`,i),e.removeAttribute(t);return}e.setAttribute(t,i)}function B(e,t){if(!(t==null||t===!1||t===!0)){if(t instanceof Node){e.appendChild(t);return}if(Array.isArray(t)){for(let n of t)B(e,n);return}if(typeof t=="function"){let n=document.createComment("expr-start"),i=document.createComment("expr-end");e.appendChild(n),e.appendChild(i);let r=y(()=>{let s=t(),o=n.parentNode;if(!o)return;let c=n.nextSibling;for(;c&&c!==i;){let l=c.nextSibling;o.removeChild(c),c=l}let f=F(s);o.insertBefore(f,i)});R(e,r);return}if(L(t)){let n=document.createElement("span");n.innerHTML=P(t.html),e.appendChild(n);return}e.appendChild(document.createTextNode(String(t)))}}function F(e){if(e==null||e===!1||e===!0)return document.createComment("");if(e instanceof Node)return e;if(L(e)){let t=document.createElement("span");return t.innerHTML=P(e.html),t}if(Array.isArray(e)){let t=document.createDocumentFragment();for(let n of e)t.appendChild(F(n));return t}return document.createTextNode(String(e))}function v(e,...t){let n=te(e,t);return oe(n)}var ae=0,U=new Map;function fe(){return`nf-${(ae++).toString(36)}`}function J(e,t){let n=`.${t}`,i="",r=0,s=e.length;for(;r<s;){for(;r<s&&/\s/.test(e[r]);)i+=e[r],r++;if(r>=s)break;if(e[r]==="@"){let a=r;for(;r<s&&e[r]!=="{";)r++;i+=e.slice(a,r),r<s&&(i+=e[r],r++);let u=q(e,r-1),p=u.slice(1,-1);i+=J(p,t),i+="}",r+=u.length-1;continue}let o=r;for(;r<s&&e[r]!=="{";)r++;let c=e.slice(o,r).trim();if(!c||r>=s)break;let f=c.split(",").map(a=>(a=a.trim(),a&&(a===":root"||a===":host"?n:a.startsWith("&")?n+a.slice(1):`${n} ${a}`))).join(", ");i+=f;let l=q(e,r);i+=l,r+=l.length}return i}function q(e,t){if(e[t]!=="{")return"";let n=0,i=t;for(;i<e.length;){if(e[i]==="{")n++;else if(e[i]==="}"&&(n--,n===0))return e.slice(t,i+1);i++}return e.slice(t)}function le(e,t){if(typeof document>"u"||document.getElementById(t))return;let n=document.createElement("style");n.id=t,n.textContent=e,document.head.appendChild(n)}function O(e,...t){let n="";for(let c=0;c<e.length;c++)n+=e[c],c<t.length&&(n+=String(t[c]));let i=U.get(n);if(i)return i;let r=fe(),s=J(n,r);le(s,`style-${r}`);let o={scope:r,css:s};return U.set(n,o),o}var ue=O`
+// ../../dist/core/extend.js
+var effectHook = null;
+function runWithHook(label, fn) {
+  if (effectHook)
+    effectHook(label, fn);
+  else
+    fn();
+}
+var directives = /* @__PURE__ */ new Map();
+function getDirective(name) {
+  return directives.get(name);
+}
+
+// ../../dist/core/signal.js
+var activeEffect = null;
+var batchDepth = 0;
+var pendingEffects = /* @__PURE__ */ new Set();
+var _devUpdateCounter = 0;
+var _devUpdateResetTimer = null;
+var _DEV_UPDATE_THRESHOLD = 200;
+var ReactiveEffect = class {
+  constructor(fn, label) {
+    this.deps = /* @__PURE__ */ new Set();
+    this.active = true;
+    this.fn = fn;
+    this.label = label;
+  }
+  run() {
+    if (!this.active)
+      return;
+    this.cleanup();
+    const prevEffect = activeEffect;
+    activeEffect = this;
+    try {
+      runWithHook(this.label, this.fn);
+    } finally {
+      activeEffect = prevEffect;
+    }
+  }
+  cleanup() {
+    for (const dep of this.deps)
+      dep.subscribers.delete(this);
+    this.deps.clear();
+  }
+  dispose() {
+    this.active = false;
+    this.cleanup();
+  }
+};
+var SignalImpl = class {
+  constructor(value) {
+    this.value = value;
+    this.subscribers = /* @__PURE__ */ new Set();
+  }
+  get() {
+    if (activeEffect) {
+      this.subscribers.add(activeEffect);
+      activeEffect.deps.add(this);
+    }
+    return this.value;
+  }
+  set(next) {
+    const newValue = typeof next === "function" ? next(this.value) : next;
+    if (Object.is(newValue, this.value))
+      return;
+    this.value = newValue;
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      _devUpdateCounter++;
+      if (!_devUpdateResetTimer) {
+        _devUpdateResetTimer = setTimeout(() => {
+          _devUpdateCounter = 0;
+          _devUpdateResetTimer = null;
+        }, 1e3);
+      }
+      if (_devUpdateCounter > _DEV_UPDATE_THRESHOLD) {
+        console.warn(`[onefold] Signal updated ${_devUpdateCounter} times in <1s. Possible infinite loop in an effect.`);
+        _devUpdateCounter = 0;
+      }
+    }
+    this.notify();
+  }
+  peek() {
+    return this.value;
+  }
+  notify() {
+    if (batchDepth > 0) {
+      for (const e of this.subscribers)
+        pendingEffects.add(e);
+    } else {
+      const subs = Array.from(this.subscribers);
+      for (let i = 0; i < subs.length; i++)
+        subs[i].run();
+    }
+  }
+};
+function createSignal(initial) {
+  const impl = new SignalImpl(initial);
+  const accessor = (() => impl.get());
+  accessor.set = (v) => impl.set(v);
+  accessor.peek = () => impl.peek();
+  return accessor;
+}
+function createEffect(fn, label = "effect") {
+  let resolvedLabel = label;
+  if (typeof __DEV__ !== "undefined" && __DEV__ && label === "effect") {
+    try {
+      const stack = new Error().stack ?? "";
+      const lines = stack.split("\n");
+      for (let i = 2; i < lines.length && i < 8; i++) {
+        const line = lines[i]?.trim() ?? "";
+        if (!line)
+          continue;
+        if (/\bcreateEffect\b|\bcreateComputed\b|\bbindReactive\b|\bapplyAttr\b|\bbuildDom\b|\bappendExpr\b|\brunWithHook\b|ReactiveEffect/.test(line))
+          continue;
+        const fnMatch = line.match(/at\s+([A-Z]\w+)\s+\(/);
+        if (fnMatch) {
+          const locMatch = line.match(/:(\d+):\d+\)?$/);
+          resolvedLabel = locMatch ? `${fnMatch[1]} (:${locMatch[1]})` : fnMatch[1];
+          break;
+        }
+        const locOnly = line.match(/([^/\\:]+):(\d+):\d+\)?$/);
+        if (locOnly) {
+          resolvedLabel = `${locOnly[1]}:${locOnly[2]}`;
+          break;
+        }
+      }
+    } catch {
+    }
+  }
+  const effect = new ReactiveEffect(fn, resolvedLabel);
+  effect.run();
+  return () => effect.dispose();
+}
+
+// ../../dist/security/sanitize.js
+var UNSAFE_URL_SCHEME = /^\s*(javascript|data|vbscript):/i;
+var EVENT_ATTR_PREFIX = /^on/i;
+function isUnsafeUrl(value) {
+  return UNSAFE_URL_SCHEME.test(value);
+}
+function isEventAttribute(name) {
+  return EVENT_ATTR_PREFIX.test(name);
+}
+function minimalSanitize(html2) {
+  const template = document.createElement("template");
+  template.innerHTML = html2;
+  const walk = (node) => {
+    const toRemove = [];
+    node.childNodes.forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child;
+        const tag = el.tagName.toLowerCase();
+        if (tag === "script" || tag === "style" || tag === "iframe" || tag === "object" || tag === "embed" || tag === "form") {
+          toRemove.push(child);
+          return;
+        }
+        Array.from(el.attributes).forEach((attr) => {
+          if (isEventAttribute(attr.name)) {
+            el.removeAttribute(attr.name);
+          } else if ((attr.name === "href" || attr.name === "src") && isUnsafeUrl(attr.value)) {
+            el.removeAttribute(attr.name);
+          }
+        });
+        walk(el);
+      }
+    });
+    toRemove.forEach((n) => n.remove());
+  };
+  walk(template.content);
+  return template.innerHTML;
+}
+var trustedPolicy = null;
+function getTrustedPolicy() {
+  if (trustedPolicy)
+    return trustedPolicy;
+  if (typeof window !== "undefined" && window.trustedTypes) {
+    trustedPolicy = window.trustedTypes.createPolicy("onefold-sanitized", {
+      createHTML: (input) => minimalSanitize(input)
+    });
+  }
+  return trustedPolicy;
+}
+function toTrustedHtml(html2) {
+  const policy = getTrustedPolicy();
+  return policy ? policy.createHTML(html2) : minimalSanitize(html2);
+}
+function isRawHtml(value) {
+  return typeof value === "object" && value !== null && value.__onefoldRaw === true;
+}
+
+// ../../dist/core/lifecycle.js
+var disposersByNode = /* @__PURE__ */ new WeakMap();
+var observer = null;
+function ensureObserver() {
+  if (observer || typeof MutationObserver === "undefined" || typeof document === "undefined")
+    return;
+  observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.removedNodes.forEach(runDisposersForSubtree);
+    }
+  });
+  const root = document.documentElement ?? document;
+  observer.observe(root, { childList: true, subtree: true });
+}
+function runDisposersForSubtree(node) {
+  const disposers = disposersByNode.get(node);
+  if (disposers) {
+    for (const dispose of disposers) {
+      try {
+        dispose();
+      } catch (err) {
+        console.error("[onefold] Error while disposing a reactive binding:", err);
+      }
+    }
+    disposersByNode.delete(node);
+  }
+  node.childNodes.forEach(runDisposersForSubtree);
+}
+function disposeOnRemove(node, dispose) {
+  ensureObserver();
+  let set = disposersByNode.get(node);
+  if (!set) {
+    set = /* @__PURE__ */ new Set();
+    disposersByNode.set(node, set);
+  }
+  set.add(dispose);
+}
+
+// ../../dist/core/template.js
+var _ssrInterceptor = null;
+var PLACEHOLDER_PREFIX = "\0nf_";
+var PLACEHOLDER_RE = /\x00nf_(\d+)\x00/g;
+function placeholder(index) {
+  return `${PLACEHOLDER_PREFIX}${index}\0`;
+}
+function charAt(s, i) {
+  return s.charAt(i);
+}
+function captureInt(match) {
+  return parseInt(match[1] ?? "0", 10);
+}
+function tokenize(strings, values) {
+  let source = "";
+  for (let i = 0; i < strings.length; i++) {
+    source += strings[i];
+    if (i < values.length) {
+      source += placeholder(i);
+    }
+  }
+  const tokens = [];
+  let pos = 0;
+  const len = source.length;
+  while (pos < len) {
+    if (charAt(source, pos) === "<") {
+      if (source.startsWith("<!--", pos)) {
+        const commentEnd = source.indexOf("-->", pos + 4);
+        pos = commentEnd === -1 ? len : commentEnd + 3;
+        continue;
+      }
+      if (charAt(source, pos + 1) === "/") {
+        const end = source.indexOf(">", pos);
+        const tag2 = source.slice(pos + 2, end).trim();
+        tokens.push({ kind: 1, tag: tag2 });
+        pos = end + 1;
+        continue;
+      }
+      const tagEnd = findTagEnd(source, pos);
+      const selfClosing = charAt(source, tagEnd - 1) === "/";
+      const inner = source.slice(pos + 1, selfClosing ? tagEnd - 1 : tagEnd);
+      const { tag, attrs } = parseOpenTag(inner, values);
+      tokens.push({ kind: 0, tag });
+      for (const attr of attrs)
+        tokens.push(attr);
+      if (selfClosing) {
+        tokens.push({ kind: 1, tag });
+      }
+      pos = tagEnd + 1;
+      continue;
+    }
+    const nextTag = source.indexOf("<", pos);
+    const text = nextTag === -1 ? source.slice(pos) : source.slice(pos, nextTag);
+    pos = nextTag === -1 ? len : nextTag;
+    if (text.trim() || PLACEHOLDER_RE.test(text)) {
+      PLACEHOLDER_RE.lastIndex = 0;
+      let lastIdx = 0;
+      let match;
+      while ((match = PLACEHOLDER_RE.exec(text)) !== null) {
+        const before = text.slice(lastIdx, match.index);
+        if (before)
+          tokens.push({ kind: 3, value: before });
+        tokens.push({ kind: 4, value: values[captureInt(match)] });
+        lastIdx = match.index + match[0].length;
+      }
+      const after = text.slice(lastIdx);
+      if (after && after.trim())
+        tokens.push({ kind: 3, value: after });
+    }
+  }
+  return tokens;
+}
+function findTagEnd(source, start) {
+  let inQuote = null;
+  for (let i = start + 1; i < source.length; i++) {
+    const ch = charAt(source, i);
+    if (inQuote) {
+      if (ch === inQuote)
+        inQuote = null;
+    } else if (ch === '"' || ch === "'") {
+      inQuote = ch;
+    } else if (ch === ">") {
+      return i;
+    }
+  }
+  return source.length - 1;
+}
+function isWhitespace(ch) {
+  return ch === " " || ch === "	" || ch === "\n" || ch === "\r" || ch === "\f";
+}
+function parseOpenTag(inner, values) {
+  const firstSpace = inner.search(/[\s/]/);
+  const tag = firstSpace === -1 ? inner : inner.slice(0, firstSpace);
+  const attrs = [];
+  if (firstSpace === -1)
+    return { tag, attrs };
+  const rest = inner.slice(firstSpace).trim();
+  if (!rest)
+    return { tag, attrs };
+  let pos = 0;
+  const len = rest.length;
+  while (pos < len) {
+    while (pos < len && isWhitespace(charAt(rest, pos)))
+      pos++;
+    if (pos >= len)
+      break;
+    if (rest.startsWith(PLACEHOLDER_PREFIX, pos)) {
+      const endMarker = rest.indexOf("\0", pos + PLACEHOLDER_PREFIX.length);
+      const idx = parseInt(rest.slice(pos + PLACEHOLDER_PREFIX.length, endMarker), 10);
+      const propsObj = values[idx];
+      if (propsObj && typeof propsObj === "object") {
+        for (const [k, v] of Object.entries(propsObj)) {
+          attrs.push({ kind: 2, name: k, value: v });
+        }
+      }
+      pos = endMarker + 1;
+      continue;
+    }
+    const nameStart = pos;
+    while (pos < len && charAt(rest, pos) !== "=" && !isWhitespace(charAt(rest, pos)))
+      pos++;
+    const name = rest.slice(nameStart, pos);
+    if (!name) {
+      pos++;
+      continue;
+    }
+    while (pos < len && isWhitespace(charAt(rest, pos)))
+      pos++;
+    if (pos >= len || charAt(rest, pos) !== "=") {
+      attrs.push({ kind: 2, name, value: true });
+      continue;
+    }
+    pos++;
+    while (pos < len && isWhitespace(charAt(rest, pos)))
+      pos++;
+    if (rest.startsWith(PLACEHOLDER_PREFIX, pos)) {
+      const endMarker = rest.indexOf("\0", pos + PLACEHOLDER_PREFIX.length);
+      const idx = parseInt(rest.slice(pos + PLACEHOLDER_PREFIX.length, endMarker), 10);
+      attrs.push({ kind: 2, name, value: values[idx] });
+      pos = endMarker + 1;
+    } else if (charAt(rest, pos) === '"' || charAt(rest, pos) === "'") {
+      const quote = charAt(rest, pos);
+      pos++;
+      const valStart = pos;
+      while (pos < len && charAt(rest, pos) !== quote)
+        pos++;
+      const rawVal = rest.slice(valStart, pos);
+      pos++;
+      attrs.push({ kind: 2, name, value: resolveAttrValue(rawVal, values) });
+    } else {
+      const valStart = pos;
+      while (pos < len && !isWhitespace(charAt(rest, pos)))
+        pos++;
+      const rawVal = rest.slice(valStart, pos);
+      attrs.push({ kind: 2, name, value: resolveAttrValue(rawVal, values) });
+    }
+  }
+  return { tag, attrs };
+}
+function resolveAttrValue(rawVal, values) {
+  PLACEHOLDER_RE.lastIndex = 0;
+  const firstMatch = PLACEHOLDER_RE.exec(rawVal);
+  if (!firstMatch)
+    return rawVal;
+  if (firstMatch.index === 0 && firstMatch[0].length === rawVal.length) {
+    return values[captureInt(firstMatch)];
+  }
+  PLACEHOLDER_RE.lastIndex = 0;
+  const parts = [];
+  let lastPh = 0;
+  let phm;
+  while ((phm = PLACEHOLDER_RE.exec(rawVal)) !== null) {
+    if (phm.index > lastPh)
+      parts.push(rawVal.slice(lastPh, phm.index));
+    const val = values[captureInt(phm)];
+    parts.push(typeof val === "function" ? val : () => val);
+    lastPh = phm.index + phm[0].length;
+  }
+  if (lastPh < rawVal.length)
+    parts.push(rawVal.slice(lastPh));
+  return () => parts.map((p) => typeof p === "function" ? p() : p).join("");
+}
+function buildDom(tokens) {
+  const root = document.createDocumentFragment();
+  const stack = [root];
+  let current = root;
+  for (const token of tokens) {
+    switch (token.kind) {
+      case 0: {
+        const el = document.createElement(token.tag);
+        current.appendChild(el);
+        stack.push(el);
+        current = el;
+        break;
+      }
+      case 1: {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          const closedEl = current;
+          const tag = closedEl.tagName?.toLowerCase();
+          if ((tag === "input" || tag === "textarea") && !closedEl.hasAttribute("value")) {
+            const hasInputHandler = closedEl.getAttribute("data-nf-has-input") === "1";
+            if (hasInputHandler) {
+              console.warn(`[onefold] <${tag}> has oninput/onchange but no value=\${() => signal()} binding. The input won't clear on signal.set('') or form.reset(). Add: value=\${() => yourSignal()} for two-way binding.`, closedEl);
+            }
+          }
+        }
+        stack.pop();
+        current = stack.length > 0 ? stack[stack.length - 1] : root;
+        break;
+      }
+      case 2: {
+        applyAttr(current, token.name, token.value);
+        break;
+      }
+      case 3: {
+        current.appendChild(document.createTextNode(token.value));
+        break;
+      }
+      case 4: {
+        appendExpr(current, token.value);
+        break;
+      }
+    }
+  }
+  if (root.childNodes.length === 1 && root.firstChild instanceof HTMLElement) {
+    return root.firstChild;
+  }
+  return root;
+}
+function applyAttr(el, name, value) {
+  if (name === "ref") {
+    if (typeof value === "function")
+      value(el);
+    return;
+  }
+  if (name === "class") {
+    bindReactive(value, (v) => applyClass(el, v), el);
+    return;
+  }
+  if (name === "style") {
+    bindReactive(value, (v) => {
+      if (typeof v === "string") {
+        el.style.cssText = v;
+      } else {
+        Object.assign(el.style, v ?? {});
+      }
+    }, el);
+    return;
+  }
+  if (isEventAttribute(name) && typeof value === "function") {
+    el.addEventListener(name.slice(2).toLowerCase(), value);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      const evtName = name.slice(2).toLowerCase();
+      if (evtName === "input" || evtName === "change") {
+        el.setAttribute("data-nf-has-input", "1");
+      }
+    }
+    return;
+  }
+  if (name.startsWith("d-")) {
+    const directive = getDirective(name.slice(2));
+    if (directive) {
+      bindReactive(value, (v) => directive(el, v), el);
+    } else {
+      console.warn(`[onefold] No directive registered for "${name}". Call registerDirective() first.`);
+    }
+    return;
+  }
+  bindReactive(value, (v) => setAttr(el, name, v), el);
+}
+function bindReactive(value, apply, ownerEl) {
+  if (typeof value === "function") {
+    const dispose = createEffect(() => apply(value()));
+    disposeOnRemove(ownerEl, dispose);
+  } else {
+    apply(value);
+  }
+}
+function applyClass(el, value) {
+  if (!value) {
+    el.className = "";
+  } else if (typeof value === "string") {
+    el.className = value;
+  } else if (typeof value === "object") {
+    el.className = Object.entries(value).filter(([, on]) => on).map(([n]) => n).join(" ");
+  }
+}
+function setAttr(el, key, value) {
+  if (value === false || value == null) {
+    el.removeAttribute(key);
+    return;
+  }
+  if (value === true) {
+    el.setAttribute(key, "");
+    return;
+  }
+  const str = String(value);
+  if (isEventAttribute(key)) {
+    console.warn(`[onefold] Blocked string event handler "${key}". Use a function instead.`);
+    return;
+  }
+  if ((key === "href" || key === "src" || key === "action" || key === "formaction" || key === "xlink:href") && isUnsafeUrl(str)) {
+    console.warn(`[onefold] Blocked unsafe "${key}" value:`, str);
+    el.removeAttribute(key);
+    return;
+  }
+  if (key === "value" && "value" in el) {
+    el.value = str;
+    return;
+  }
+  if (key === "checked" && el instanceof HTMLInputElement) {
+    el.checked = value === true || str === "true" || str === "";
+    return;
+  }
+  if (key === "selected" && el instanceof HTMLOptionElement) {
+    el.selected = value === true || str === "true" || str === "";
+    return;
+  }
+  el.setAttribute(key, str);
+}
+function appendExpr(parent, value) {
+  if (value == null || value === false || value === true)
+    return;
+  if (value instanceof Node) {
+    parent.appendChild(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value)
+      appendExpr(parent, item);
+    return;
+  }
+  if (typeof value === "function") {
+    const startAnchor = document.createComment("expr-start");
+    const endAnchor = document.createComment("expr-end");
+    parent.appendChild(startAnchor);
+    parent.appendChild(endAnchor);
+    const dispose = createEffect(() => {
+      const result = value();
+      const parentEl = startAnchor.parentNode;
+      if (!parentEl)
+        return;
+      let node = startAnchor.nextSibling;
+      while (node && node !== endAnchor) {
+        const next = node.nextSibling;
+        parentEl.removeChild(node);
+        node = next;
+      }
+      const newContent = toNode(result);
+      parentEl.insertBefore(newContent, endAnchor);
+    });
+    disposeOnRemove(parent, dispose);
+    return;
+  }
+  if (isRawHtml(value)) {
+    const wrapper = document.createElement("span");
+    wrapper.innerHTML = toTrustedHtml(value.html);
+    parent.appendChild(wrapper);
+    return;
+  }
+  parent.appendChild(document.createTextNode(String(value)));
+}
+function toNode(value) {
+  if (value == null || value === false || value === true)
+    return document.createComment("");
+  if (value instanceof Node)
+    return value;
+  if (isRawHtml(value)) {
+    const wrapper = document.createElement("span");
+    wrapper.innerHTML = toTrustedHtml(value.html);
+    return wrapper;
+  }
+  if (Array.isArray(value)) {
+    const frag = document.createDocumentFragment();
+    for (const item of value)
+      frag.appendChild(toNode(item));
+    return frag;
+  }
+  return document.createTextNode(String(value));
+}
+function html(strings, ...values) {
+  if (_ssrInterceptor) {
+    return _ssrInterceptor(strings, ...values);
+  }
+  const tokens = tokenize(strings, values);
+  return buildDom(tokens);
+}
+
+// ../../dist/core/css.js
+var scopeCounter = 0;
+var cache = /* @__PURE__ */ new Map();
+function generateScopeId() {
+  return `nf-${(scopeCounter++).toString(36)}`;
+}
+function scopeCSS(raw, scopeClass) {
+  const prefix = `.${scopeClass}`;
+  let result = "";
+  let i = 0;
+  const len = raw.length;
+  while (i < len) {
+    while (i < len && /\s/.test(raw[i])) {
+      result += raw[i];
+      i++;
+    }
+    if (i >= len)
+      break;
+    if (raw[i] === "@") {
+      const atStart = i;
+      while (i < len && raw[i] !== "{")
+        i++;
+      result += raw.slice(atStart, i);
+      if (i < len) {
+        result += raw[i];
+        i++;
+      }
+      const body = extractBlock(raw, i - 1);
+      const inner = body.slice(1, -1);
+      result += scopeCSS(inner, scopeClass);
+      result += "}";
+      i += body.length - 1;
+      continue;
+    }
+    const selStart = i;
+    while (i < len && raw[i] !== "{")
+      i++;
+    const selectors = raw.slice(selStart, i).trim();
+    if (!selectors || i >= len)
+      break;
+    const scopedSelectors = selectors.split(",").map((sel) => {
+      sel = sel.trim();
+      if (!sel)
+        return sel;
+      if (sel === ":root" || sel === ":host")
+        return prefix;
+      if (sel.startsWith("&"))
+        return prefix + sel.slice(1);
+      return `${prefix} ${sel}`;
+    }).join(", ");
+    result += scopedSelectors;
+    const block = extractBlock(raw, i);
+    result += block;
+    i += block.length;
+  }
+  return result;
+}
+function extractBlock(source, start) {
+  if (source[start] !== "{")
+    return "";
+  let depth = 0;
+  let i = start;
+  while (i < source.length) {
+    if (source[i] === "{")
+      depth++;
+    else if (source[i] === "}") {
+      depth--;
+      if (depth === 0)
+        return source.slice(start, i + 1);
+    }
+    i++;
+  }
+  return source.slice(start);
+}
+function injectStyle(cssText, id) {
+  if (typeof document === "undefined")
+    return;
+  if (document.getElementById(id))
+    return;
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = cssText;
+  document.head.appendChild(style);
+}
+function css(strings, ...values) {
+  let raw = "";
+  for (let i = 0; i < strings.length; i++) {
+    raw += strings[i];
+    if (i < values.length)
+      raw += String(values[i]);
+  }
+  const cached = cache.get(raw);
+  if (cached)
+    return cached;
+  const scopeClass = generateScopeId();
+  const scopedCSS = scopeCSS(raw, scopeClass);
+  injectStyle(scopedCSS, `style-${scopeClass}`);
+  const result = { scope: scopeClass, css: scopedCSS };
+  cache.set(raw, result);
+  return result;
+}
+
+// remotes/billing-widget.ts
+var styles = css`
   .billing-widget {
     font-family: -apple-system, sans-serif;
   }
@@ -65,11 +783,22 @@ var I=null;function j(e,t){I?I(e,t):t()}var V=new Map;function D(e){return V.get
     margin-top: 12px;
   }
   button:hover { background: #4338ca; }
-`;function de(e){let t=T(67),n=[{date:"Jul 2026",amount:"$49.00",status:"Paid"},{date:"Jun 2026",amount:"$49.00",status:"Paid"},{date:"May 2026",amount:"$39.00",status:"Paid"}],i=()=>{t.set(Math.min(100,Math.floor(Math.random()*40)+60))};return v`
-    <div class=${ue.scope}>
+`;
+function BillingWidget(props) {
+  const usage = createSignal(67);
+  const invoices = [
+    { date: "Jul 2026", amount: "$49.00", status: "Paid" },
+    { date: "Jun 2026", amount: "$49.00", status: "Paid" },
+    { date: "May 2026", amount: "$39.00", status: "Paid" }
+  ];
+  const simulateUsage = () => {
+    usage.set(Math.min(100, Math.floor(Math.random() * 40) + 60));
+  };
+  return html`
+    <div class=${styles.scope}>
       <div class="billing-widget">
         <div class="billing-header">
-          <h3>Billing — ${e.accountId??"Default"}</h3>
+          <h3>Billing — ${props.accountId ?? "Default"}</h3>
           <span class="badge">Active</span>
         </div>
 
@@ -77,25 +806,29 @@ var I=null;function j(e,t){I?I(e,t):t()}var V=new Map;function D(e){return V.get
           <div class="plan-name">Pro Plan</div>
           <div class="plan-price">$49/month · Renews Aug 1</div>
           <div class="usage-bar">
-            <div class="usage-fill" style=${()=>({width:`${t()}%`})}></div>
+            <div class="usage-fill" style=${() => ({ width: `${usage()}%` })}></div>
           </div>
-          <div class="plan-price" style=${{marginTop:"6px"}}>
-            ${()=>`${t()}% of API quota used`}
+          <div class="plan-price" style=${{ marginTop: "6px" }}>
+            ${() => `${usage()}% of API quota used`}
           </div>
         </div>
 
-        <h4 style=${{fontSize:"14px",margin:"0 0 8px"}}>Recent Invoices</h4>
+        <h4 style=${{ fontSize: "14px", margin: "0 0 8px" }}>Recent Invoices</h4>
         <ul class="invoices">
-          ${n.map(r=>v`
+          ${invoices.map((inv) => html`
             <li>
-              <span>${r.date}</span>
-              <span class="amount">${r.amount}</span>
-              <span>${r.status}</span>
+              <span>${inv.date}</span>
+              <span class="amount">${inv.amount}</span>
+              <span>${inv.status}</span>
             </li>
           `)}
         </ul>
 
-        <button onclick=${i}>Simulate API Usage</button>
+        <button onclick=${simulateUsage}>Simulate API Usage</button>
       </div>
     </div>
-  `}export{de as default};
+  `;
+}
+export {
+  BillingWidget as default
+};

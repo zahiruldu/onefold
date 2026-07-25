@@ -1,38 +1,38 @@
-var te=null;function oe(t,o){te?te(t,o):o()}var Pt=new Map;function re(t){return Pt.get(t)}var E=null,Et=0,Rt=new Set;var F=class{constructor(o,r){this.deps=new Set,this.active=!0,this.fn=o,this.label=r}run(){if(!this.active)return;this.cleanup();let o=E;E=this;try{oe(this.label,this.fn)}finally{E=o}}cleanup(){for(let o of this.deps)o.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},z=class{constructor(o){this.value=o,this.subscribers=new Set}get(){return E&&(this.subscribers.add(E),E.deps.add(this)),this.value}set(o){let r=typeof o=="function"?o(this.value):o;Object.is(r,this.value)||(this.value=r,this.notify())}peek(){return this.value}notify(){if(Et>0)for(let o of this.subscribers)Rt.add(o);else{let o=Array.from(this.subscribers);for(let r=0;r<o.length;r++)o[r].run()}}};function b(t){let o=new z(t),r=(()=>o.get());return r.set=a=>o.set(a),r.peek=()=>o.peek(),r}function C(t,o="effect"){let r=o,a=new F(t,r);return a.run(),()=>a.dispose()}var Nt=/^\s*(javascript|data|vbscript):/i,It=/^on/i;function W(t){return Nt.test(t)}function O(t){return It.test(t)}function ne(t){let o=document.createElement("template");o.innerHTML=t;let r=a=>{let d=[];a.childNodes.forEach(l=>{if(l.nodeType===Node.ELEMENT_NODE){let i=l,c=i.tagName.toLowerCase();if(c==="script"||c==="style"||c==="iframe"||c==="object"||c==="embed"||c==="form"){d.push(l);return}Array.from(i.attributes).forEach(p=>{(O(p.name)||(p.name==="href"||p.name==="src")&&W(p.value))&&i.removeAttribute(p.name)}),r(i)}}),d.forEach(l=>l.remove())};return r(o.content),o.innerHTML}var H=null;function At(){return H||(typeof window<"u"&&window.trustedTypes&&(H=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:t=>ne(t)})),H)}function _(t){let o=At();return o?o.createHTML(t):ne(t)}function q(t){return typeof t=="object"&&t!==null&&t.__onefoldRaw===!0}function V(t,o){o.replaceChildren(t)}var U=new WeakMap,J=null;function Lt(){if(J||typeof MutationObserver>"u"||typeof document>"u")return;J=new MutationObserver(o=>{for(let r of o)r.removedNodes.forEach(ie)});let t=document.documentElement??document;J.observe(t,{childList:!0,subtree:!0})}function ie(t){let o=U.get(t);if(o){for(let r of o)try{r()}catch(a){console.error("[onefold] Error while disposing a reactive binding:",a)}U.delete(t)}t.childNodes.forEach(ie)}function N(t,o){Lt();let r=U.get(t);r||(r=new Set,U.set(t,r)),r.add(o)}var ae=null;var T="\0nf_",P=/\x00nf_(\d+)\x00/g;function Dt(t){return`${T}${t}\0`}function y(t,o){return t.charAt(o)}function Y(t){return parseInt(t[1]??"0",10)}function Mt(t,o){let r="";for(let i=0;i<t.length;i++)r+=t[i],i<o.length&&(r+=Dt(i));let a=[],d=0,l=r.length;for(;d<l;){if(y(r,d)==="<"){if(r.startsWith("<!--",d)){let w=r.indexOf("-->",d+4);d=w===-1?l:w+3;continue}if(y(r,d+1)==="/"){let w=r.indexOf(">",d),R=r.slice(d+2,w).trim();a.push({kind:1,tag:R}),d=w+1;continue}let p=Ht(r,d),f=y(r,p-1)==="/",v=r.slice(d+1,f?p-1:p),{tag:g,attrs:S}=Ot(v,o);a.push({kind:0,tag:g});for(let w of S)a.push(w);f&&a.push({kind:1,tag:g}),d=p+1;continue}let i=r.indexOf("<",d),c=i===-1?r.slice(d):r.slice(d,i);if(d=i===-1?l:i,c.trim()||P.test(c)){P.lastIndex=0;let p=0,f;for(;(f=P.exec(c))!==null;){let g=c.slice(p,f.index);g&&a.push({kind:3,value:g}),a.push({kind:4,value:o[Y(f)]}),p=f.index+f[0].length}let v=c.slice(p);v&&v.trim()&&a.push({kind:3,value:v})}}return a}function Ht(t,o){let r=null;for(let a=o+1;a<t.length;a++){let d=y(t,a);if(r)d===r&&(r=null);else if(d==='"'||d==="'")r=d;else if(d===">")return a}return t.length-1}function I(t){return t===" "||t==="	"||t===`
-`||t==="\r"||t==="\f"}function Ot(t,o){let r=t.search(/[\s/]/),a=r===-1?t:t.slice(0,r),d=[];if(r===-1)return{tag:a,attrs:d};let l=t.slice(r).trim();if(!l)return{tag:a,attrs:d};let i=0,c=l.length;for(;i<c;){for(;i<c&&I(y(l,i));)i++;if(i>=c)break;if(l.startsWith(T,i)){let v=l.indexOf("\0",i+T.length),g=parseInt(l.slice(i+T.length,v),10),S=o[g];if(S&&typeof S=="object")for(let[w,R]of Object.entries(S))d.push({kind:2,name:w,value:R});i=v+1;continue}let p=i;for(;i<c&&y(l,i)!=="="&&!I(y(l,i));)i++;let f=l.slice(p,i);if(!f){i++;continue}for(;i<c&&I(y(l,i));)i++;if(i>=c||y(l,i)!=="="){d.push({kind:2,name:f,value:!0});continue}for(i++;i<c&&I(y(l,i));)i++;if(l.startsWith(T,i)){let v=l.indexOf("\0",i+T.length),g=parseInt(l.slice(i+T.length,v),10);d.push({kind:2,name:f,value:o[g]}),i=v+1}else if(y(l,i)==='"'||y(l,i)==="'"){let v=y(l,i);i++;let g=i;for(;i<c&&y(l,i)!==v;)i++;let S=l.slice(g,i);i++,d.push({kind:2,name:f,value:se(S,o)})}else{let v=i;for(;i<c&&!I(y(l,i));)i++;let g=l.slice(v,i);d.push({kind:2,name:f,value:se(g,o)})}}return{tag:a,attrs:d}}function se(t,o){P.lastIndex=0;let r=P.exec(t);if(!r)return t;if(r.index===0&&r[0].length===t.length)return o[Y(r)];P.lastIndex=0;let a=[],d=0,l;for(;(l=P.exec(t))!==null;){l.index>d&&a.push(t.slice(d,l.index));let i=o[Y(l)];a.push(typeof i=="function"?i:()=>i),d=l.index+l[0].length}return d<t.length&&a.push(t.slice(d)),()=>a.map(i=>typeof i=="function"?i():i).join("")}function Ut(t){let o=document.createDocumentFragment(),r=[o],a=o;for(let d of t)switch(d.kind){case 0:{let l=document.createElement(d.tag);a.appendChild(l),r.push(l),a=l;break}case 1:{r.pop(),a=r.length>0?r[r.length-1]:o;break}case 2:{Bt(a,d.name,d.value);break}case 3:{a.appendChild(document.createTextNode(d.value));break}case 4:{de(a,d.value);break}}return o.childNodes.length===1&&o.firstChild instanceof HTMLElement?o.firstChild:o}function Bt(t,o,r){if(o==="ref"){typeof r=="function"&&r(t);return}if(o==="class"){B(r,a=>jt(t,a),t);return}if(o==="style"){B(r,a=>{typeof a=="string"?t.style.cssText=a:Object.assign(t.style,a??{})},t);return}if(O(o)&&typeof r=="function"){t.addEventListener(o.slice(2).toLowerCase(),r);return}if(o.startsWith("d-")){let a=re(o.slice(2));a?B(r,d=>a(t,d),t):console.warn(`[onefold] No directive registered for "${o}". Call registerDirective() first.`);return}B(r,a=>Ft(t,o,a),t)}function B(t,o,r){if(typeof t=="function"){let a=C(()=>o(t()));N(r,a)}else o(t)}function jt(t,o){o?typeof o=="string"?t.className=o:typeof o=="object"&&(t.className=Object.entries(o).filter(([,r])=>r).map(([r])=>r).join(" ")):t.className=""}function Ft(t,o,r){if(r===!1||r==null){t.removeAttribute(o);return}if(r===!0){t.setAttribute(o,"");return}let a=String(r);if(O(o)){console.warn(`[onefold] Blocked string event handler "${o}". Use a function instead.`);return}if((o==="href"||o==="src"||o==="action"||o==="formaction"||o==="xlink:href")&&W(a)){console.warn(`[onefold] Blocked unsafe "${o}" value:`,a),t.removeAttribute(o);return}if(o==="value"&&"value"in t){t.value=a;return}if(o==="checked"&&t instanceof HTMLInputElement){t.checked=r===!0||a==="true"||a==="";return}if(o==="selected"&&t instanceof HTMLOptionElement){t.selected=r===!0||a==="true"||a==="";return}t.setAttribute(o,a)}function de(t,o){if(!(o==null||o===!1||o===!0)){if(o instanceof Node){t.appendChild(o);return}if(Array.isArray(o)){for(let r of o)de(t,r);return}if(typeof o=="function"){let r=document.createComment("expr-start"),a=document.createComment("expr-end");t.appendChild(r),t.appendChild(a);let d=C(()=>{let l=o(),i=r.parentNode;if(!i)return;let c=r.nextSibling;for(;c&&c!==a;){let f=c.nextSibling;i.removeChild(c),c=f}let p=le(l);i.insertBefore(p,a)});N(t,d);return}if(q(o)){let r=document.createElement("span");r.innerHTML=_(o.html),t.appendChild(r);return}t.appendChild(document.createTextNode(String(o)))}}function le(t){if(t==null||t===!1||t===!0)return document.createComment("");if(t instanceof Node)return t;if(q(t)){let o=document.createElement("span");return o.innerHTML=_(t.html),o}if(Array.isArray(t)){let o=document.createDocumentFragment();for(let r of t)o.appendChild(le(r));return o}return document.createTextNode(String(t))}function n(t,...o){if(ae)return ae(t,...o);let r=Mt(t,o);return Ut(r)}var A=null,G=null;function K(){return G===null&&(G=typeof window<"u"&&window.location.protocol==="file:"),G}function ce(){return typeof window>"u"?"/":K()?window.location.hash.slice(1)||"/":window.location.pathname}function X(){if(A)return A;if(A=b(ce()),typeof window<"u"){let t=K()?"hashchange":"popstate";window.addEventListener(t,()=>A.set(ce()))}return A}function k(t){if(typeof window>"u")return;let o=X();K()?window.location.hash=t:(window.history.pushState({},"",t),o.set(t))}function j(){return X()()}function zt(t,o){let r=t.split("/"),a=o.split("/");if(r.length!==a.length)return null;let d={};for(let l=0;l<r.length;l++){let i=r[l],c=a[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function Wt(t,o){if(t==="/")return{};let r=t.split("/").filter(Boolean),a=o.split("/").filter(Boolean);if(a.length<r.length)return null;let d={};for(let l=0;l<r.length;l++){let i=r[l],c=a[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function pe(t,o,r,a=""){for(let d of t){let l=_t(a,d.path);if(d.children&&d.children.length>0){let i=Wt(l,o);if(i!==null){let p=pe(d.children,o,r,l)??r();return d.view(i,p)}}else{let i=zt(l,o);if(i!==null)return d.view(i)}}return null}function _t(t,o){if(!t||t==="/")return o;if(o==="/")return t;let r=t.endsWith("/")?t.slice(0,-1):t,a=o.startsWith("/")?o:"/"+o;return r+a}function Q(t,o){let r=X(),a=document.createElement("div"),d=C(()=>{let l=r(),i=null;if(Array.isArray(t))i=pe(t,l,o,"");else{let c=t[l];c&&(i=c())}a.textContent="",a.appendChild(i??o())});return N(a,d),a}function Z(t,o){let r=new Map(Object.entries(t)),a=o??document;function d(i){let c=[];(i.ctrlKey||i.metaKey)&&c.push("Ctrl"),i.shiftKey&&c.push("Shift"),i.altKey&&c.push("Alt");let p=i.key.length===1?i.key.toUpperCase():i.key;return c.push(p),c.join("+")}function l(i){let c=d(i),p=r.get(c);p&&(i.preventDefault(),p(i))}return a.addEventListener("keydown",l),{destroy:()=>a.removeEventListener("keydown",l),add:(i,c)=>r.set(i,c),remove:i=>r.delete(i)}}var L=[{title:"Get Started",links:[{label:"Introduction",path:"/"},{label:"Installation",path:"/getting-started/install"},{label:"Quick Start",path:"/getting-started/quickstart"}]},{title:"Fundamentals",links:[{label:"Signals (Reactivity)",path:"/core/signals"},{label:"Templates (html)",path:"/core/templates"},{label:"Mounting (mount)",path:"/core/mounting"},{label:"Scoped CSS (css)",path:"/core/css"}]},{title:"UI & Styling",links:[{label:"Theming",path:"/theming"},{label:"Transitions",path:"/transitions"},{label:"Accessibility",path:"/a11y"}]},{title:"Routing",links:[{label:"Router",path:"/routing/router"},{label:"Nested Routes",path:"/routing/nested"},{label:"Dynamic Params",path:"/routing/params"},{label:"Navigate",path:"/routing/navigate"},{label:"Link",path:"/routing/link"}]},{title:"State Management",links:[{label:"Store",path:"/state/store"},{label:"Persisted Signals",path:"/state/persisted"},{label:"Dependency Injection",path:"/di"}]},{title:"Data Fetching",links:[{label:"Resource",path:"/data/resource"},{label:"HTTP Client",path:"/data/http-client"},{label:"Interceptors",path:"/data/interceptors"}]},{title:"Forms",links:[{label:"createForm",path:"/forms/create-form"},{label:"Validation Rules",path:"/forms/validation"}]},{title:"Real-time",links:[{label:"WebSocket",path:"/streaming/websocket"},{label:"Server-Sent Events",path:"/streaming/sse"}]},{title:"Async Patterns",links:[{label:"Suspense",path:"/async/suspense"},{label:"Lazy Loading",path:"/async/lazy-loading"},{label:"Error Boundaries",path:"/async/error-boundaries"}]},{title:"Security",links:[{label:"XSS Prevention",path:"/security/xss"},{label:"RBAC Guards",path:"/security/guards"}]},{title:"Performance",links:[{label:"VirtualList",path:"/performance/virtual-list"},{label:"Code Splitting",path:"/performance/code-splitting"}]},{title:"Server-Side Rendering",links:[{label:"renderHTML",path:"/ssr"}]},{title:"Internationalization",links:[{label:"i18n",path:"/i18n"}]},{title:"Microfrontends",links:[{label:"configureSecurity",path:"/microfrontends/security"},{label:"loadRemote",path:"/microfrontends/load-remote"},{label:"Isolation Modes",path:"/microfrontends/isolation"},{label:"Communication",path:"/microfrontends/communication"},{label:"SRI Integrity",path:"/microfrontends/sri"},{label:"Deployment",path:"/microfrontends/deployment"},{label:"Shared Dependencies",path:"/microfrontends/shared-deps"},{label:"Cross-Framework",path:"/microfrontends/cross-framework"},{label:"API Reference",path:"/microfrontends/api-reference"}]},{title:"Interop",links:[{label:"wrapImperative",path:"/interop/wrap-imperative"},{label:"embedForeign",path:"/interop/embed-foreign"}]},{title:"Plugins & Observability",links:[{label:"Plugins",path:"/plugins"},{label:"Observability",path:"/observability"},{label:"Component Metadata",path:"/meta"}]},{title:"Tooling",links:[{label:"CLI (create-onefold)",path:"/cli"},{label:"DevTools",path:"/devtools"},{label:"Extensions",path:"/extensions"},{label:"Utilities",path:"/utilities"}]},{title:"Playground",links:[{label:"Live Editor",path:"/playground"}]}];function $(t){let o=document.createElement("div");return o.innerHTML=t,o.firstElementChild??document.createComment("svg-empty")}var ue=()=>$(`<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return Ot.get(t)}var E=null,Ut=0,Bt=new Set;var _=class{constructor(o,n){this.deps=new Set,this.active=!0,this.fn=o,this.label=n}run(){if(!this.active)return;this.cleanup();let o=E;E=this;try{ie(this.label,this.fn)}finally{E=o}}cleanup(){for(let o of this.deps)o.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},z=class{constructor(o){this.value=o,this.subscribers=new Set}get(){return E&&(this.subscribers.add(E),E.deps.add(this)),this.value}set(o){let n=typeof o=="function"?o(this.value):o;Object.is(n,this.value)||(this.value=n,this.notify())}peek(){return this.value}notify(){if(Ut>0)for(let o of this.subscribers)Bt.add(o);else{let o=Array.from(this.subscribers);for(let n=0;n<o.length;n++)o[n].run()}}};function b(t){let o=new z(t),n=(()=>o.get());return n.set=s=>o.set(s),n.peek=()=>o.peek(),n}function P(t,o="effect"){let n=o,s=new _(t,n);return s.run(),()=>s.dispose()}var jt=/^\s*(javascript|data|vbscript):/i,Ft=/^on/i;function q(t){return jt.test(t)}function B(t){return Ft.test(t)}function se(t){let o=document.createElement("template");o.innerHTML=t;let n=s=>{let d=[];s.childNodes.forEach(l=>{if(l.nodeType===Node.ELEMENT_NODE){let i=l,c=i.tagName.toLowerCase();if(c==="script"||c==="style"||c==="iframe"||c==="object"||c==="embed"||c==="form"){d.push(l);return}Array.from(i.attributes).forEach(p=>{(B(p.name)||(p.name==="href"||p.name==="src")&&q(p.value))&&i.removeAttribute(p.name)}),n(i)}}),d.forEach(l=>l.remove())};return n(o.content),o.innerHTML}var U=null;function Wt(){return U||(typeof window<"u"&&window.trustedTypes&&(U=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:t=>se(t)})),U)}function V(t){let o=Wt();return o?o.createHTML(t):se(t)}function G(t){return typeof t=="object"&&t!==null&&t.__onefoldRaw===!0}function J(t,o){o.replaceChildren(t)}var j=new WeakMap,Y=null;function _t(){if(Y||typeof MutationObserver>"u"||typeof document>"u")return;Y=new MutationObserver(o=>{for(let n of o)n.removedNodes.forEach(de)});let t=document.documentElement??document;Y.observe(t,{childList:!0,subtree:!0})}function de(t){let o=j.get(t);if(o){for(let n of o)try{n()}catch(s){console.error("[onefold] Error while disposing a reactive binding:",s)}j.delete(t)}t.childNodes.forEach(de)}function D(t,o){_t();let n=j.get(t);n||(n=new Set,j.set(t,n)),n.add(o)}var le=null;var R="\0nf_",N=/\x00nf_(\d+)\x00/g;function zt(t){return`${R}${t}\0`}function y(t,o){return t.charAt(o)}function K(t){return parseInt(t[1]??"0",10)}function qt(t,o){let n="";for(let i=0;i<t.length;i++)n+=t[i],i<o.length&&(n+=zt(i));let s=[],d=0,l=n.length;for(;d<l;){if(y(n,d)==="<"){if(n.startsWith("<!--",d)){let S=n.indexOf("-->",d+4);d=S===-1?l:S+3;continue}if(y(n,d+1)==="/"){let S=n.indexOf(">",d),A=n.slice(d+2,S).trim();s.push({kind:1,tag:A}),d=S+1;continue}let p=Vt(n,d),f=y(n,p-1)==="/",v=n.slice(d+1,f?p-1:p),{tag:g,attrs:x}=Gt(v,o);s.push({kind:0,tag:g});for(let S of x)s.push(S);f&&s.push({kind:1,tag:g}),d=p+1;continue}let i=n.indexOf("<",d),c=i===-1?n.slice(d):n.slice(d,i);if(d=i===-1?l:i,c.trim()||N.test(c)){N.lastIndex=0;let p=0,f;for(;(f=N.exec(c))!==null;){let g=c.slice(p,f.index);g&&s.push({kind:3,value:g}),s.push({kind:4,value:o[K(f)]}),p=f.index+f[0].length}let v=c.slice(p);v&&v.trim()&&s.push({kind:3,value:v})}}return s}function Vt(t,o){let n=null;for(let s=o+1;s<t.length;s++){let d=y(t,s);if(n)d===n&&(n=null);else if(d==='"'||d==="'")n=d;else if(d===">")return s}return t.length-1}function L(t){return t===" "||t==="	"||t===`
+`||t==="\r"||t==="\f"}function Gt(t,o){let n=t.search(/[\s/]/),s=n===-1?t:t.slice(0,n),d=[];if(n===-1)return{tag:s,attrs:d};let l=t.slice(n).trim();if(!l)return{tag:s,attrs:d};let i=0,c=l.length;for(;i<c;){for(;i<c&&L(y(l,i));)i++;if(i>=c)break;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10),x=o[g];if(x&&typeof x=="object")for(let[S,A]of Object.entries(x))d.push({kind:2,name:S,value:A});i=v+1;continue}let p=i;for(;i<c&&y(l,i)!=="="&&!L(y(l,i));)i++;let f=l.slice(p,i);if(!f){i++;continue}for(;i<c&&L(y(l,i));)i++;if(i>=c||y(l,i)!=="="){d.push({kind:2,name:f,value:!0});continue}for(i++;i<c&&L(y(l,i));)i++;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10);d.push({kind:2,name:f,value:o[g]}),i=v+1}else if(y(l,i)==='"'||y(l,i)==="'"){let v=y(l,i);i++;let g=i;for(;i<c&&y(l,i)!==v;)i++;let x=l.slice(g,i);i++,d.push({kind:2,name:f,value:ce(x,o)})}else{let v=i;for(;i<c&&!L(y(l,i));)i++;let g=l.slice(v,i);d.push({kind:2,name:f,value:ce(g,o)})}}return{tag:s,attrs:d}}function ce(t,o){N.lastIndex=0;let n=N.exec(t);if(!n)return t;if(n.index===0&&n[0].length===t.length)return o[K(n)];N.lastIndex=0;let s=[],d=0,l;for(;(l=N.exec(t))!==null;){l.index>d&&s.push(t.slice(d,l.index));let i=o[K(l)];s.push(typeof i=="function"?i:()=>i),d=l.index+l[0].length}return d<t.length&&s.push(t.slice(d)),()=>s.map(i=>typeof i=="function"?i():i).join("")}function Jt(t){let o=document.createDocumentFragment(),n=[o],s=o;for(let d of t)switch(d.kind){case 0:{let l=document.createElement(d.tag);s.appendChild(l),n.push(l),s=l;break}case 1:{n.pop(),s=n.length>0?n[n.length-1]:o;break}case 2:{Yt(s,d.name,d.value);break}case 3:{s.appendChild(document.createTextNode(d.value));break}case 4:{pe(s,d.value);break}}return o.childNodes.length===1&&o.firstChild instanceof HTMLElement?o.firstChild:o}function Yt(t,o,n){if(o==="ref"){typeof n=="function"&&n(t);return}if(o==="class"){F(n,s=>Kt(t,s),t);return}if(o==="style"){F(n,s=>{typeof s=="string"?t.style.cssText=s:Object.assign(t.style,s??{})},t);return}if(B(o)&&typeof n=="function"){t.addEventListener(o.slice(2).toLowerCase(),n);return}if(o.startsWith("d-")){let s=ae(o.slice(2));s?F(n,d=>s(t,d),t):console.warn(`[onefold] No directive registered for "${o}". Call registerDirective() first.`);return}F(n,s=>Xt(t,o,s),t)}function F(t,o,n){if(typeof t=="function"){let s=P(()=>o(t()));D(n,s)}else o(t)}function Kt(t,o){o?typeof o=="string"?t.className=o:typeof o=="object"&&(t.className=Object.entries(o).filter(([,n])=>n).map(([n])=>n).join(" ")):t.className=""}function Xt(t,o,n){if(n===!1||n==null){t.removeAttribute(o);return}if(n===!0){t.setAttribute(o,"");return}let s=String(n);if(B(o)){console.warn(`[onefold] Blocked string event handler "${o}". Use a function instead.`);return}if((o==="href"||o==="src"||o==="action"||o==="formaction"||o==="xlink:href")&&q(s)){console.warn(`[onefold] Blocked unsafe "${o}" value:`,s),t.removeAttribute(o);return}if(o==="value"&&"value"in t){t.value=s;return}if(o==="checked"&&t instanceof HTMLInputElement){t.checked=n===!0||s==="true"||s==="";return}if(o==="selected"&&t instanceof HTMLOptionElement){t.selected=n===!0||s==="true"||s==="";return}t.setAttribute(o,s)}function pe(t,o){if(!(o==null||o===!1||o===!0)){if(o instanceof Node){t.appendChild(o);return}if(Array.isArray(o)){for(let n of o)pe(t,n);return}if(typeof o=="function"){let n=document.createComment("expr-start"),s=document.createComment("expr-end");t.appendChild(n),t.appendChild(s);let d=P(()=>{let l=o(),i=n.parentNode;if(!i)return;let c=n.nextSibling;for(;c&&c!==s;){let f=c.nextSibling;i.removeChild(c),c=f}let p=ue(l);i.insertBefore(p,s)});D(t,d);return}if(G(o)){let n=document.createElement("span");n.innerHTML=V(o.html),t.appendChild(n);return}t.appendChild(document.createTextNode(String(o)))}}function ue(t){if(t==null||t===!1||t===!0)return document.createComment("");if(t instanceof Node)return t;if(G(t)){let o=document.createElement("span");return o.innerHTML=V(t.html),o}if(Array.isArray(t)){let o=document.createDocumentFragment();for(let n of t)o.appendChild(ue(n));return o}return document.createTextNode(String(t))}function r(t,...o){if(le)return le(t,...o);let n=qt(t,o);return Jt(n)}var M=null,W=null;function X(t){t.hash!==void 0&&(W=t.hash)}function Q(){return W===null&&(W=typeof window<"u"&&window.location.protocol==="file:"),W}function he(){return typeof window>"u"?"/":Q()?window.location.hash.slice(1)||"/":window.location.pathname}function Z(){if(M)return M;if(M=b(he()),typeof window<"u"){let t=Q()?"hashchange":"popstate";window.addEventListener(t,()=>M.set(he()))}return M}function k(t){if(typeof window>"u")return;let o=Z();Q()?(window.location.hash=t,o.set(t)):(window.history.pushState({},"",t),o.set(t))}function I(){return Z()()}function Qt(t,o){let n=t.split("/"),s=o.split("/");if(n.length!==s.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function Zt(t,o){if(t==="/")return{};let n=t.split("/").filter(Boolean),s=o.split("/").filter(Boolean);if(s.length<n.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function me(t,o,n,s=""){for(let d of t){let l=eo(s,d.path);if(d.children&&d.children.length>0){let i=Zt(l,o);if(i!==null){let p=me(d.children,o,n,l)??n();return d.view(i,p)}}else{let i=Qt(l,o);if(i!==null)return d.view(i)}}return null}function eo(t,o){if(!t||t==="/")return o;if(o==="/")return t;let n=t.endsWith("/")?t.slice(0,-1):t,s=o.startsWith("/")?o:"/"+o;return n+s}function ee(t,o){let n=Z(),s=document.createElement("div"),d=P(()=>{let l=n(),i=null;if(Array.isArray(t))i=me(t,l,o,"");else{let c=t[l];c&&(i=c())}s.textContent="",s.appendChild(i??o())});return D(s,d),s}function te(t,o){let n=new Map(Object.entries(t)),s=o??document;function d(i){let c=[];(i.ctrlKey||i.metaKey)&&c.push("Ctrl"),i.shiftKey&&c.push("Shift"),i.altKey&&c.push("Alt");let p=i.key.length===1?i.key.toUpperCase():i.key;return c.push(p),c.join("+")}function l(i){let c=d(i),p=n.get(c);p&&(i.preventDefault(),p(i))}return s.addEventListener("keydown",l),{destroy:()=>s.removeEventListener("keydown",l),add:(i,c)=>n.set(i,c),remove:i=>n.delete(i)}}var T=[{title:"Get Started",links:[{label:"Introduction",path:"/"},{label:"Installation",path:"/getting-started/install"},{label:"Quick Start",path:"/getting-started/quickstart"}]},{title:"Fundamentals",links:[{label:"Signals (Reactivity)",path:"/core/signals"},{label:"Templates (html)",path:"/core/templates"},{label:"Mounting (mount)",path:"/core/mounting"},{label:"Scoped CSS (css)",path:"/core/css"}]},{title:"UI & Styling",links:[{label:"Theming",path:"/theming"},{label:"Transitions",path:"/transitions"},{label:"Accessibility",path:"/a11y"}]},{title:"Routing",links:[{label:"Router",path:"/routing/router"},{label:"configureRouter",path:"/routing/configure"},{label:"Nested Routes",path:"/routing/nested"},{label:"Dynamic Params",path:"/routing/params"},{label:"Navigate",path:"/routing/navigate"},{label:"Link",path:"/routing/link"}]},{title:"State Management",links:[{label:"Store",path:"/state/store"},{label:"Persisted Signals",path:"/state/persisted"},{label:"Dependency Injection",path:"/di"}]},{title:"Data Fetching",links:[{label:"Resource",path:"/data/resource"},{label:"HTTP Client",path:"/data/http-client"},{label:"Interceptors",path:"/data/interceptors"}]},{title:"Forms",links:[{label:"createForm",path:"/forms/create-form"},{label:"Validation Rules",path:"/forms/validation"}]},{title:"Real-time",links:[{label:"WebSocket",path:"/streaming/websocket"},{label:"Server-Sent Events",path:"/streaming/sse"}]},{title:"Async Patterns",links:[{label:"Suspense",path:"/async/suspense"},{label:"Lazy Loading",path:"/async/lazy-loading"},{label:"Error Boundaries",path:"/async/error-boundaries"}]},{title:"Security",links:[{label:"XSS Prevention",path:"/security/xss"},{label:"RBAC Guards",path:"/security/guards"}]},{title:"Performance",links:[{label:"VirtualList",path:"/performance/virtual-list"},{label:"Code Splitting",path:"/performance/code-splitting"}]},{title:"Server-Side Rendering",links:[{label:"renderHTML",path:"/ssr"}]},{title:"Internationalization",links:[{label:"i18n",path:"/i18n"}]},{title:"Microfrontends",links:[{label:"loadRemote",path:"/microfrontends/load-remote"},{label:"Isolation Modes",path:"/microfrontends/isolation"},{label:"Communication",path:"/microfrontends/communication"},{label:"configureSecurity",path:"/microfrontends/security"},{label:"SRI Integrity",path:"/microfrontends/sri"},{label:"Shared Dependencies",path:"/microfrontends/shared-deps"},{label:"Cross-Framework",path:"/microfrontends/cross-framework"},{label:"Deployment",path:"/microfrontends/deployment"},{label:"API Reference",path:"/microfrontends/api-reference"}]},{title:"Interop",links:[{label:"wrapImperative",path:"/interop/wrap-imperative"},{label:"embedForeign",path:"/interop/embed-foreign"}]},{title:"Plugins & Observability",links:[{label:"Plugins",path:"/plugins"},{label:"Observability",path:"/observability"},{label:"Component Metadata",path:"/meta"}]},{title:"Tooling",links:[{label:"CLI (create-onefold)",path:"/cli"},{label:"DevTools",path:"/devtools"},{label:"Extensions",path:"/extensions"},{label:"Utilities",path:"/utilities"}]},{title:"Deployment",links:[{label:"GitHub Pages",path:"/deployment/github-pages"},{label:"Vercel",path:"/deployment/vercel"},{label:"Netlify",path:"/deployment/netlify"},{label:"Cloudflare Pages",path:"/deployment/cloudflare"},{label:"AWS S3 + CloudFront",path:"/deployment/aws"},{label:"Docker / Node",path:"/deployment/docker"}]},{title:"Playground",links:[{label:"Live Editor",path:"/playground"}]}];function $(t){let o=document.createElement("div");return o.innerHTML=t,o.firstElementChild??document.createComment("svg-empty")}var fe=()=>$(`<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <rect y="3" width="20" height="2" rx="1"/>
     <rect y="9" width="20" height="2" rx="1"/>
     <rect y="15" width="20" height="2" rx="1"/>
-  </svg>`),me=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ge=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/>
-  </svg>`),he=()=>$(`<svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ve=()=>$(`<svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
     <polygon points="83.8,39.8 108,64 64,108 20,64 44.2,39.8" fill="#4338CA"/>
     <polygon points="83.8,39.8 44.2,39.8 64,59.6" fill="#818CF8"/>
-  </svg>`),fe=()=>$(`<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),be=()=>$(`<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2l10 6-10 6V2z"/>
-  </svg>`),ge=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ye=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M1 1h5v2H3.414L6.707 6.293l-1.414 1.414L2 4.414V7H0V1h1zm14 0h-5v2h2.586L9.293 6.293l1.414 1.414L14 4.414V7h2V1h-1zM1 15h5v-2H3.414l3.293-3.293-1.414-1.414L2 11.586V9H0v6h1zm14 0h-5v-2h2.586l-3.293-3.293 1.414-1.414L14 11.586V9h2v6h-1z"/>
-  </svg>`),ve=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),we=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M5 1v4H1v2h5a1 1 0 001-1V1H5zm6 0v5a1 1 0 001 1h5V5h-4V1h-2zM1 9v2h4v4h2v-5a1 1 0 00-1-1H1zm9 0a1 1 0 00-1 1v5h2v-4h4V9h-5z"/>
-  </svg>`);function be(){let t=b(new Set(["Get Started"]));C(()=>{let a=j();for(let d of L)for(let l of d.links)if(l.path===a){t.set(i=>{let c=new Set(i);return c.add(d.title),c});return}});let o=a=>{t.set(d=>{let l=new Set(d);return l.has(a)?l.delete(a):l.add(a),l})},r=a=>{k(a),document.getElementById("sidebar")?.classList.remove("open"),document.getElementById("overlay")?.classList.remove("open")};return n`
+  </svg>`);function Se(){let t=b(new Set(["Get Started"]));P(()=>{let s=I();for(let d of T)for(let l of d.links)if(l.path===s){t.set(i=>{let c=new Set(i);return c.add(d.title),c});return}});let o=s=>{t.set(d=>{let l=new Set(d);return l.has(s)?l.delete(s):l.add(s),l})},n=s=>{k(s),document.getElementById("sidebar")?.classList.remove("open"),document.getElementById("overlay")?.classList.remove("open")};return r`
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-logo">
-        ${he()}
+        ${ve()}
         <span class="wordmark">one<span>fold</span></span>
         <span class="version">v0.1.2</span>
       </div>
       <nav class="sidebar-nav">
-        ${()=>L.map(a=>n`
-          <div class=${()=>"sidebar-section"+(t().has(a.title)?"":" collapsed")}>
-            <div class="sidebar-section-title" onclick=${()=>o(a.title)}>
-              ${a.title}
+        ${()=>T.map(s=>r`
+          <div class=${()=>"sidebar-section"+(t().has(s.title)?"":" collapsed")}>
+            <div class="sidebar-section-title" onclick=${()=>o(s.title)}>
+              ${s.title}
               <span class="arrow">▼</span>
             </div>
             <ul class="sidebar-links">
-              ${a.links.map(d=>n`
+              ${s.links.map(d=>r`
                 <li>
-                  <a class=${()=>"sidebar-link"+(j()===d.path?" active":"")}
-                     onclick=${()=>r(d.path)}>
+                  <a class=${()=>"sidebar-link"+(I()===d.path?" active":"")}
+                     onclick=${()=>n(d.path)}>
                     ${d.label}
                   </a>
                 </li>
@@ -42,14 +42,14 @@ var te=null;function oe(t,o){te?te(t,o):o()}var Pt=new Map;function re(t){return
         `)}
       </nav>
     </aside>
-  `}function ye(){let t=b(""),o=b(!1),r=L.flatMap(c=>c.links.map(p=>({...p,section:c.title}))),a=()=>{let c=t().toLowerCase().trim();return c?r.filter(p=>p.label.toLowerCase().includes(c)||p.section.toLowerCase().includes(c)).slice(0,10):[]},d=c=>{t.set(c.target.value),o.set(t().trim().length>0)},l=c=>{k(c),t.set(""),o.set(!1)};return n`
+  `}function ke(){let t=b(""),o=b(!1),n=T.flatMap(c=>c.links.map(p=>({...p,section:c.title}))),s=()=>{let c=t().toLowerCase().trim();return c?n.filter(p=>p.label.toLowerCase().includes(c)||p.section.toLowerCase().includes(c)).slice(0,10):[]},d=c=>{t.set(c.target.value),o.set(t().trim().length>0)},l=c=>{k(c),t.set(""),o.set(!1)};return r`
     <header class="header">
       <div class="header-left">
         <button class="sidebar-toggle" onclick=${()=>{document.getElementById("sidebar")?.classList.toggle("open"),document.getElementById("overlay")?.classList.toggle("open")}} aria-label="Toggle menu">
-          ${ue()}
+          ${fe()}
         </button>
         <div class="search">
-          <span class="s-icon">${me()}</span>
+          <span class="s-icon">${ge()}</span>
           <input
             type="text"
             placeholder="Search docs..."
@@ -57,8 +57,8 @@ var te=null;function oe(t,o){te?te(t,o):o()}var Pt=new Map;function re(t){return
             onfocus=${()=>{t().trim()&&o.set(!0)}}
             onblur=${()=>setTimeout(()=>o.set(!1),200)}
           />
-          <div class=${()=>"search-results"+(o()&&a().length>0?" visible":"")}>
-            ${()=>a().map(c=>n`
+          <div class=${()=>"search-results"+(o()&&s().length>0?" visible":"")}>
+            ${()=>s().map(c=>r`
               <div class="search-result" onclick=${()=>l(c.path)}>
                 <span style="font-size:10px;text-transform:uppercase;color:var(--accent);letter-spacing:0.05em">${c.section}</span><br/>
                 ${c.label}
@@ -72,23 +72,28 @@ var te=null;function oe(t,o){te?te(t,o):o()}var Pt=new Map;function re(t){return
         <a href="https://www.npmjs.com/package/onefold" target="_blank">npm</a>
       </div>
     </header>
-  `}function we(t){return n`
+  `}function xe(){let t=new Map;for(let s of T)for(let d of s.links)t.set(d.path,{section:s.title,label:d.label});let o=new Map;for(let s of T)s.links.length>0&&o.set(s.title,s.links[0].path);let n=s=>d=>{d.preventDefault(),k(s)};return r`
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      ${()=>{let s=I(),d=t.get(s);if(s==="/")return document.createTextNode("");let l=[];if(l.push(r`<a class="breadcrumb-link" href="/" onclick=${n("/")}>Home</a>`),l.push(r`<span class="breadcrumb-sep" aria-hidden="true">/</span>`),d){let c=o.get(d.section)??"/";c!==s&&(l.push(r`<a class="breadcrumb-link" href="${c}" onclick=${n(c)}>${d.section}</a>`),l.push(r`<span class="breadcrumb-sep" aria-hidden="true">/</span>`)),l.push(r`<span class="breadcrumb-current" aria-current="page">${d.label}</span>`)}else{let c=s.split("/").filter(Boolean),p=c[c.length-1]??"Page";l.push(r`<span class="breadcrumb-current" aria-current="page">${p}</span>`)}let i=document.createDocumentFragment();for(let c of l)i.appendChild(c);return i}}
+    </nav>
+  `}function Ce(t){return r`
     <div class="overlay" id="overlay"></div>
     <div class="app-shell">
-      ${be()}
-      ${ye()}
+      ${Se()}
+      ${ke()}
       <main class="content">
+        ${xe()}
         ${t}
       </main>
     </div>
-  `}function qt(t){return t.replace(/^(export\s+)?(interface|type)\s+\w+[^]*?\n\}/gm,"").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*\{/g,") {").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=>/g,") =>").replace(/(const|let|var)\s+(\w+)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=/g,"$1 $2 =").replace(/(\w)\s*:\s*(?:[A-Z]\w*(?:<[^>]*>)?(?:\[\])?|string|number|boolean|void|any|unknown|never)(\s*[,)=])/g,"$1$2").replace(/(\w)<[^>]+>\(/g,"$1(").replace(/\s+as\s+[A-Z]\w*(?:<[^>]*>)?/g,"").replace(/\n{3,}/g,`
+  `}function to(t){return t.replace(/^(export\s+)?(interface|type)\s+\w+[^]*?\n\}/gm,"").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*\{/g,") {").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=>/g,") =>").replace(/(const|let|var)\s+(\w+)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=/g,"$1 $2 =").replace(/(\w)\s*:\s*(?:[A-Z]\w*(?:<[^>]*>)?(?:\[\])?|string|number|boolean|void|any|unknown|never)(\s*[,)=])/g,"$1$2").replace(/(\w)<[^>]+>\(/g,"$1(").replace(/\s+as\s+[A-Z]\w*(?:<[^>]*>)?/g,"").replace(/\n{3,}/g,`
 
-`)}function u(t,o="Live Example"){let r=b(t.trim()),a=b(null),d=b("result"),l=b([]),i=b(t.trim().split(`
-`).length),c=b(!1),p=b(!1),f=()=>{p.set(m=>!m),document.body.style.overflow=p()?"hidden":""};Z({Escape:()=>{p()&&(p.set(!1),document.body.style.overflow="")},"Ctrl+Enter":()=>g()});let v=m=>{let h=qt(m);return['<!DOCTYPE html><html><head><meta charset="utf-8">',"<style>","* { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }","body { padding: 12px; font-size: 14px; line-height: 1.6; color: #1a1a2e; }","button { padding: 6px 12px; border-radius: 4px; border: 1px solid #e5e7eb; cursor: pointer; margin: 4px 4px 4px 0; background: #fff; }","button:hover { background: #f3f4f6; }","h1,h2,h3 { margin-bottom: 8px; }","p { margin-bottom: 8px; }","input,textarea,select { padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 4px; margin: 4px 0; font-size: 14px; }","ul,ol { padding-left: 20px; }","li { margin: 4px 0; }",".error { color: #dc2626; font-family: monospace; font-size: 12px; white-space: pre-wrap; padding: 8px; background: #fef2f2; border-radius: 4px; }","</style></head><body>",'<div id="app"></div>','<script type="module">',"const CODE = "+JSON.stringify(h)+";","","// Console capture","const _logs = [];","const _origLog = console.log;",'console.log = (...a) => { _logs.push(a.map(x => typeof x === "object" ? JSON.stringify(x,null,2) : String(x)).join(" ")); _origLog(...a); window.parent.postMessage({type:"pg-log",logs:[..._logs]},"*"); };','console.warn = (...a) => console.log("[warn]", ...a);','console.error = (...a) => console.log("[error]", ...a);',"","// Minimal reactive runtime","let _ae = null;","function createSignal(init) {","  let val = init; const subs = new Set();","  const sig = () => { if (_ae) subs.add(_ae); return val; };",'  sig.set = (v) => { const nv = typeof v === "function" ? v(val) : v; if (Object.is(nv, val)) return; val = nv; for (const s of [...subs]) s(); };',"  sig.peek = () => val; return sig;","}","function createEffect(fn) { const eff = () => { const p = _ae; _ae = eff; try { fn(); } finally { _ae = p; } }; eff(); return () => {}; }",'function createComputed(fn) { const s = createSignal(undefined); createEffect(() => s.set(fn())); const r = () => s(); r.peek = s.peek; r.set = () => { throw new Error("Cannot write to computed"); }; return r; }',"function batch(fn) { fn(); }","","function html(strings, ...values) {",'  const PH = "\\x01PH";','  let markup = "";','  for (let i = 0; i < strings.length; i++) { markup += strings[i]; if (i < values.length) { const v = values[i]; if (typeof v === "string" || typeof v === "number") markup += String(v); else markup += PH + i + "\\x01"; } }','  const tpl = document.createElement("template"); tpl.innerHTML = markup; const frag = tpl.content;',"","  const walker = document.createTreeWalker(frag, NodeFilter.SHOW_TEXT);","  const tns = []; while (walker.nextNode()) tns.push(walker.currentNode);","  for (const tn of tns) {","    const re = /\\x01PH(\\d+)\\x01/g; let m;","    if ((m = re.exec(tn.textContent)) !== null) {","      const idx = parseInt(m[1]); const val = values[idx];",'      if (typeof val === "function") {','        const marker = document.createTextNode(""); tn.replaceWith(marker); let cur = [];',"        createEffect(() => {","          const r = val(); for (const n of cur) n.remove(); cur = [];",'          if (Array.isArray(r)) { const p = marker.parentNode; if (p) for (const c of r) { if (c instanceof Node) { p.insertBefore(c, marker); cur.push(c); } else { const t = document.createTextNode(String(c??"")); p.insertBefore(t, marker); cur.push(t); } } }',"          else if (r instanceof Node) { if (marker.parentNode) { marker.parentNode.insertBefore(r, marker); cur.push(r); } }",'          else { const t = document.createTextNode(String(r??"")); if (marker.parentNode) { marker.parentNode.insertBefore(t, marker); cur.push(t); } }',"        });","      } else if (val instanceof Node) { tn.replaceWith(val); }","    }","  }","",'  frag.querySelectorAll("*").forEach(el => {',"    for (const attr of [...el.attributes]) {","      const m2 = attr.value.match(/\\x01PH(\\d+)\\x01/);","      if (m2) {","        const idx = parseInt(m2[1]); const val = values[idx];",'        if (attr.name.startsWith("on") && typeof val === "function") { el.removeAttribute(attr.name); el.addEventListener(attr.name.slice(2), val); }','        else if (attr.name === "class" && typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { el.className = val() || ""; }); }','        else if (attr.name === "style" && typeof val === "object") { el.removeAttribute(attr.name); Object.assign(el.style, val); }','        else if (typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { const v = val(); if (v === false || v == null) el.removeAttribute(attr.name); else el.setAttribute(attr.name, String(v)); }); }','        else { el.setAttribute(attr.name, String(val ?? "")); }',"      }","    }","  });","","  if (frag.childNodes.length === 1 && frag.firstChild instanceof HTMLElement) return frag.firstChild;",'  const w = document.createElement("div"); w.appendChild(frag); return w;',"}","","function mount(node, container) { container.replaceChildren(node); }",'function css() { return { scope: "", css: "" }; }',"","try {",'  const fn = new Function("createSignal","createEffect","createComputed","batch","html","mount","css",','    CODE + "\\n\\n" +','    "if (typeof App===\\"function\\") mount(App(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Counter===\\"function\\") mount(Counter(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Main===\\"function\\") mount(Main(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Todo===\\"function\\") mount(Todo(), document.getElementById(\\"app\\"));\\n"',"  );","  fn(createSignal, createEffect, createComputed, batch, html, mount, css);",'  window.parent.postMessage({type:"pg-ready"},"*");',"} catch(e) {",`  document.getElementById("app").innerHTML = '<div class="error">' + e.message + '</div>';`,'  window.parent.postMessage({type:"pg-log",logs:["[error] " + e.message]},"*");',"}","<\/script></body></html>"].join(`
-`)},g=()=>{let m=a();m&&(c.set(!0),l.set([]),m.srcdoc=v(r()),setTimeout(()=>c.set(!1),300))},S=null,w=()=>{S&&clearTimeout(S),S=setTimeout(g,800)},R=m=>{let h=m.target.value;r.set(h),i.set(h.split(`
-`).length),w()},St=m=>{if(m.key==="Tab"){m.preventDefault();let h=m.target,x=h.selectionStart,D=h.selectionEnd;h.value=h.value.substring(0,x)+"  "+h.value.substring(D),h.selectionStart=h.selectionEnd=x+2,r.set(h.value),i.set(h.value.split(`
-`).length),w()}},xt=m=>{let h=m.target,x=h.previousElementSibling;x&&(x.scrollTop=h.scrollTop)},kt=()=>{r.set(t.trim()),i.set(t.trim().split(`
-`).length);let m=document.querySelector(".playground-editor");m&&(m.value=t.trim()),g()};typeof window<"u"&&window.addEventListener("message",m=>{m.data?.type==="pg-log"&&l.set(m.data.logs??[])});let $t=m=>{let h=!1,x=0,D=0;m.addEventListener("mousedown",M=>{h=!0,x=M.clientX,D=m.previousElementSibling.getBoundingClientRect().width,document.body.style.cursor="col-resize",document.body.style.userSelect="none",M.preventDefault()}),document.addEventListener("mousemove",M=>{if(!h)return;let ee=m.parentElement,Ct=ee.getBoundingClientRect().width-120,Tt=Math.max(120,Math.min(Ct,D+(M.clientX-x)))/ee.getBoundingClientRect().width*100;m.previousElementSibling.style.cssText=`flex:none;width:${Tt}%;min-width:120px`,m.nextElementSibling.style.flex="1"}),document.addEventListener("mouseup",()=>{h&&(h=!1,document.body.style.cursor="",document.body.style.userSelect="")})};return setTimeout(g,200),n`
+`)}function u(t,o="Live Example"){let n=b(t.trim()),s=b(null),d=b("result"),l=b([]),i=b(t.trim().split(`
+`).length),c=b(!1),p=b(!1),f=()=>{p.set(h=>!h),document.body.style.overflow=p()?"hidden":""};te({Escape:()=>{p()&&(p.set(!1),document.body.style.overflow="")},"Ctrl+Enter":()=>g()});let v=h=>{let m=to(h);return['<!DOCTYPE html><html><head><meta charset="utf-8">',"<style>","* { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }","body { padding: 12px; font-size: 14px; line-height: 1.6; color: #1a1a2e; }","button { padding: 6px 12px; border-radius: 4px; border: 1px solid #e5e7eb; cursor: pointer; margin: 4px 4px 4px 0; background: #fff; }","button:hover { background: #f3f4f6; }","h1,h2,h3 { margin-bottom: 8px; }","p { margin-bottom: 8px; }","input,textarea,select { padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 4px; margin: 4px 0; font-size: 14px; }","ul,ol { padding-left: 20px; }","li { margin: 4px 0; }",".error { color: #dc2626; font-family: monospace; font-size: 12px; white-space: pre-wrap; padding: 8px; background: #fef2f2; border-radius: 4px; }","</style></head><body>",'<div id="app"></div>','<script type="module">',"const CODE = "+JSON.stringify(m)+";","","// Console capture","const _logs = [];","const _origLog = console.log;",'console.log = (...a) => { _logs.push(a.map(x => typeof x === "object" ? JSON.stringify(x,null,2) : String(x)).join(" ")); _origLog(...a); window.parent.postMessage({type:"pg-log",logs:[..._logs]},"*"); };','console.warn = (...a) => console.log("[warn]", ...a);','console.error = (...a) => console.log("[error]", ...a);',"","// Minimal reactive runtime","let _ae = null;","function createSignal(init) {","  let val = init; const subs = new Set();","  const sig = () => { if (_ae) subs.add(_ae); return val; };",'  sig.set = (v) => { const nv = typeof v === "function" ? v(val) : v; if (Object.is(nv, val)) return; val = nv; for (const s of [...subs]) s(); };',"  sig.peek = () => val; return sig;","}","function createEffect(fn) { const eff = () => { const p = _ae; _ae = eff; try { fn(); } finally { _ae = p; } }; eff(); return () => {}; }",'function createComputed(fn) { const s = createSignal(undefined); createEffect(() => s.set(fn())); const r = () => s(); r.peek = s.peek; r.set = () => { throw new Error("Cannot write to computed"); }; return r; }',"function batch(fn) { fn(); }","","function html(strings, ...values) {",'  const PH = "\\x01PH";','  let markup = "";','  for (let i = 0; i < strings.length; i++) { markup += strings[i]; if (i < values.length) { const v = values[i]; if (typeof v === "string" || typeof v === "number") markup += String(v); else markup += PH + i + "\\x01"; } }','  const tpl = document.createElement("template"); tpl.innerHTML = markup; const frag = tpl.content;',"","  const walker = document.createTreeWalker(frag, NodeFilter.SHOW_TEXT);","  const tns = []; while (walker.nextNode()) tns.push(walker.currentNode);","  for (const tn of tns) {","    const re = /\\x01PH(\\d+)\\x01/g; let m;","    if ((m = re.exec(tn.textContent)) !== null) {","      const idx = parseInt(m[1]); const val = values[idx];",'      if (typeof val === "function") {','        const marker = document.createTextNode(""); tn.replaceWith(marker); let cur = [];',"        createEffect(() => {","          const r = val(); for (const n of cur) n.remove(); cur = [];",'          if (Array.isArray(r)) { const p = marker.parentNode; if (p) for (const c of r) { if (c instanceof Node) { p.insertBefore(c, marker); cur.push(c); } else { const t = document.createTextNode(String(c??"")); p.insertBefore(t, marker); cur.push(t); } } }',"          else if (r instanceof Node) { if (marker.parentNode) { marker.parentNode.insertBefore(r, marker); cur.push(r); } }",'          else { const t = document.createTextNode(String(r??"")); if (marker.parentNode) { marker.parentNode.insertBefore(t, marker); cur.push(t); } }',"        });","      } else if (val instanceof Node) { tn.replaceWith(val); }","    }","  }","",'  frag.querySelectorAll("*").forEach(el => {',"    for (const attr of [...el.attributes]) {","      const m2 = attr.value.match(/\\x01PH(\\d+)\\x01/);","      if (m2) {","        const idx = parseInt(m2[1]); const val = values[idx];",'        if (attr.name.startsWith("on") && typeof val === "function") { el.removeAttribute(attr.name); el.addEventListener(attr.name.slice(2), val); }','        else if (attr.name === "class" && typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { el.className = val() || ""; }); }','        else if (attr.name === "style" && typeof val === "object") { el.removeAttribute(attr.name); Object.assign(el.style, val); }','        else if (typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { const v = val(); if (v === false || v == null) el.removeAttribute(attr.name); else el.setAttribute(attr.name, String(v)); }); }','        else { el.setAttribute(attr.name, String(val ?? "")); }',"      }","    }","  });","","  if (frag.childNodes.length === 1 && frag.firstChild instanceof HTMLElement) return frag.firstChild;",'  const w = document.createElement("div"); w.appendChild(frag); return w;',"}","","function mount(node, container) { container.replaceChildren(node); }",'function css() { return { scope: "", css: "" }; }',"","try {",'  const fn = new Function("createSignal","createEffect","createComputed","batch","html","mount","css",','    CODE + "\\n\\n" +','    "if (typeof App===\\"function\\") mount(App(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Counter===\\"function\\") mount(Counter(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Main===\\"function\\") mount(Main(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Todo===\\"function\\") mount(Todo(), document.getElementById(\\"app\\"));\\n"',"  );","  fn(createSignal, createEffect, createComputed, batch, html, mount, css);",'  window.parent.postMessage({type:"pg-ready"},"*");',"} catch(e) {",`  document.getElementById("app").innerHTML = '<div class="error">' + e.message + '</div>';`,'  window.parent.postMessage({type:"pg-log",logs:["[error] " + e.message]},"*");',"}","<\/script></body></html>"].join(`
+`)},g=()=>{let h=s();h&&(c.set(!0),l.set([]),h.srcdoc=v(n()),setTimeout(()=>c.set(!1),300))},x=null,S=()=>{x&&clearTimeout(x),x=setTimeout(g,800)},A=h=>{let m=h.target.value;n.set(m),i.set(m.split(`
+`).length),S()},It=h=>{if(h.key==="Tab"){h.preventDefault();let m=h.target,C=m.selectionStart,H=m.selectionEnd;m.value=m.value.substring(0,C)+"  "+m.value.substring(H),m.selectionStart=m.selectionEnd=C+2,n.set(m.value),i.set(m.value.split(`
+`).length),S()}},At=h=>{let m=h.target,C=m.previousElementSibling;C&&(C.scrollTop=m.scrollTop)},Dt=()=>{n.set(t.trim()),i.set(t.trim().split(`
+`).length);let h=document.querySelector(".playground-editor");h&&(h.value=t.trim()),g()};typeof window<"u"&&window.addEventListener("message",h=>{h.data?.type==="pg-log"&&l.set(h.data.logs??[])});let Lt=h=>{let m=!1,C=0,H=0;h.addEventListener("mousedown",O=>{m=!0,C=O.clientX,H=h.previousElementSibling.getBoundingClientRect().width,document.body.style.cursor="col-resize",document.body.style.userSelect="none",O.preventDefault()}),document.addEventListener("mousemove",O=>{if(!m)return;let re=h.parentElement,Mt=re.getBoundingClientRect().width-120,Ht=Math.max(120,Math.min(Mt,H+(O.clientX-C)))/re.getBoundingClientRect().width*100;h.previousElementSibling.style.cssText=`flex:none;width:${Ht}%;min-width:120px`,h.nextElementSibling.style.flex="1"}),document.addEventListener("mouseup",()=>{m&&(m=!1,document.body.style.cursor="",document.body.style.userSelect="")})};return setTimeout(g,200),r`
     <div class=${()=>"playground"+(p()?" playground-fullscreen":"")}>
       <div class="playground-toolbar">
         <div class="playground-toolbar-left">
@@ -96,66 +101,66 @@ var te=null;function oe(t,o){te?te(t,o):o()}var Pt=new Map;function re(t){return
         </div>
         <div class="playground-toolbar-right">
           <button class="pg-btn pg-btn-run" onclick=${g}>
-            ${fe()}
+            ${be()}
             Run
           </button>
-          <button class="pg-btn" onclick=${kt}>Reset</button>
+          <button class="pg-btn" onclick=${Dt}>Reset</button>
           <button class="pg-btn" onclick=${f} title="Toggle fullscreen (Esc to exit)">
-            ${()=>p()?ve():ge()}
+            ${()=>p()?we():ye()}
           </button>
         </div>
       </div>
       <div class="playground-body">
         <div class="playground-left">
-          <div class="pg-gutter">${()=>Array.from({length:i()},(m,h)=>n`<div class="pg-line-num">${String(h+1)}</div>`)}</div>
+          <div class="pg-gutter">${()=>Array.from({length:i()},(h,m)=>r`<div class="pg-line-num">${String(m+1)}</div>`)}</div>
           <textarea
             class="playground-editor"
-            oninput=${R}
-            onkeydown=${St}
-            onscroll=${xt}
+            oninput=${A}
+            onkeydown=${It}
+            onscroll=${At}
             spellcheck="false"
             autocomplete="off"
             autocorrect="off"
             autocapitalize="off"
           >${t.trim()}</textarea>
         </div>
-        <div class="playground-divider" ref=${m=>$t(m)}></div>
+        <div class="playground-divider" ref=${h=>Lt(h)}></div>
         <div class="playground-right">
           <div class="pg-tabs">
             <button class=${()=>"pg-tab"+(d()==="result"?" active":"")} onclick=${()=>d.set("result")}>Result</button>
             <button class=${()=>"pg-tab"+(d()==="console"?" active":"")} onclick=${()=>d.set("console")}>
-              Console${()=>l().length>0?n`<span class="pg-tab-badge">${String(l().length)}</span>`:""}
+              Console${()=>l().length>0?r`<span class="pg-tab-badge">${String(l().length)}</span>`:""}
             </button>
           </div>
           <div class="pg-output-result" style=${()=>d()==="result"?"":"display:none"}>
             <iframe
-              ref=${m=>a.set(m)}
+              ref=${h=>s.set(h)}
               sandbox="allow-scripts"
             ></iframe>
           </div>
           <div class="pg-output-console" style=${()=>d()==="console"?"":"display:none"}>
-            ${()=>l().length===0?n`<div class="pg-console-empty">No output. Run the code to see console.log results.</div>`:n`<div class="pg-console-entries">${l().map(m=>n`<div class="pg-console-line"><span class="pg-console-chevron">${">"}</span> ${m}</div>`)}</div>`}
+            ${()=>l().length===0?r`<div class="pg-console-empty">No output. Run the code to see console.log results.</div>`:r`<div class="pg-console-entries">${l().map(h=>r`<div class="pg-console-line"><span class="pg-console-chevron">${">"}</span> ${h}</div>`)}</div>`}
           </div>
         </div>
       </div>
     </div>
-  `}var Vt=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  `}var oo=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
     <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
-  </svg>`),Jt=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="#16a34a" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ro=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="#16a34a" xmlns="http://www.w3.org/2000/svg">
     <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
-  </svg>`);function e(t,o="ts"){let r=b(!1);return n`
+  </svg>`);function e(t,o="ts"){let n=b(!1);return r`
     <div class="code-block-wrapper">
-      <button class="code-copy-btn" onclick=${()=>{navigator.clipboard.writeText(t).then(()=>{r.set(!0),setTimeout(()=>r.set(!1),2e3)}).catch(()=>{let d=document.createElement("textarea");d.value=t,d.style.position="fixed",d.style.opacity="0",document.body.appendChild(d),d.select(),document.execCommand("copy"),document.body.removeChild(d),r.set(!0),setTimeout(()=>r.set(!1),2e3)})}} title="Copy to clipboard">
-        ${()=>r()?Jt():Vt()}
-        ${()=>r()?"Copied!":""}
+      <button class="code-copy-btn" onclick=${()=>{navigator.clipboard.writeText(t).then(()=>{n.set(!0),setTimeout(()=>n.set(!1),2e3)}).catch(()=>{let d=document.createElement("textarea");d.value=t,d.style.position="fixed",d.style.opacity="0",document.body.appendChild(d),d.select(),document.execCommand("copy"),document.body.removeChild(d),n.set(!0),setTimeout(()=>n.set(!1),2e3)})}} title="Copy to clipboard">
+        ${()=>n()?ro():oo()}
+        ${()=>n()?"Copied!":""}
       </button>
       <pre><code>${t}</code></pre>
     </div>
-  `}function s(t,o="info"){return n`<div class=${o==="warn"?"callout callout-warn":o==="danger"?"callout callout-danger":"callout"}><p>${t}</p></div>`}function Se(){return n`
+  `}function a(t,o="info"){return r`<div class=${o==="warn"?"callout callout-warn":o==="danger"?"callout callout-danger":"callout"}><p>${t}</p></div>`}function $e(){return r`
     <div>
       <div style="text-align:center;margin-bottom:32px">
-        <img src="/images/logo.svg" alt="onefold" width="96" height="96" style="display:inline-block;margin-bottom:12px" />
+        <img src="./images/logo.svg" alt="onefold" width="96" height="96" style="display:inline-block;margin-bottom:12px" />
         <h1 style="margin-bottom:4px">onefold</h1>
         <p style="font-size:18px;color:var(--muted);max-width:600px;margin:0 auto">A modern lightweight UI reactive framework for building everything from simple websites to enterprise-scale web applications. Signals, routing, forms, i18n, microfrontend security — no virtual DOM, no compiler, no dependencies.</p>
       </div>
@@ -201,7 +206,7 @@ npm run dev`)}
       <h3>TypeScript-First</h3>
       <p>Built under <code>strict: true</code> with <code>noUncheckedIndexedAccess</code>. Full type inference. Illegal states fail at compile time, not at runtime.</p>
 
-      ${s("onefold is what you get when you take a fine-grained signal engine, remove the compiler requirement, and ship the entire application toolkit in one package with enterprise security built into the foundation.")}
+      ${a("onefold is what you get when you take a fine-grained signal engine, remove the compiler requirement, and ship the entire application toolkit in one package with enterprise security built into the foundation.")}
 
       <h2>Quick Example</h2>
 
@@ -294,7 +299,7 @@ mount(Counter(), document.getElementById('app'));`,"Signals + Computed")}
         <li><a href="/playground">Playground</a> — experiment with code live in the browser</li>
       </ul>
     </div>
-  `}function xe(){return n`
+  `}function Pe(){return r`
     <div>
       <h1>Installation</h1>
       <p>Get onefold into your project.</p>
@@ -332,7 +337,7 @@ yarn add onefold`)}
   );
 <\/script>`)}
 
-      ${s("onefold ships as standard ES modules. No special bundler plugins or Babel transforms are needed.")}
+      ${a("onefold ships as standard ES modules. No special bundler plugins or Babel transforms are needed.")}
 
       <h2>TypeScript Configuration</h2>
       <p>For the best experience, use strict mode in your <code>tsconfig.json</code>:</p>
@@ -354,7 +359,7 @@ yarn add onefold`)}
         <li>Modern browser (Chrome 89+, Firefox 108+, Safari 16.4+, Edge 89+)</li>
       </ul>
     </div>
-  `}function ke(){return n`
+  `}function Te(){return r`
     <div>
       <h1>Quick Start</h1>
       <p>Build your first onefold app in under 2 minutes.</p>
@@ -416,7 +421,7 @@ mount(App(), document.getElementById('app'));`,"Hello World")}
         <li><strong><code>mount(node, el)</code></strong> — attaches a component tree to the page.</li>
       </ul>
 
-      ${s("The most common mistake: forgetting the () => arrow wrapper. html`<p>${count}</p>` renders once and never updates. html`<p>${() => count()}</p>` updates every time count changes.")}
+      ${a("The most common mistake: forgetting the () => arrow wrapper. html`<p>${count}</p>` renders once and never updates. html`<p>${() => count()}</p>` updates every time count changes.")}
 
       <h2>4. Build for Production</h2>
       ${e(`npm run build     # \u2192 dist/
@@ -431,7 +436,7 @@ npm run preview   # \u2192 http://localhost:4000`)}
         <li>Add <a href="/routing/router">Routing</a> — for multi-page apps</li>
       </ul>
     </div>
-  `}function $e(){return n`
+  `}function Re(){return r`
     <div>
       <h1>Signals</h1>
       <p>Signals are the reactive primitive in onefold. They hold a value and automatically notify subscribers when it changes.</p>
@@ -481,7 +486,7 @@ batch(() => {
   b.set(2);
 }); // effects run once, not twice`)}
 
-      ${s("Without batch, each set() triggers effects immediately. With batch, all sets are collected and effects fire only once at the end.")}
+      ${a("Without batch, each set() triggers effects immediately. With batch, all sets are collected and effects fire only once at the end.")}
 
       <h2>Try It</h2>
       ${u(`function App(): Node {
@@ -514,7 +519,7 @@ mount(App(), document.getElementById('app'));`,"Signals + Computed")}
         <tr><td><code>batch(fn)</code></td><td>void</td><td>Group updates, single flush</td></tr>
       </table>
     </div>
-  `}function Ce(){return n`
+  `}function Ne(){return r`
     <div>
       <h1>Templates (html)</h1>
       <p>The <code>html</code> tagged template literal creates real DOM nodes — no virtual DOM, no diffing. Reactive expressions (functions) are tracked and updated in place.</p>
@@ -547,7 +552,7 @@ html\`<div style=\${{ color: 'red', fontSize: '16px' }}>...</div>\``)}
       <h2>Reactive Lists</h2>
       ${e("const items = createSignal(['Apple', 'Banana', 'Cherry']);\n\nhtml`<ul>\n  ${() => items().map(item => html`<li>${item}</li>`)}\n</ul>`")}
 
-      ${s("The key pattern: wrap dynamic values in () => to make them reactive. Without the arrow, the value is captured once and never updates.")}
+      ${a("The key pattern: wrap dynamic values in () => to make them reactive. Without the arrow, the value is captured once and never updates.")}
 
       <h2>Two-Way Input Binding</h2>
       <p>Bind a signal to an input's value so the DOM stays in sync when the signal resets:</p>
@@ -604,7 +609,7 @@ html\`<button d-tooltip="Save changes">Save</button>\``)}
 
 mount(App(), document.getElementById('app'));`,"Reactive List")}
     </div>
-  `}function Te(){return n`
+  `}function Ee(){return r`
     <div>
       <h1>Scoped CSS (css)</h1>
       <p>The <code>css</code> tagged template creates scoped stylesheets. Selectors are automatically prefixed with a unique class so styles never leak to other components.</p>
@@ -645,7 +650,7 @@ function Card(): Node {
         <li>You apply the scope class to your component's root element</li>
       </ol>
 
-      ${s("Styles are deduplicated \u2014 calling css with the same template string reuses the same scope class and does not inject a second <style> element.")}
+      ${a("Styles are deduplicated \u2014 calling css with the same template string reuses the same scope class and does not inject a second <style> element.")}
 
       <h2>cssValue — Safe User Input</h2>
       <p>When interpolating user-provided values into CSS, use <code>cssValue()</code> to prevent injection:</p>
@@ -666,7 +671,7 @@ css\`.card { background: \${cssValue(userColor)}; }\`
         <tr><td><code>cssValue(str)</code></td><td>string</td><td>Sanitize user input for CSS interpolation</td></tr>
       </table>
     </div>
-  `}function Pe(){return n`
+  `}function Ie(){return r`
     <div>
       <h1>Mounting (mount)</h1>
       <p>Attach a component tree to the DOM.</p>
@@ -686,7 +691,7 @@ mount(app, document.getElementById('app')!);`)}
 
 mount(App(), document.getElementById('app')!);`)}
 
-      ${s("mount() replaces the container content. If you need to append instead, use container.appendChild(node) directly with the result of html`...`.")}
+      ${a("mount() replaces the container content. If you need to append instead, use container.appendChild(node) directly with the result of html`...`.")}
 
       <h2>API</h2>
       <table>
@@ -698,9 +703,9 @@ mount(App(), document.getElementById('app')!);`)}
       <p>If you need to insert actual HTML markup (not text), use <code>raw()</code>:</p>
       ${e("import { raw } from 'onefold';\n\n// Only for trusted, developer-authored HTML \u2014 never user input\nhtml`<div>${raw('<strong>Bold text</strong>')}</div>`")}
 
-      ${s("raw() runs a minimal sanitizer (strips scripts, event handlers, unsafe URLs). For user-generated HTML, pipe through DOMPurify first.","warn")}
+      ${a("raw() runs a minimal sanitizer (strips scripts, event handlers, unsafe URLs). For user-generated HTML, pipe through DOMPurify first.","warn")}
     </div>
-  `}function Ee(){return n`
+  `}function Ae(){return r`
     <div>
       <h1>Router</h1>
       <p>Client-side routing with nested routes, dynamic parameters, and programmatic navigation.</p>
@@ -717,7 +722,7 @@ const App = Router([
       <h2>How It Works</h2>
       <p>The Router listens to <code>popstate</code> events (History API) and swaps the rendered view when the path changes. Only the matched route's view function is called — other routes remain unmounted.</p>
 
-      ${s("The Router returns a single DOM Node. Mount it once at your app root \u2014 route changes swap content in-place without a full re-render.")}
+      ${a("The Router returns a single DOM Node. Mount it once at your app root \u2014 route changes swap content in-place without a full re-render.")}
 
       <h2>Route Definition</h2>
       <table>
@@ -766,7 +771,141 @@ mount(App(), document.getElementById('app')!);`)}
         <li><a href="/routing/params">Dynamic Params</a> — capture URL segments as parameters</li>
       </ul>
     </div>
-  `}function Re(){return n`
+  `}function De(){return r`
+    <div>
+      <h1>configureRouter</h1>
+      <p>Configure the router's navigation strategy. By default, onefold uses <strong>path-based routing</strong> (History API). Use <code>configureRouter</code> to switch to hash-based routing for static hosting environments.</p>
+
+      <h2>Routing Modes</h2>
+      <table>
+        <tr><th>Mode</th><th>URL Format</th><th>When to Use</th></tr>
+        <tr><td><strong>Path</strong> (default)</td><td><code>/about</code>, <code>/users/42</code></td><td>Servers with SPA fallback (Express, Nginx, Vercel, Netlify with <code>_redirects</code>)</td></tr>
+        <tr><td><strong>Hash</strong></td><td><code>#/about</code>, <code>#/users/42</code></td><td>Static hosting without server config (GitHub Pages, S3, local <code>file://</code>)</td></tr>
+      </table>
+
+      <h2>Default Behavior</h2>
+      <p>Without calling <code>configureRouter</code>, the router uses path-based routing. It automatically falls back to hash mode when running on the <code>file:</code> protocol (e.g. opening an HTML file directly in the browser).</p>
+
+      ${e(`import { Router, navigate } from 'onefold';
+
+// Path-based by default \u2014 no configuration needed
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+], () => NotFound());
+
+navigate('/about'); // URL becomes: /about`)}
+
+      <h2>Enabling Hash Mode</h2>
+      <p>Call <code>configureRouter({ hash: true })</code> <strong>before</strong> creating any Router or calling <code>navigate()</code>.</p>
+
+      ${e(`import { configureRouter, Router, navigate } from 'onefold';
+
+// Enable hash routing for GitHub Pages / static hosting
+configureRouter({ hash: true });
+
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+], () => NotFound());
+
+navigate('/about'); // URL becomes: #/about`)}
+
+      ${a("configureRouter must be called before any Router or navigate call. Once the router initializes, changing the mode has no effect.")}
+
+      <h2>API</h2>
+      <table>
+        <tr><th>Function</th><th>Parameters</th><th>Description</th></tr>
+        <tr><td><code>configureRouter</code></td><td><code>{ hash?: boolean }</code></td><td>Set the routing strategy. <code>hash: true</code> enables hash-based routing.</td></tr>
+      </table>
+
+      <h2>How Each Mode Works</h2>
+
+      <h3>Path Mode (default)</h3>
+      <ul>
+        <li>Uses <code>history.pushState()</code> to update the URL</li>
+        <li>Listens to <code>popstate</code> events for back/forward navigation</li>
+        <li>Requires the server to serve <code>index.html</code> for all routes (SPA fallback)</li>
+        <li>Clean URLs: <code>/users/42</code></li>
+      </ul>
+
+      <h3>Hash Mode</h3>
+      <ul>
+        <li>Uses <code>window.location.hash</code> to store the route</li>
+        <li>Listens to <code>hashchange</code> events for navigation</li>
+        <li>Works on any static file server — no server config needed</li>
+        <li>URLs include <code>#</code>: <code>example.com/#/users/42</code></li>
+      </ul>
+
+      <h2>Deployment Guide</h2>
+
+      <h3>GitHub Pages</h3>
+      ${e(`// main.ts
+import { configureRouter, Router, mount } from 'onefold';
+
+configureRouter({ hash: true });
+
+const app = Router([...routes], () => NotFound());
+mount(app, document.getElementById('app')!);`)}
+      <p>Also ensure your <code>index.html</code> uses relative paths for assets:</p>
+      ${e(`<!-- Use ./ instead of / for asset paths -->
+<link rel="stylesheet" href="./style.css" />
+<script type="module" src="./app.js"><\/script>`,"html")}
+
+      <h3>Intercepting Internal Links (Hash Mode)</h3>
+      <p>When using hash mode, any raw <code>&lt;a href="/..."&gt;</code> links in your page content will trigger a full page navigation instead of client-side routing. To fix this, add a global click interceptor after mounting your app:</p>
+      ${e(`import { configureRouter, Router, navigate, mount } from 'onefold';
+
+configureRouter({ hash: true });
+
+const app = Router([...routes], () => NotFound());
+mount(app, document.getElementById('app')!);
+
+// Intercept internal links so raw <a href="/..."> in page content
+// uses client-side navigation instead of full page reload
+document.addEventListener('click', (e) => {
+  const anchor = (e.target as HTMLElement).closest('a');
+  if (!anchor) return;
+  const href = anchor.getAttribute('href');
+  if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+  e.preventDefault();
+  navigate(href);
+});
+
+// Navigate to home if no hash is present on initial load
+if (!location.hash || location.hash === '#/') {
+  navigate('/');
+}`)}
+      ${a('This interceptor is only needed if your page content contains plain <a href="/path"> links that are not using the Link component. If all navigation uses Link or navigate(), you can skip this.')}
+
+
+      <h3>Server with SPA Fallback (Nginx)</h3>
+      ${e(`# No configureRouter needed \u2014 path mode works out of the box
+# nginx.conf
+location / {
+  try_files $uri $uri/ /index.html;
+}`,"nginx")}
+
+      <h3>Vercel / Netlify</h3>
+      <p>These platforms support SPA fallback natively. Use path mode (the default) with no extra config.</p>
+
+      <h2>Link Behavior</h2>
+      <p>The <code>Link</code> component automatically adapts to the configured mode:</p>
+      ${e(`import { Link } from 'onefold';
+
+// Path mode \u2192 <a href="/about">About</a>
+// Hash mode \u2192 <a href="#/about">About</a>
+Link('/about', 'About');`)}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/routing/router">Router</a> — route definitions and matching</li>
+        <li><a href="/routing/navigate">Navigate</a> — programmatic navigation</li>
+        <li><a href="/routing/link">Link</a> — declarative navigation with active state</li>
+        <li><a href="/routing/nested">Nested Routes</a> — layouts with child routes</li>
+      </ul>
+    </div>
+  `}function Le(){return r`
     <div>
       <h1>Nested Routes</h1>
       <p>Parent layouts can render child routes via the <code>outlet</code> parameter. This lets you share layout elements (navbars, sidebars) across related pages.</p>
@@ -812,7 +951,7 @@ const App = Router([
   ]},
 ]);`)}
 
-      ${s("Child paths are relative to the parent. /settings/profile matches the parent /settings and then the child /profile.")}
+      ${a("Child paths are relative to the parent. /settings/profile matches the parent /settings and then the child /profile.")}
 
       <h2>Multiple Nesting Levels</h2>
       <p>Nesting can go as deep as needed. Each level receives its own outlet:</p>
@@ -841,7 +980,7 @@ const App = Router([
         <li><a href="/routing/params">Dynamic Params</a> — capture URL segments as parameters</li>
       </ul>
     </div>
-  `}function Ne(){return n`
+  `}function Me(){return r`
     <div>
       <h1>Programmatic Navigation</h1>
       <p>Use <code>navigate(path)</code> to change routes from code — after form submissions, authentication, or any event handler.</p>
@@ -884,7 +1023,7 @@ createEffect(() => {
   }
 });`)}
 
-      ${s("navigate() uses the History API (pushState) under the hood. The browser URL updates without a page reload.")}
+      ${a("navigate() uses the History API (pushState) under the hood. The browser URL updates without a page reload.")}
 
       <h2>API</h2>
       <table>
@@ -898,7 +1037,7 @@ createEffect(() => {
         <li><a href="/routing/router">Router</a> — client-side routing overview</li>
       </ul>
     </div>
-  `}function Ie(){return n`
+  `}function He(){return r`
     <div>
       <h1>Link Component</h1>
       <p>Declarative navigation with automatic active state. <code>Link</code> renders an anchor that prevents default navigation and uses <code>navigate()</code> internally.</p>
@@ -925,7 +1064,7 @@ a.active {
   border-bottom: 2px solid var(--primary);
 }`)}
 
-      ${s("Link uses client-side navigation \u2014 no full page reload. It calls event.preventDefault() and uses navigate() internally.")}
+      ${a("Link uses client-side navigation \u2014 no full page reload. It calls event.preventDefault() and uses navigate() internally.")}
 
       <h2>Link vs navigate()</h2>
       <table>
@@ -940,7 +1079,7 @@ a.active {
         <li><a href="/routing/params">Dynamic Params</a> — capture URL segments as parameters</li>
       </ul>
     </div>
-  `}function Ae(){return n`
+  `}function Oe(){return r`
     <div>
       <h1>Dynamic Parameters</h1>
       <p>Define URL segments that capture values at runtime using the <code>:param</code> syntax. Captured values are passed to the view function as a params object.</p>
@@ -980,7 +1119,7 @@ const App = Router([
 // URL: /org/acme/team/engineering
 // params = { orgId: 'acme', teamId: 'engineering' }`)}
 
-      ${s("All param values are strings. Parse numbers yourself: parseInt(params.id, 10).")}
+      ${a("All param values are strings. Parse numbers yourself: parseInt(params.id, 10).")}
 
       <h2>Combined with Resource</h2>
       <p>Use params with <code>createResource</code> for reactive data fetching:</p>
@@ -1007,7 +1146,7 @@ function UserProfile(params: { id: string }): Node {
         <li><a href="/routing/router">Router</a> — client-side routing overview</li>
       </ul>
     </div>
-  `}function Le(){return n`
+  `}function Ue(){return r`
     <div>
       <h1>Store</h1>
       <p><code>createStore</code> is a signal over an object with a convenient <code>.update()</code> method for partial merges. Use it for managing structured application state.</p>
@@ -1054,7 +1193,7 @@ function ThemeDisplay(): Node {
   \`;
 }`)}
 
-      ${s("store.update() performs a shallow merge (like Object.assign). For deeply nested state, spread inner objects yourself.")}
+      ${a("store.update() performs a shallow merge (like Object.assign). For deeply nested state, spread inner objects yourself.")}
 
       <h2>Replace vs Update</h2>
       ${e(`// .update() \u2014 shallow merge (keeps other fields)
@@ -1129,7 +1268,7 @@ mount(App(), document.getElementById('app'));`,"Todo List with Store")}
         <li><a href="/data/resource">Resource</a> — reactive async data fetching</li>
       </ul>
     </div>
-  `}function De(){return n`
+  `}function Be(){return r`
     <div>
       <h1>Persisted Signals</h1>
       <p><code>createPersisted</code> creates a signal that automatically syncs with <code>localStorage</code>. The value persists across page refreshes and browser sessions.</p>
@@ -1173,7 +1312,7 @@ prefs.set({ ...prefs(), fontSize: 16 });`)}
         <tr><td><code>deserialize</code></td><td>(raw) => T</td><td>JSON.parse</td><td>Custom deserializer from storage.</td></tr>
       </table>
 
-      ${s("If localStorage is unavailable (e.g., incognito mode in some browsers), createPersisted falls back to an in-memory signal.")}
+      ${a("If localStorage is unavailable (e.g., incognito mode in some browsers), createPersisted falls back to an in-memory signal.")}
 
       <h2>Reactive in Templates</h2>
       ${e(`function SettingsPanel(): Node {
@@ -1230,7 +1369,7 @@ mount(App(), document.getElementById('app'));`,"Persisted Theme Preference")}
         <li><a href="/theming">Theming</a> — reactive CSS custom properties with theme switching</li>
       </ul>
     </div>
-  `}function Me(){return n`
+  `}function je(){return r`
     <div>
       <h1>Resource</h1>
       <p><code>createResource</code> provides reactive async data fetching. It tracks loading state, errors, and data — and automatically refetches when the source signal changes.</p>
@@ -1279,7 +1418,7 @@ user.refetch();`)}
       ${e(`// Stop watching the source signal
 user.dispose();`)}
 
-      ${s("When the source signal changes, any in-flight request from the previous source value is ignored (its result will not update .data()).")}
+      ${a("When the source signal changes, any in-flight request from the previous source value is ignored (its result will not update .data()).")}
 
       <h2>Without a Source Signal</h2>
       <p>Pass <code>null</code> as the source to fetch once on creation:</p>
@@ -1307,7 +1446,7 @@ posts.refetch();`)}
         <li><a href="/async/suspense">Suspense</a> — show fallback UI while data loads</li>
       </ul>
     </div>
-  `}function He(){return n`
+  `}function Fe(){return r`
     <div>
       <h1>HTTP Client</h1>
       <p><code>createHttpClient</code> provides a typed HTTP client with interceptors, automatic JSON handling, and a clean API for <code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code>, and <code>delete</code> methods.</p>
@@ -1358,7 +1497,7 @@ await http.delete('/users/1');`)}
   signal: abortController.signal,     // AbortSignal for cancellation
 });`)}
 
-      ${s("All methods automatically serialize request bodies to JSON and parse JSON responses. Non-JSON responses return the raw Response object.")}
+      ${a("All methods automatically serialize request bodies to JSON and parse JSON responses. Non-JSON responses return the raw Response object.")}
 
       <h2>Error Handling</h2>
       ${e(`try {
@@ -1383,7 +1522,7 @@ const user = createResource(userId, (id) => http.get<User>(\`/users/\${id}\`));
         <li><a href="/data/resource">Resource</a> — reactive async data fetching</li>
       </ul>
     </div>
-  `}function Oe(){return n`
+  `}function We(){return r`
     <div>
       <h1>HTTP Interceptors</h1>
       <p>Interceptors let you transform requests before they're sent, process responses before they reach your code, and handle errors globally.</p>
@@ -1429,7 +1568,7 @@ const http = createHttpClient({
         <li><strong>Error interceptor</strong> — handle non-2xx responses or network failures.</li>
       </ol>
 
-      ${s("Each interceptor must return the config/response (or a modified version). Forgetting to return will break the chain.")}
+      ${a("Each interceptor must return the config/response (or a modified version). Forgetting to return will break the chain.")}
 
       <h2>Use Cases</h2>
 
@@ -1473,7 +1612,7 @@ const http = createHttpClient({
         <li><a href="/security/guards">RBAC Guards</a> — role-based access control for routes</li>
       </ul>
     </div>
-  `}function Ue(){return n`
+  `}function _e(){return r`
     <div>
       <h1>Forms</h1>
       <p><code>createForm</code> provides reactive form management with field-level state tracking, validation, dirty/touched states, and submission handling.</p>
@@ -1554,7 +1693,7 @@ const form = createForm({
         <tr><td><code>form.values()</code></td><td>Record</td><td>Current values of all fields.</td></tr>
       </table>
 
-      ${s("Validation runs on every .set() call. Errors are reactive \u2014 your UI updates automatically when a field becomes valid or invalid.")}
+      ${a("Validation runs on every .set() call. Errors are reactive \u2014 your UI updates automatically when a field becomes valid or invalid.")}
 
       ${u(`function App() {
   const email = createSignal('');
@@ -1628,7 +1767,7 @@ mount(App(), document.getElementById('app'));`,"Login Form with Validation")}
         <li><a href="/data/http-client">HTTP Client</a> — submit form data to your API</li>
       </ul>
     </div>
-  `}function Be(){return n`
+  `}function ze(){return r`
     <div>
       <h1>Validation Rules</h1>
       <p>onefold ships with 8 built-in validation rules. Combine them per field or write custom validators.</p>
@@ -1711,7 +1850,7 @@ const form = createForm({
   onSubmit: (values) => { /* ... */ },
 });`)}
 
-      ${s("Rules are evaluated in order. The first failing rule produces the .error() value. All failures appear in .errors().")}
+      ${a("Rules are evaluated in order. The first failing rule produces the .error() value. All failures appear in .errors().")}
 
       <h2>Custom Error Messages</h2>
       <p>Each built-in rule accepts an optional message parameter:</p>
@@ -1721,10 +1860,15 @@ const form = createForm({
   email('Please enter a valid email address'),
 ]`)}
     </div>
-  `}function je(){return n`
+  `}function qe(){return r`
     <div>
-      <h1>Microfrontend Security</h1>
-      <p><code>configureSecurity</code> establishes a security perimeter for remote module loading. It enforces origin whitelisting, SRI integrity checks, and sandboxing.</p>
+      <h1>configureSecurity</h1>
+      <p>Establish a security perimeter for remote module loading. Call <code>configureSecurity</code> once at app startup — before any <code>loadRemote</code> calls — to enforce origin whitelisting, SRI integrity checks, timeouts, and sandboxing.</p>
+
+      ${a('If you have not used loadRemote yet, start with the <a href="/microfrontends/load-remote">loadRemote</a> page to understand how remote modules work, then come back here to lock them down.')}
+
+      <h2>When Do You Need This?</h2>
+      <p><code>loadRemote</code> works without <code>configureSecurity</code> — but in production you should always configure it to prevent untrusted code from executing in your app. It answers: <em>which origins can load code into my application?</em></p>
 
       <h2>Configuration</h2>
       ${e(`import { configureSecurity } from 'onefold';
@@ -1756,7 +1900,7 @@ configureSecurity({
         <li><strong>Kill Switch</strong> — Set <code>blockAll: true</code> to instantly disable all remote module loading in production.</li>
       </ol>
 
-      ${s("Always use requireIntegrity: true in production. Without it, a compromised CDN could serve malicious code that passes origin checks.","warn")}
+      ${a("Always use requireIntegrity: true in production. Without it, a compromised CDN could serve malicious code that passes origin checks.","warn")}
 
       <h2>Production Example</h2>
       ${e(`configureSecurity({
@@ -1768,13 +1912,30 @@ configureSecurity({
   blockAll: false,
   timeout: 8000,
 });`)}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/microfrontends/sri">SRI Integrity</a> — generating and verifying integrity hashes</li>
+        <li><a href="/microfrontends/isolation">Isolation Modes</a> — Shadow DOM and iframe sandboxing</li>
+        <li><a href="/microfrontends/deployment">Deployment</a> — deploying microfrontend architectures</li>
+      </ul>
     </div>
-  `}function Fe(){return n`
+  `}function Ve(){return r`
     <div>
       <h1>loadRemote</h1>
-      <p>Load remote ES modules as components at runtime. Supports SRI integrity, isolation modes, fallback UI, and error handling.</p>
+      <p>Load remote ES modules as components at runtime. This is the core API for building microfrontend architectures with onefold — compose independently deployed modules into a single host application.</p>
+
+      <h2>What are Microfrontends?</h2>
+      <p>Microfrontends split a large frontend into smaller, independently built and deployed pieces. Each team owns a "remote" module that the host application loads at runtime. onefold provides:</p>
+      <ul>
+        <li><strong>loadRemote</strong> — fetch and render remote modules dynamically</li>
+        <li><strong>Isolation</strong> — sandbox remotes with Shadow DOM or iframes</li>
+        <li><strong>Security</strong> — origin allowlisting, SRI integrity, and sandboxing</li>
+        <li><strong>Communication</strong> — type-safe messaging between host and remotes</li>
+      </ul>
 
       <h2>Basic Usage</h2>
+      <p>The simplest way to load a remote module — provide a URL and an optional fallback:</p>
       ${e(`import { loadRemote, html } from 'onefold';
 
 function App(): Node {
@@ -1789,32 +1950,11 @@ function App(): Node {
   \`;
 }`)}
 
-      <h2>With Integrity</h2>
-      ${e(`loadRemote({
-  url: 'https://cdn.example.com/widgets/billing.js',
-  integrity: 'sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/ux...',
-  fallback: () => html\`<p>Loading...</p>\`,
-  onError: (err) => html\`<p class="error">Failed: \${err.message}</p>\`,
-})`)}
-
-      <h2>Options</h2>
-      <table>
-        <tr><th>Option</th><th>Type</th><th>Required</th><th>Description</th></tr>
-        <tr><td><code>url</code></td><td>string</td><td>Yes</td><td>URL of the remote ES module.</td></tr>
-        <tr><td><code>integrity</code></td><td>string</td><td>No*</td><td>SRI hash for verification.</td></tr>
-        <tr><td><code>fallback</code></td><td>() => Node</td><td>No</td><td>UI shown while loading.</td></tr>
-        <tr><td><code>onError</code></td><td>(err) => Node</td><td>No</td><td>UI shown on load failure.</td></tr>
-        <tr><td><code>props</code></td><td>Record</td><td>No</td><td>Props passed to the remote component.</td></tr>
-        <tr><td><code>isolation</code></td><td>'none' | 'shadow' | 'iframe'</td><td>No</td><td>DOM isolation mode.</td></tr>
-        <tr><td><code>timeout</code></td><td>number</td><td>No</td><td>Override global timeout for this load.</td></tr>
-      </table>
-
-      <p>* Required when <code>configureSecurity({ requireIntegrity: true })</code> is set.</p>
-
-      ${s("The remote module must export a default function that returns a Node. onefold calls it with the provided props.")}
+      ${a("The remote module must export a default function that returns a Node. onefold calls it with the provided props.")}
 
       <h2>Remote Module Format</h2>
-      ${e(`// billing-widget.ts (remote)
+      <p>A remote is a standard ES module with a default export:</p>
+      ${e(`// billing-widget.ts (deployed separately)
 import { html, createSignal } from 'onefold';
 
 export default function BillingWidget(props: { plan: string }): Node {
@@ -1829,14 +1969,60 @@ export default function BillingWidget(props: { plan: string }): Node {
   \`;
 }`)}
 
-      <h2>With Isolation</h2>
+      <h2>Passing Props</h2>
       ${e(`loadRemote({
-  url: 'https://cdn.example.com/widgets/legacy.js',
-  isolation: 'shadow',  // Shadow DOM \u2014 styles don't leak
+  url: 'https://cdn.example.com/widgets/billing.js',
+  props: { plan: 'enterprise', userId: '42' },
   fallback: () => html\`<p>Loading...</p>\`,
 })`)}
+
+      <h2>Error Handling</h2>
+      <p>Provide an <code>onError</code> handler for graceful degradation when a remote fails to load:</p>
+      ${e(`loadRemote({
+  url: 'https://cdn.example.com/widgets/billing.js',
+  fallback: () => html\`<p>Loading...</p>\`,
+  onError: (err) => html\`<p class="error">Widget unavailable: \${err.message}</p>\`,
+})`)}
+
+      <h2>With Integrity Verification</h2>
+      <p>Add SRI hashes to verify the remote hasn't been tampered with:</p>
+      ${e(`loadRemote({
+  url: 'https://cdn.example.com/widgets/billing.js',
+  integrity: 'sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/ux...',
+  fallback: () => html\`<p>Loading...</p>\`,
+})`)}
+
+      <h2>With Isolation</h2>
+      <p>Isolate the remote's DOM and styles from the host:</p>
+      ${e(`loadRemote({
+  url: 'https://cdn.example.com/widgets/legacy.js',
+  isolation: 'shadow',  // Shadow DOM \u2014 styles don't leak in or out
+  fallback: () => html\`<p>Loading...</p>\`,
+})`)}
+
+      <h2>Options Reference</h2>
+      <table>
+        <tr><th>Option</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td><code>url</code></td><td>string</td><td>Yes</td><td>URL of the remote ES module.</td></tr>
+        <tr><td><code>integrity</code></td><td>string</td><td>No*</td><td>SRI hash for verification.</td></tr>
+        <tr><td><code>fallback</code></td><td>() => Node</td><td>No</td><td>UI shown while loading.</td></tr>
+        <tr><td><code>onError</code></td><td>(err) => Node</td><td>No</td><td>UI shown on load failure.</td></tr>
+        <tr><td><code>props</code></td><td>Record</td><td>No</td><td>Props passed to the remote component.</td></tr>
+        <tr><td><code>isolation</code></td><td>'none' | 'shadow' | 'iframe'</td><td>No</td><td>DOM isolation mode.</td></tr>
+        <tr><td><code>timeout</code></td><td>number</td><td>No</td><td>Override global timeout (ms) for this load.</td></tr>
+      </table>
+
+      <p>* Required when <code>configureSecurity({ requireIntegrity: true })</code> is set.</p>
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/microfrontends/isolation">Isolation Modes</a> — Shadow DOM vs iframe sandboxing</li>
+        <li><a href="/microfrontends/communication">Communication</a> — messaging between host and remotes</li>
+        <li><a href="/microfrontends/security">configureSecurity</a> — origin allowlisting and security perimeter</li>
+        <li><a href="/microfrontends/sri">SRI Integrity</a> — verifying remote code hasn't been tampered with</li>
+      </ul>
     </div>
-  `}function ze(){return n`
+  `}function Ge(){return r`
     <div>
       <h1>Isolation Modes</h1>
       <p>Control how remote microfrontends interact with the host DOM. Choose the right level of isolation for your use case.</p>
@@ -1888,7 +2074,7 @@ export default function BillingWidget(props: { plan: string }): Node {
         <li>Best for untrusted third-party code.</li>
       </ul>
 
-      ${s('Use "shadow" for same-organization teams that need style isolation. Use "iframe" only for untrusted or legacy code that might pollute globals.',"warn")}
+      ${a('Use "shadow" for same-organization teams that need style isolation. Use "iframe" only for untrusted or legacy code that might pollute globals.',"warn")}
 
       <h2>Choosing the Right Mode</h2>
       <table>
@@ -1899,7 +2085,7 @@ export default function BillingWidget(props: { plan: string }): Node {
         <tr><td>Legacy jQuery/Angular widget</td><td><code>iframe</code></td></tr>
       </table>
     </div>
-  `}function We(){return n`
+  `}function Je(){return r`
     <div>
       <h1>Communication</h1>
       <p>How host and remote microfrontends exchange data. The pattern depends on the isolation mode.</p>
@@ -1979,7 +2165,7 @@ window.parent.postMessage(
   'https://host-app.example.com'
 );`)}
 
-      ${s("Always validate event.origin in postMessage handlers. Never trust messages from unknown origins.","warn")}
+      ${a("Always validate event.origin in postMessage handlers. Never trust messages from unknown origins.","warn")}
 
       <h2>Communication Summary</h2>
       <table>
@@ -1989,7 +2175,7 @@ window.parent.postMessage(
         <tr><td><code>iframe</code></td><td>postMessage</td><td>postMessage</td></tr>
       </table>
     </div>
-  `}function _e(){return n`
+  `}function Ye(){return r`
     <div>
       <h1>SRI (Subresource Integrity)</h1>
       <p>SRI ensures that fetched remote modules haven't been tampered with. The browser (or onefold's loader) verifies a cryptographic hash of the file's content before execution.</p>
@@ -2036,7 +2222,7 @@ console.log(\`sha384-\${hash}\`);`)}
         <tr><td>Cache poisoning</td><td>Stale/malicious cache served</td><td>Hash mismatch, blocked</td></tr>
       </table>
 
-      ${s("SRI hashes must be regenerated every time the remote module is rebuilt. Automate this in your CI/CD pipeline.","warn")}
+      ${a("SRI hashes must be regenerated every time the remote module is rebuilt. Automate this in your CI/CD pipeline.","warn")}
 
       <h2>Hash Validity</h2>
       <p>Supported algorithms (in order of preference):</p>
@@ -2051,7 +2237,7 @@ console.log(\`sha384-\${hash}\`);`)}
 'sha512-abc123def456...'
 'sha256-xyz789...'`)}
     </div>
-  `}function qe(){return n`
+  `}function Ke(){return r`
     <div>
       <h1>Deployment</h1>
       <p>Microfrontends in onefold are independently deployable ES modules. Each team owns their remote, deploys on their own schedule, and the host loads them at runtime.</p>
@@ -2119,9 +2305,9 @@ console.log(\`sha384-\${hash}\`);`)}
 #   remotes/       \u2014 Example remote widgets
 #   build.mjs      \u2014 Build script for all packages`)}
 
-      ${s("Each remote should be served with immutable cache headers (e.g., Cache-Control: public, max-age=31536000, immutable) and content-addressed filenames for cache busting.")}
+      ${a("Each remote should be served with immutable cache headers (e.g., Cache-Control: public, max-age=31536000, immutable) and content-addressed filenames for cache busting.")}
     </div>
-  `}function Ve(){return n`
+  `}function Xe(){return r`
     <div>
       <h1>Shared Dependencies</h1>
       <p>When multiple remotes use onefold (or other shared libraries), Import Maps prevent duplicate downloads and ensure a single instance.</p>
@@ -2174,7 +2360,7 @@ export default function Widget(): Node {
         <li><strong>Major updates</strong> — coordinate with all teams. Update remotes before changing the map.</li>
       </ul>
 
-      ${s("Import Maps are supported in all modern browsers. For older browsers, use the es-module-shims polyfill.")}
+      ${a("Import Maps are supported in all modern browsers. For older browsers, use the es-module-shims polyfill.")}
 
       <h2>Build Configuration</h2>
       <p>Mark <code>onefold</code> as external in your remote's build config so it's not bundled:</p>
@@ -2189,7 +2375,7 @@ esbuild.build({
   outfile: 'dist/widget.js',
 });`)}
     </div>
-  `}function Je(){return n`
+  `}function Qe(){return r`
     <div>
       <h1>Cross-Framework Integration</h1>
       <p>Embed React, Vue, or other framework components inside onefold apps — or load legacy apps in isolated iframes.</p>
@@ -2235,7 +2421,7 @@ const ReactWidget = embedForeign({
   fallback: () => html\`<p>Loading legacy widget...</p>\`,
 });`)}
 
-      ${s("iframe isolation is the safest option for legacy code that uses document.write, global variables, or older module formats.")}
+      ${a("iframe isolation is the safest option for legacy code that uses document.write, global variables, or older module formats.")}
 
       <h2>Comparison</h2>
       <table>
@@ -2244,7 +2430,7 @@ const ReactWidget = embedForeign({
         <tr><td><code>loadRemote</code> + iframe</td><td>Any / Legacy</td><td>Full</td><td>Fair</td></tr>
       </table>
     </div>
-  `}function Ye(){return n`
+  `}function Ze(){return r`
     <div>
       <h1>Microfrontend API Reference</h1>
       <p>Complete reference for <code>loadRemote</code> and <code>configureSecurity</code>.</p>
@@ -2289,7 +2475,7 @@ configureSecurity({ trustedOrigins: ['...'] });
 // embedForeign returns a Node
 const node: Node = embedForeign({ mount: ..., unmount: ... });`)}
     </div>
-  `}function Ge(){return n`
+  `}function et(){return r`
     <div>
       <h1>Suspense</h1>
       <p><code>Suspense</code> shows a fallback UI while async children are loading. <code>SuspenseAll</code> waits for multiple async components before revealing content.</p>
@@ -2323,7 +2509,7 @@ function Dashboard(): Node {
   \`;
 }`)}
 
-      ${s("Suspense works with createResource, lazy(), and any component that returns a Promise<Node>.")}
+      ${a("Suspense works with createResource, lazy(), and any component that returns a Promise<Node>.")}
 
       <h2>Nested Suspense</h2>
       ${e(`function App(): Node {
@@ -2358,7 +2544,7 @@ function Dashboard(): Node {
         <li><a href="/async/error-boundaries">Error Boundaries</a> — catch render errors gracefully</li>
       </ul>
     </div>
-  `}function Ke(){return n`
+  `}function tt(){return r`
     <div>
       <h1>Lazy Loading</h1>
       <p><code>lazy()</code> enables code splitting by loading components on demand. The module is only fetched when the component is first rendered.</p>
@@ -2394,7 +2580,7 @@ const App = Router([
   { path: '/analytics', view: () => Analytics() },
 ]);`)}
 
-      ${s("lazy() caches the module after the first load. Navigating back to a lazy-loaded route is instant.")}
+      ${a("lazy() caches the module after the first load. Navigating back to a lazy-loaded route is instant.")}
 
       <h2>How It Works</h2>
       <ol>
@@ -2430,7 +2616,7 @@ export default function Analytics(): Node {
         <li><a href="/routing/router">Router</a> — route-level lazy loading integration</li>
       </ul>
     </div>
-  `}function Xe(){return n`
+  `}function ot(){return r`
     <div>
       <h1>Error Boundaries</h1>
       <p><code>ErrorBoundary</code> catches errors thrown during rendering or in async operations. Instead of crashing the whole app, it shows a fallback UI.</p>
@@ -2473,7 +2659,7 @@ function App(): Node {
   \`;
 }`)}
 
-      ${s("ErrorBoundary catches both synchronous render errors and rejected promises from async components.")}
+      ${a("ErrorBoundary catches both synchronous render errors and rejected promises from async components.")}
 
       <h2>Nested Boundaries</h2>
       ${e(`function App(): Node {
@@ -2511,7 +2697,7 @@ function App(): Node {
         <li><a href="/observability">Observability</a> — monitor and debug your application</li>
       </ul>
     </div>
-  `}var Yt=`<!-- Save as: client.html (in same folder as server.mjs) -->
+  `}var no=`<!-- Save as: client.html (in same folder as server.mjs) -->
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>onefold WebSocket Chat</title></head>
 <body>
@@ -2551,7 +2737,7 @@ function App() {
 
 mount(App(), document.getElementById('app'));
 <\/script>
-</body></html>`;function Qe(){return n`
+</body></html>`;function rt(){return r`
     <div>
       <h1>WebSocket</h1>
       <p><code>createWebSocket</code> wraps the native WebSocket API in reactive signals with auto-reconnect, typed messages, and connection state tracking.</p>
@@ -2675,7 +2861,7 @@ wss.on('connection', (ws, req) => {
   ws.userId = user.id;
 });`)}
 
-      ${s("Token in URL is visible in server logs and browser history. Use short-lived tokens (e.g., 30-second JWTs) that are exchanged for the WebSocket session.","warn")}
+      ${a("Token in URL is visible in server logs and browser history. Use short-lived tokens (e.g., 30-second JWTs) that are exchanged for the WebSocket session.","warn")}
 
       <h3>Option 2: First-message auth (more secure)</h3>
       ${e(`// Client \u2014 send auth as first message after connection
@@ -2871,7 +3057,7 @@ wss.on('connection', (ws) => {
 server.listen(3000, () => console.log('Chat server: http://localhost:3000'));`)}
 
       <h3>Step 2: client.html</h3>
-      ${e(Yt)}
+      ${e(no)}
 
       <h3>Step 3: Run</h3>
       ${e(`npm install ws
@@ -2885,7 +3071,7 @@ node server.mjs
         <li><a href="/security/guards">RBAC Guards</a> — client-side route protection</li>
       </ul>
     </div>
-  `}var Gt=`<!-- Save as: client.html (in same folder as server.mjs) -->
+  `}var io=`<!-- Save as: client.html (in same folder as server.mjs) -->
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>onefold SSE Notifications</title></head>
 <body>
@@ -2917,7 +3103,7 @@ function App() {
 
 mount(App(), document.getElementById('app'));
 <\/script>
-</body></html>`;function Ze(){return n`
+</body></html>`;function nt(){return r`
     <div>
       <h1>Server-Sent Events (SSE)</h1>
       <p><code>createEventSource</code> wraps the native EventSource API in reactive signals. One-way server push — the server sends events to the client over a persistent HTTP connection.</p>
@@ -3076,7 +3262,7 @@ data: {"message":"New order"}\\n\\n
 data: line 1\\n
 data: line 2\\n\\n`)}
 
-      ${s("The browser automatically reconnects SSE if the connection drops. If you send an id: field, the browser includes Last-Event-ID header on reconnect so the server can resume from where it left off.")}
+      ${a("The browser automatically reconnects SSE if the connection drops. If you send an id: field, the browser includes Last-Event-ID header on reconnect so the server can resume from where it left off.")}
 
       <h2>Authentication</h2>
       <p>Unlike WebSocket, SSE is a standard HTTP request — it sends cookies automatically and supports all HTTP auth mechanisms.</p>
@@ -3125,7 +3311,7 @@ app.get('/api/notifications', (req, res) => {
   req.on('close', () => clients.delete(res));
 });`)}
 
-      ${s("SSE does NOT support custom headers in the browser (the EventSource API has no headers option). Use cookies or URL tokens for authentication.")}
+      ${a("SSE does NOT support custom headers in the browser (the EventSource API has no headers option). Use cookies or URL tokens for authentication.")}
 
       <h3>Authorization (per-event filtering)</h3>
       ${e(`// Server \u2014 only send events the user is allowed to see
@@ -3283,7 +3469,7 @@ setInterval(() => {
 server.listen(3000, () => console.log('SSE server: http://localhost:3000'));`)}
 
       <h3>Step 2: client.html</h3>
-      ${e(Gt)}
+      ${e(io)}
 
       <h3>Step 3: Run</h3>
       ${e(`node server.mjs
@@ -3307,7 +3493,7 @@ curl -N -b "session_id=abc123" http://localhost:3000/api/notifications`)}
         <li><a href="/data/interceptors">Interceptors</a> — add auth headers to HTTP requests</li>
       </ul>
     </div>
-  `}function et(){return n`
+  `}function it(){return r`
     <div>
       <h1>Internationalization (i18n)</h1>
       <p><code>createI18n</code> provides reactive translations with interpolation. When the locale changes, all translated text in the UI updates automatically.</p>
@@ -3362,7 +3548,7 @@ const { t, setLocale, locale } = createI18n({
   \`;
 }`)}
 
-      ${s('Wrapping t() in an arrow function (e.g., () => t("key")) makes it reactive. The text updates when the locale signal changes.')}
+      ${a('Wrapping t() in an arrow function (e.g., () => t("key")) makes it reactive. The text updates when the locale signal changes.')}
 
       <h2>Interpolation</h2>
       <p>Use <code>{{placeholder}}</code> in translation strings:</p>
@@ -3417,7 +3603,7 @@ mount(App(), document.getElementById('app'));`,"i18n Language Switcher")}
         <li><a href="/routing/router">Router</a> — client-side routing with nested routes</li>
       </ul>
     </div>
-  `}function tt(){return n`
+  `}function at(){return r`
     <div>
       <h1>Theming</h1>
       <p><code>createTheme</code> manages CSS custom properties reactively. Switch between light/dark (or any custom themes) and the UI updates instantly via CSS variables.</p>
@@ -3469,7 +3655,7 @@ a {
   color: var(--primary);
 }`)}
 
-      ${s("createTheme sets CSS custom properties on document.documentElement. All elements that reference those variables update instantly.")}
+      ${a("createTheme sets CSS custom properties on document.documentElement. All elements that reference those variables update instantly.")}
 
       <h2>Persistence</h2>
       <p>The selected theme is automatically persisted to localStorage. On page reload, the user's preference is restored.</p>
@@ -3516,7 +3702,7 @@ mount(App(), document.getElementById('app'));`,"Light/Dark Theme Toggle")}
         <li><a href="/i18n">i18n</a> — internationalization with reactive translations</li>
       </ul>
     </div>
-  `}function ot(){return n`
+  `}function st(){return r`
     <div>
       <h1>Accessibility (a11y)</h1>
       <p>onefold provides built-in accessibility primitives: focus trapping, live announcements, keyboard shortcuts, and skip navigation.</p>
@@ -3574,7 +3760,7 @@ function App(): Node {
   \`;
 }`)}
 
-      ${s("SkipLink is visually hidden until focused. It becomes visible when a keyboard user tabs to it.")}
+      ${a("SkipLink is visually hidden until focused. It becomes visible when a keyboard user tabs to it.")}
 
       <h2>API Reference</h2>
       <table>
@@ -3627,7 +3813,7 @@ mount(App(), document.getElementById('app'));`,"Focus Trap & Announcements")}
         <li><a href="/core/templates">Templates</a> — the html tagged template literal</li>
       </ul>
     </div>
-  `}function rt(){return n`
+  `}function dt(){return r`
     <div>
       <h1>Transitions</h1>
       <p><code>Transition</code>, <code>animateEnter</code>, and <code>animateLeave</code> animate elements entering and leaving the DOM.</p>
@@ -3674,7 +3860,7 @@ animateLeave(element, {
   duration: 400,
 }, () => element.remove());`)}
 
-      ${s("Transition waits for the leave animation to finish before removing the element. No flicker, no layout jumps.")}
+      ${a("Transition waits for the leave animation to finish before removing the element. No flicker, no layout jumps.")}
 
       <h2>Try It</h2>
       <p>Click the buttons to see fade and slide transitions:</p>
@@ -3782,7 +3968,7 @@ mount(App(), document.getElementById('app'));`,"Animated List")}
         <li><a href="/a11y">Accessibility</a> — motion preferences (prefers-reduced-motion)</li>
       </ul>
     </div>
-  `}function nt(){return n`
+  `}function lt(){return r`
     <div>
       <h1>Dependency Injection</h1>
       <p>onefold provides a lightweight DI system with <code>createToken</code>, <code>provide</code>, <code>inject</code>, and <code>runWithProviders</code> for testable, decoupled architecture.</p>
@@ -3834,7 +4020,7 @@ runWithProviders([
   mount(App(), container);
 });`)}
 
-      ${s("DI makes your components testable without modifying their source. Swap the real HTTP client for a mock in tests.")}
+      ${a("DI makes your components testable without modifying their source. Swap the real HTTP client for a mock in tests.")}
 
       <h2>API</h2>
       <table>
@@ -3901,7 +4087,7 @@ mount(App(), document.getElementById('app'));`,"Provide / Inject Demo")}
         <li><a href="/state/store">Store</a> — manage structured application state</li>
       </ul>
     </div>
-  `}function it(){return n`
+  `}function ct(){return r`
     <div>
       <h1>Permission Guards</h1>
       <p>Control UI visibility and route access based on user permissions using <code>setPermissions</code>, <code>hasPermission</code>, <code>guard</code>, and <code>guardedNode</code>.</p>
@@ -3950,7 +4136,7 @@ const App = Router([
   { path: '/posts/new', view: guard('write:posts', () => CreatePost()) },
 ]);`)}
 
-      ${s("Permissions are reactive. If you call setPermissions() with a new list (e.g., after role change), guarded nodes update automatically.")}
+      ${a("Permissions are reactive. If you call setPermissions() with a new list (e.g., after role change), guarded nodes update automatically.")}
 
       <h2>API</h2>
       <table>
@@ -3961,7 +4147,7 @@ const App = Router([
         <tr><td><code>guardedNode</code></td><td>(perm, content)</td><td>Conditionally render based on permission.</td></tr>
       </table>
     </div>
-  `}function at(){return n`
+  `}function pt(){return r`
     <div>
       <h1>XSS Prevention</h1>
       <p>onefold is secure by default. Text interpolation uses <code>textContent</code>, making XSS structurally impossible in the default path.</p>
@@ -3982,7 +4168,7 @@ const userInput = '<script>alert("xss")<\/script>';
 html\`<p>\${userInput}</p>\`;
 // Result: <p>&lt;script&gt;alert("xss")&lt;/script&gt;</p>`)}
 
-      ${s("Unlike frameworks that use innerHTML or dangerouslySetInnerHTML, onefold never interprets strings as HTML. This eliminates the most common XSS vector.","info")}
+      ${a("Unlike frameworks that use innerHTML or dangerouslySetInnerHTML, onefold never interprets strings as HTML. This eliminates the most common XSS vector.","info")}
 
       <h2>Sanitization for Raw HTML</h2>
       <p>If you must render trusted HTML (e.g., from a CMS), sanitize it first:</p>
@@ -4005,7 +4191,7 @@ Content-Security-Policy: require-trusted-types-for 'script'
 
 // onefold never triggers Trusted Types violations because
 // it never assigns to innerHTML, outerHTML, or similar sinks.`)}
-  `}function st(){return n`
+  `}function ut(){return r`
     <div>
       <h1>Virtual List</h1>
       <p><code>VirtualList</code> renders only visible items in a scrollable list. Handles thousands of items without DOM overhead.</p>
@@ -4041,7 +4227,7 @@ function UserList(): Node {
         <tr><td><code>overscan</code></td><td>number</td><td>No</td><td>Extra items rendered above/below viewport (default: 5).</td></tr>
       </table>
 
-      ${s("VirtualList uses a fixed item height for O(1) scroll position calculations. Variable-height items are not supported.")}
+      ${a("VirtualList uses a fixed item height for O(1) scroll position calculations. Variable-height items are not supported.")}
 
       <h2>How It Works</h2>
       <ol>
@@ -4073,7 +4259,7 @@ function FilterableList(): Node {
   \`;
 }`)}
     </div>
-  `}function dt(){return n`
+  `}function ht(){return r`
     <div>
       <h1>Code Splitting</h1>
       <p>Use <code>lazy()</code> with the Router for automatic route-based code splitting. Each page is loaded only when the user navigates to it.</p>
@@ -4118,7 +4304,7 @@ esbuild.build({
   outdir: 'dist',
 });`)}
 
-      ${s("Code splitting only works with ESM output format. Make sure your build tool outputs ES modules.")}
+      ${a("Code splitting only works with ESM output format. Make sure your build tool outputs ES modules.")}
 
       <h2>Chunk Naming</h2>
       ${e(`// Output:
@@ -4158,7 +4344,7 @@ NavLink('/dashboard', 'Dashboard', () => import('./pages/Dashboard'));`)}
 const text = await esbuild.analyzeMetafile(result.metafile);
 console.log(text);`)}
     </div>
-  `}function lt(){return n`
+  `}function mt(){return r`
     <div>
       <h1>wrapImperative</h1>
       <p><code>wrapImperative</code> bridges imperative libraries (Chart.js, D3, Three.js) with onefold's reactive system. It manages lifecycle and re-renders when signals change.</p>
@@ -4226,7 +4412,7 @@ function D3Visualization(): Node {
   });
 }`)}
 
-      ${s("wrapImperative calls update() whenever any signal in deps changes. The imperative library stays in sync with reactive state.")}
+      ${a("wrapImperative calls update() whenever any signal in deps changes. The imperative library stays in sync with reactive state.")}
 
       <h2>Options</h2>
       <table>
@@ -4237,7 +4423,7 @@ function D3Visualization(): Node {
         <tr><td><code>deps</code></td><td>Signal[]</td><td>Signals to watch for changes.</td></tr>
       </table>
     </div>
-  `}function ct(){return n`
+  `}function ft(){return r`
     <div>
       <h1>embedForeign</h1>
       <p><code>embedForeign</code> mounts React, Vue, Svelte, or any framework component inside an onefold application. You control the mount/unmount lifecycle.</p>
@@ -4289,7 +4475,7 @@ const vueChart = embedForeign({
   props: { data: [1, 2, 3, 4, 5] },
 });`)}
 
-      ${s("embedForeign creates a container div and passes it to your mount function. You own the lifecycle \u2014 mount however the foreign framework requires.")}
+      ${a("embedForeign creates a container div and passes it to your mount function. You own the lifecycle \u2014 mount however the foreign framework requires.")}
 
       <h2>Svelte Integration</h2>
       ${e(`import { embedForeign } from 'onefold';
@@ -4314,7 +4500,7 @@ const svelteCounter = embedForeign({
         <tr><td><code>props</code></td><td>P</td><td>Props passed to the mount function.</td></tr>
       </table>
     </div>
-  `}function pt(){return n`
+  `}function gt(){return r`
     <div>
       <h1>Plugins</h1>
       <p><code>createPluginHost</code> enables an extensible plugin architecture with sandboxed permissions and lifecycle hooks.</p>
@@ -4366,7 +4552,7 @@ plugins.register({
         <tr><td><code>storage</code></td><td>Access localStorage/sessionStorage.</td></tr>
       </table>
 
-      ${s("A plugin that requests a permission not in the host's allowed list is rejected at registration time.")}
+      ${a("A plugin that requests a permission not in the host's allowed list is rejected at registration time.")}
 
       <h2>Lifecycle Hooks</h2>
       <table>
@@ -4385,7 +4571,7 @@ ctx.consume(key)         // read a value from another plugin
 ctx.getState()           // read state (if permitted)
 ctx.setState(partial)    // update state (if permitted)`)}
     </div>
-  `}function ut(){return n`
+  `}function vt(){return r`
     <div>
       <h1>Observability</h1>
       <p><code>createObserver</code> provides structured logging, metrics collection, and performance tracking for production applications.</p>
@@ -4425,7 +4611,7 @@ const end = observer.startTimer('fetch-users');
 const users = await http.get('/users');
 end(); // automatically records duration as a metric`)}
 
-      ${s("createObserver is a thin abstraction. It does not bundle any specific logging/metrics library \u2014 you wire it to your own backend.")}
+      ${a("createObserver is a thin abstraction. It does not bundle any specific logging/metrics library \u2014 you wire it to your own backend.")}
 
       <h2>Integration Example</h2>
       ${e(`// Sentry + Datadog integration
@@ -4449,7 +4635,7 @@ const observer = createObserver({
         <tr><td><code>.startTimer</code></td><td>(name)</td><td>Start timing, returns end() function.</td></tr>
       </table>
     </div>
-  `}function mt(){return n`
+  `}function bt(){return r`
     <div>
       <h1>Component Metadata</h1>
       <p><code>component()</code> registers components with metadata for dev tools, documentation generation, and design system catalogs.</p>
@@ -4498,7 +4684,7 @@ const manifest = exportManifest();
 // Write to file in a build script
 fs.writeFileSync('component-manifest.json', JSON.stringify(manifest, null, 2));`)}
 
-      ${s("Component metadata is optional \u2014 it does not affect runtime behavior. Use it for tooling, documentation, and design system governance.")}
+      ${a("Component metadata is optional \u2014 it does not affect runtime behavior. Use it for tooling, documentation, and design system governance.")}
 
       <h2>API</h2>
       <table>
@@ -4508,7 +4694,7 @@ fs.writeFileSync('component-manifest.json', JSON.stringify(manifest, null, 2));`
         <tr><td><code>exportManifest</code></td><td>()</td><td>Export JSON manifest of all components.</td></tr>
       </table>
     </div>
-  `}var Kt=`// server.ts \u2014 Express SSR with onefold
+  `}var ao=`// server.ts \u2014 Express SSR with onefold
 import express from 'express';
 import { renderHTML, html } from 'onefold';
 
@@ -4561,7 +4747,7 @@ function shell(title, body) {
 </html>\`;
 }
 
-app.listen(3000);`,Xt=`// client.ts \u2014 selective hydration
+app.listen(3000);`,so=`// client.ts \u2014 selective hydration
 import { mount, createSignal, html } from 'onefold';
 
 const path = window.location.pathname;
@@ -4578,7 +4764,7 @@ if (path === '/counter' && root) {
   \`, root);
 }
 
-// Static pages (/, /users): no JS runs. Server HTML stays as-is.`,Qt=`// build.mjs
+// Static pages (/, /users): no JS runs. Server HTML stays as-is.`,lo=`// build.mjs
 import { build } from 'esbuild';
 import { mkdirSync } from 'node:fs';
 
@@ -4604,7 +4790,7 @@ await build({
 });
 
 console.log('dist/server.mjs  \u2014 run with: node dist/server.mjs');
-console.log('dist/public/app.js \u2014 loaded by browser');`,Zt=`src/
+console.log('dist/public/app.js \u2014 loaded by browser');`,co=`src/
   shared/              Shared between server + client (zero duplication)
     components/Nav.ts  Navigation bar
     layouts/Page.ts    Page wrapper
@@ -4621,7 +4807,7 @@ console.log('dist/public/app.js \u2014 loaded by browser');`,Zt=`src/
     index.ts           Selective hydration
 dist/                  Build output (deployable)
   server.mjs           Node.js server
-  public/app.js        Client bundle`;function ht(){return n`
+  public/app.js        Client bundle`;function yt(){return r`
     <div>
       <h1>Server-Side Rendering</h1>
       <p><code>renderHTML</code> converts onefold components to HTML strings on the server. Zero dependencies. No jsdom. Fully tree-shakable.</p>
@@ -4641,7 +4827,7 @@ const result = await renderHTML(async () => {
 
       <p>Uses the same tokenizer as client-side <code>html</code>. Reactive expressions evaluate once. Event handlers are stripped. Same XSS escaping applies.</p>
 
-      ${s("renderHTML is tree-shakable. If your client bundle never imports it, it adds 0 bytes. Only server code pays for it.")}
+      ${a("renderHTML is tree-shakable. If your client bundle never imports it, it adds 0 bytes. Only server code pays for it.")}
 
       <h2>Properties</h2>
       <table>
@@ -4669,18 +4855,18 @@ const result = await renderHTML(async () => {
       </table>
 
       <h2>Server Example</h2>
-      ${e(Kt)}
+      ${e(ao)}
 
       <h2>Client Example</h2>
-      ${e(Xt)}
+      ${e(so)}
 
       <h2>Build Script</h2>
       <p>Use esbuild to produce both server and client bundles:</p>
-      ${e(Qt)}
+      ${e(lo)}
 
       <h2>Project Structure</h2>
       <p>Recommended layout for scalable SSR apps with zero code duplication:</p>
-      ${e(Zt)}
+      ${e(co)}
 
       <h2>What Gets Stripped in SSR Output</h2>
       <table>
@@ -4746,7 +4932,7 @@ npm start
         <li><a href="/performance/code-splitting">Code Splitting</a> — reduce client bundle size</li>
       </ul>
     </div>
-  `}function ft(){return n`
+  `}function wt(){return r`
     <div>
       <h1>DevTools</h1>
       <p><code>enableDevtools</code> activates browser console integration for inspecting signals, effects, and component trees during development.</p>
@@ -4773,7 +4959,7 @@ if (import.meta.env?.MODE === 'development') {
 // Turn off devtools (e.g., before production build check)
 disableDevtools();`)}
 
-      ${s("DevTools add runtime overhead. Never enable them in production. Use conditional checks like import.meta.env.MODE.")}
+      ${a("DevTools add runtime overhead. Never enable them in production. Use conditional checks like import.meta.env.MODE.")}
 
       <h2>Console API</h2>
       <p>When devtools are enabled, a global <code>__ONEFOLD__</code> object is available in the browser console:</p>
@@ -4790,7 +4976,7 @@ __ONEFOLD__.inspect(signal) // Detailed info about a signal`)}
         <tr><td><code>disableDevtools()</code></td><td>Deactivate devtools integration.</td></tr>
       </table>
     </div>
-  `}function gt(){return n`
+  `}function St(){return r`
     <div>
       <h1>Utilities</h1>
       <p>onefold ships common utility functions to reduce external dependencies. All are tree-shakeable — only imported functions are bundled.</p>
@@ -4914,7 +5100,7 @@ mount(App(), document.getElementById('app'));`,"Utilities Live Output")}
         <li><a href="/core/signals">Signals</a> — reactive primitives powering the UI</li>
       </ul>
     </div>
-  `}function vt(){return n`
+  `}function kt(){return r`
     <div>
       <h1>Extensions</h1>
       <p><code>registerDirective</code> and <code>setEffectHook</code> allow you to extend onefold's template engine and effect system.</p>
@@ -4976,7 +5162,7 @@ setEffectHook({
   },
 });`)}
 
-      ${s("Extensions are global. Register them once at app startup, before mounting.")}
+      ${a("Extensions are global. Register them once at app startup, before mounting.")}
 
       <h2>API</h2>
       <table>
@@ -4991,7 +5177,7 @@ setEffectHook({
         <li><a href="/plugins">Plugins</a> — reusable feature packages for onefold apps</li>
       </ul>
     </div>
-  `}function bt(){return n`
+  `}function xt(){return r`
     <div>
       <h1>CLI (create-onefold)</h1>
       <p><code>create-onefold</code> scaffolds new onefold projects with pre-configured templates, build tools, and dev servers.</p>
@@ -5049,7 +5235,7 @@ npm create onefold@latest my-app -- --template microfrontend`)}
 \u2502       \u2514\u2500\u2500 build.mjs
 \u2514\u2500\u2500 package.json`)}
 
-      ${s("All templates use esbuild for fast builds. No webpack, no Vite \u2014 just a 5-line build.mjs script.")}
+      ${a("All templates use esbuild for fast builds. No webpack, no Vite \u2014 just a 5-line build.mjs script.")}
 
       <h2>Options</h2>
       <table>
@@ -5059,7 +5245,7 @@ npm create onefold@latest my-app -- --template microfrontend`)}
         <tr><td><code>--version</code></td><td>Show CLI version.</td></tr>
       </table>
     </div>
-  `}function yt(){return n`
+  `}function Ct(){return r`
     <div>
       <h1>Playground</h1>
       <p>Try onefold in the browser. Edit the code below and click Run to see the result.</p>
@@ -5152,7 +5338,7 @@ mount(App(), document.getElementById('app'));`,"Todo List")}
 
 mount(App(), document.getElementById('app'));`,"Theme Toggle")}
     </div>
-  `}function wt(){return n`
+  `}function oe(){return r`
     <div>
       <h1>Page Not Found</h1>
       <p>The page you're looking for doesn't exist.</p>
@@ -5160,5 +5346,540 @@ mount(App(), document.getElementById('app'));`,"Theme Toggle")}
         Go to Introduction
       </button>
     </div>
-  `}var eo=[{path:"/",view:()=>Se()},{path:"/getting-started/install",view:()=>xe()},{path:"/getting-started/quickstart",view:()=>ke()},{path:"/core/signals",view:()=>$e()},{path:"/core/templates",view:()=>Ce()},{path:"/core/css",view:()=>Te()},{path:"/core/mounting",view:()=>Pe()},{path:"/routing/router",view:()=>Ee()},{path:"/routing/nested",view:()=>Re()},{path:"/routing/navigate",view:()=>Ne()},{path:"/routing/link",view:()=>Ie()},{path:"/routing/params",view:()=>Ae()},{path:"/state/store",view:()=>Le()},{path:"/state/persisted",view:()=>De()},{path:"/data/resource",view:()=>Me()},{path:"/data/http-client",view:()=>He()},{path:"/data/interceptors",view:()=>Oe()},{path:"/forms/create-form",view:()=>Ue()},{path:"/forms/validation",view:()=>Be()},{path:"/microfrontends/security",view:()=>je()},{path:"/microfrontends/load-remote",view:()=>Fe()},{path:"/microfrontends/isolation",view:()=>ze()},{path:"/microfrontends/communication",view:()=>We()},{path:"/microfrontends/sri",view:()=>_e()},{path:"/microfrontends/deployment",view:()=>qe()},{path:"/microfrontends/shared-deps",view:()=>Ve()},{path:"/microfrontends/cross-framework",view:()=>Je()},{path:"/microfrontends/api-reference",view:()=>Ye()},{path:"/async/suspense",view:()=>Ge()},{path:"/async/lazy-loading",view:()=>Ke()},{path:"/async/error-boundaries",view:()=>Xe()},{path:"/streaming/websocket",view:()=>Qe()},{path:"/streaming/sse",view:()=>Ze()},{path:"/i18n",view:()=>et()},{path:"/theming",view:()=>tt()},{path:"/a11y",view:()=>ot()},{path:"/transitions",view:()=>rt()},{path:"/di",view:()=>nt()},{path:"/security/guards",view:()=>it()},{path:"/security/xss",view:()=>at()},{path:"/performance/virtual-list",view:()=>st()},{path:"/performance/code-splitting",view:()=>dt()},{path:"/interop/wrap-imperative",view:()=>lt()},{path:"/interop/embed-foreign",view:()=>ct()},{path:"/plugins",view:()=>pt()},{path:"/observability",view:()=>ut()},{path:"/meta",view:()=>mt()},{path:"/ssr",view:()=>ht()},{path:"/devtools",view:()=>ft()},{path:"/utilities",view:()=>gt()},{path:"/extensions",view:()=>vt()},{path:"/cli",view:()=>bt()},{path:"/playground",view:()=>yt()}],to=we(Q(eo,()=>wt()));V(to,document.getElementById("app"));(!location.pathname||location.pathname==="/")&&k("/");
+  `}function $t(){return r`
+    <div>
+      <h1>Deploy to GitHub Pages</h1>
+      <p>GitHub Pages serves static files directly from a repository. Since there's no server-side SPA fallback, onefold apps should use <strong>hash-based routing</strong>.</p>
+
+      <h2>Prerequisites</h2>
+      <ul>
+        <li>A GitHub repository with your onefold project</li>
+        <li>The project builds to a <code>dist/</code> folder</li>
+      </ul>
+
+      <h2>1. Configure Hash Routing</h2>
+      ${e(`// main.ts
+import { configureRouter, Router, navigate, mount } from 'onefold';
+
+configureRouter({ hash: true });
+
+const app = Router([...routes], () => NotFound());
+mount(app, document.getElementById('app')!);
+
+// Intercept internal links for hash-based navigation
+document.addEventListener('click', (e) => {
+  const anchor = (e.target as HTMLElement).closest('a');
+  if (!anchor) return;
+  const href = anchor.getAttribute('href');
+  if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+  e.preventDefault();
+  navigate(href);
+});
+
+// Navigate to home on initial load
+if (!location.hash || location.hash === '#/') {
+  navigate('/');
+}`)}
+
+      <h2>2. Use Relative Asset Paths</h2>
+      <p>Your <code>index.html</code> must use <code>./</code> relative paths so assets load correctly regardless of the repository subpath:</p>
+      ${e(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./app.js"><\/script>
+</body>
+</html>`,"html")}
+
+      ${a("Do NOT use absolute paths like /app.js \u2014 on GitHub Pages at username.github.io/repo-name/, they resolve to username.github.io/app.js which does not exist.")}
+
+      <h2>3. GitHub Actions Workflow</h2>
+      <p>Create <code>.github/workflows/deploy.yml</code>:</p>
+      ${e(`name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4`,"yaml")}
+
+      <h2>4. Enable Pages in Repository Settings</h2>
+      <ol>
+        <li>Go to your repo → Settings → Pages</li>
+        <li>Under "Source", select <strong>GitHub Actions</strong></li>
+        <li>Push to <code>main</code> — the workflow will deploy automatically</li>
+      </ol>
+
+      <h2>Manual Deploy (gh-pages branch)</h2>
+      <p>Alternatively, deploy from a <code>gh-pages</code> branch:</p>
+      ${e(`# Install gh-pages
+npm install -D gh-pages
+
+# Add deploy script to package.json
+# "deploy": "npm run build && gh-pages -d dist"
+
+npm run deploy`,"bash")}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/routing/configure">configureRouter</a> — routing mode configuration details</li>
+        <li><a href="/deployment/vercel">Vercel</a> — deploy with path-based routing</li>
+      </ul>
+    </div>
+  `}function Pt(){return r`
+    <div>
+      <h1>Deploy to Vercel</h1>
+      <p>Vercel supports SPA fallback out of the box. Use the default <strong>path-based routing</strong> — no <code>configureRouter</code> call needed.</p>
+
+      <h2>Quick Deploy</h2>
+      <ol>
+        <li>Push your project to GitHub/GitLab/Bitbucket</li>
+        <li>Go to <a href="https://vercel.com/new" target="_blank">vercel.com/new</a> and import the repo</li>
+        <li>Set the build command and output directory:</li>
+      </ol>
+
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>Build Command</td><td><code>npm run build</code></td></tr>
+        <tr><td>Output Directory</td><td><code>dist</code></td></tr>
+        <tr><td>Install Command</td><td><code>npm install</code></td></tr>
+      </table>
+
+      <h2>SPA Fallback Configuration</h2>
+      <p>Create a <code>vercel.json</code> at the project root to explicitly configure the SPA rewrite:</p>
+      ${e(`{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}`,"json")}
+
+      ${a("The rewrites rule ensures all paths serve index.html, allowing the client-side router to handle them.")}
+
+      <h2>Router Configuration</h2>
+      <p>No special configuration needed — path mode is the default:</p>
+      ${e(`import { Router, mount } from 'onefold';
+
+// Path-based routing works out of the box on Vercel
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+], () => NotFound());
+
+mount(app, document.getElementById('app')!);`)}
+
+      <h2>Environment Variables</h2>
+      <p>Set environment variables in Vercel's dashboard under Project Settings → Environment Variables. Access them at build time via your bundler's <code>define</code> option:</p>
+      ${e(`// build.mjs (esbuild)
+await build({
+  define: {
+    'process.env.API_URL': JSON.stringify(process.env.API_URL || ''),
+  },
+});`)}
+
+      <h2>Deploy via CLI</h2>
+      ${e(`# Install Vercel CLI
+npm i -g vercel
+
+# Deploy from project root
+vercel
+
+# Deploy to production
+vercel --prod`,"bash")}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/deployment/netlify">Netlify</a> — similar platform with _redirects file</li>
+        <li><a href="/deployment/cloudflare">Cloudflare Pages</a> — edge deployment</li>
+      </ul>
+    </div>
+  `}function Tt(){return r`
+    <div>
+      <h1>Deploy to Netlify</h1>
+      <p>Netlify supports SPA fallback via a <code>_redirects</code> file. Use the default <strong>path-based routing</strong>.</p>
+
+      <h2>Quick Deploy</h2>
+      <ol>
+        <li>Push your project to GitHub/GitLab/Bitbucket</li>
+        <li>Go to <a href="https://app.netlify.com/start" target="_blank">app.netlify.com</a> and connect your repo</li>
+        <li>Configure build settings:</li>
+      </ol>
+
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>Build command</td><td><code>npm run build</code></td></tr>
+        <tr><td>Publish directory</td><td><code>dist</code></td></tr>
+      </table>
+
+      <h2>SPA Fallback with _redirects</h2>
+      <p>Create a <code>public/_redirects</code> file (or place in your <code>dist/</code> output) so Netlify serves <code>index.html</code> for all routes:</p>
+      ${e("/*    /index.html   200","text")}
+
+      <p>If you use a <code>public/</code> folder that gets copied to dist, place <code>_redirects</code> there. Otherwise add it to your build script:</p>
+      ${e(`// build.mjs
+import { writeFileSync } from 'node:fs';
+
+// ... after esbuild ...
+
+// SPA fallback for Netlify
+writeFileSync('dist/_redirects', '/*    /index.html   200\\n');`)}
+
+      ${a("Without the _redirects file, navigating directly to /about will return a 404 from Netlify.")}
+
+      <h2>Alternative: netlify.toml</h2>
+      <p>You can also configure redirects in <code>netlify.toml</code> at the project root:</p>
+      ${e(`[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200`,"toml")}
+
+      <h2>Router Configuration</h2>
+      <p>No special configuration needed — path mode works with the redirect rule:</p>
+      ${e(`import { Router, mount } from 'onefold';
+
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+], () => NotFound());
+
+mount(app, document.getElementById('app')!);`)}
+
+      <h2>Deploy via CLI</h2>
+      ${e(`# Install Netlify CLI
+npm i -g netlify-cli
+
+# Link to site and deploy
+netlify link
+netlify deploy --dir=dist
+
+# Deploy to production
+netlify deploy --dir=dist --prod`,"bash")}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/deployment/cloudflare">Cloudflare Pages</a> — edge deployment with Workers</li>
+        <li><a href="/deployment/aws">AWS S3 + CloudFront</a> — self-managed hosting</li>
+      </ul>
+    </div>
+  `}function Rt(){return r`
+    <div>
+      <h1>Deploy to Cloudflare Pages</h1>
+      <p>Cloudflare Pages serves static sites from their global edge network with built-in SPA support. Use the default <strong>path-based routing</strong>.</p>
+
+      <h2>Quick Deploy</h2>
+      <ol>
+        <li>Go to the <a href="https://dash.cloudflare.com/?to=/:account/pages" target="_blank">Cloudflare Pages dashboard</a></li>
+        <li>Click "Create a project" → Connect to Git</li>
+        <li>Select your repository and configure:</li>
+      </ol>
+
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>Build command</td><td><code>npm run build</code></td></tr>
+        <tr><td>Build output directory</td><td><code>dist</code></td></tr>
+      </table>
+
+      <h2>SPA Fallback</h2>
+      <p>Cloudflare Pages automatically serves <code>index.html</code> for paths that don't match a static file (404 fallback). No extra configuration is needed for SPA routing.</p>
+
+      ${a("Cloudflare Pages handles SPA fallback automatically. You do not need a _redirects file or custom rules for client-side routing.")}
+
+      <h2>Custom Headers and Redirects</h2>
+      <p>If you need custom headers, create a <code>public/_headers</code> file:</p>
+      ${e(`/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin`,"text")}
+
+      <h2>Router Configuration</h2>
+      ${e(`import { Router, mount } from 'onefold';
+
+// Path-based routing \u2014 no configureRouter needed
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/dashboard', view: () => Dashboard() },
+], () => NotFound());
+
+mount(app, document.getElementById('app')!);`)}
+
+      <h2>Deploy via Wrangler CLI</h2>
+      ${e(`# Install Wrangler
+npm i -g wrangler
+
+# Build and deploy
+npm run build
+wrangler pages deploy dist --project-name=my-app`,"bash")}
+
+      <h2>Environment Variables</h2>
+      <p>Set build-time environment variables in the Cloudflare Pages dashboard under Settings → Environment variables. Use them in your build script:</p>
+      ${e(`// build.mjs
+await build({
+  define: {
+    '__API_URL__': JSON.stringify(process.env.API_URL || '/api'),
+  },
+});`)}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/deployment/aws">AWS S3 + CloudFront</a> — self-managed static hosting</li>
+        <li><a href="/deployment/docker">Docker / Node</a> — containerized deployment</li>
+      </ul>
+    </div>
+  `}function Nt(){return r`
+    <div>
+      <h1>Deploy to AWS (S3 + CloudFront)</h1>
+      <p>Host your onefold app on S3 with CloudFront as the CDN. Configure a custom error response to enable SPA fallback with <strong>path-based routing</strong>.</p>
+
+      <h2>Option A: Path-Based Routing (Recommended)</h2>
+      <p>Use CloudFront's custom error response to serve <code>index.html</code> for all 404s.</p>
+
+      <h3>1. Create an S3 Bucket</h3>
+      ${e("aws s3 mb s3://my-onefold-app --region us-east-1","bash")}
+
+      <h3>2. Upload the Build</h3>
+      ${e(`npm run build
+aws s3 sync dist/ s3://my-onefold-app --delete`,"bash")}
+
+      <h3>3. Configure CloudFront</h3>
+      <p>Create a CloudFront distribution with the S3 bucket as origin. Add a custom error response:</p>
+
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>HTTP Error Code</td><td>403</td></tr>
+        <tr><td>Response Page Path</td><td><code>/index.html</code></td></tr>
+        <tr><td>Response Code</td><td>200</td></tr>
+      </table>
+
+      <p>Add a second rule for 404:</p>
+      <table>
+        <tr><th>Setting</th><th>Value</th></tr>
+        <tr><td>HTTP Error Code</td><td>404</td></tr>
+        <tr><td>Response Page Path</td><td><code>/index.html</code></td></tr>
+        <tr><td>Response Code</td><td>200</td></tr>
+      </table>
+
+      ${a("S3 returns 403 (not 404) for paths that do not exist when using OAI/OAC. Configure both 403 and 404 error responses.")}
+
+      <h3>4. Router Configuration</h3>
+      ${e(`import { Router, mount } from 'onefold';
+
+// Path-based (default) \u2014 works with CloudFront error response
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+], () => NotFound());
+
+mount(app, document.getElementById('app')!);`)}
+
+      <h2>Option B: Hash-Based Routing (No CloudFront)</h2>
+      <p>If you're serving directly from S3 static website hosting without CloudFront, use hash-based routing:</p>
+
+      ${e(`import { configureRouter, Router, navigate, mount } from 'onefold';
+
+configureRouter({ hash: true });
+
+const app = Router([...routes], () => NotFound());
+mount(app, document.getElementById('app')!);
+
+// Intercept internal links
+document.addEventListener('click', (e) => {
+  const anchor = (e.target as HTMLElement).closest('a');
+  if (!anchor) return;
+  const href = anchor.getAttribute('href');
+  if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+  e.preventDefault();
+  navigate(href);
+});
+
+if (!location.hash || location.hash === '#/') {
+  navigate('/');
+}`)}
+
+      <p>And use relative asset paths in <code>index.html</code>:</p>
+      ${e(`<link rel="stylesheet" href="./style.css" />
+<script type="module" src="./app.js"><\/script>`,"html")}
+
+      <h2>AWS CLI Deploy Script</h2>
+      ${e(`#!/bin/bash
+# deploy.sh
+npm run build
+aws s3 sync dist/ s3://my-onefold-app --delete \\
+  --cache-control "public, max-age=31536000, immutable" \\
+  --exclude "index.html"
+
+# index.html should not be cached long-term
+aws s3 cp dist/index.html s3://my-onefold-app/index.html \\
+  --cache-control "public, max-age=0, must-revalidate"
+
+# Invalidate CloudFront cache
+aws cloudfront create-invalidation \\
+  --distribution-id YOUR_DIST_ID \\
+  --paths "/*"`,"bash")}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/deployment/docker">Docker / Node</a> — containerized deployment with a server</li>
+        <li><a href="/deployment/github-pages">GitHub Pages</a> — free static hosting</li>
+      </ul>
+    </div>
+  `}function Et(){return r`
+    <div>
+      <h1>Deploy with Docker / Node Server</h1>
+      <p>Containerize your onefold app with Nginx or a Node.js server for self-hosted environments. Use <strong>path-based routing</strong> with server-side SPA fallback.</p>
+
+      <h2>Option A: Nginx in Docker (Recommended)</h2>
+
+      <h3>Nginx Configuration</h3>
+      <p>Create <code>nginx.conf</code>:</p>
+      ${e(`server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # SPA fallback \u2014 serve index.html for all routes
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  # Cache static assets aggressively
+  location ~* \\.(js|css|svg|png|jpg|woff2)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  # No cache for index.html
+  location = /index.html {
+    expires -1;
+    add_header Cache-Control "no-store, must-revalidate";
+  }
+}`,"nginx")}
+
+      <h3>Dockerfile</h3>
+      ${e(`# Build stage
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]`,"dockerfile")}
+
+      <h3>Build and Run</h3>
+      ${e(`docker build -t my-onefold-app .
+docker run -p 8080:80 my-onefold-app`,"bash")}
+
+      ${a("The try_files directive is the key to SPA fallback \u2014 it tells Nginx to serve index.html when no matching file exists.")}
+
+      <h2>Option B: Node.js Server</h2>
+      <p>Use a minimal Express server with <code>express.static</code> and a fallback to <code>index.html</code>:</p>
+
+      <h3>server.mjs</h3>
+      ${e(`import express from 'express';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Serve static files from dist
+app.use(express.static(resolve(__dirname, 'dist')));
+
+// SPA fallback \u2014 all other routes serve index.html
+app.get('*', (_req, res) => {
+  res.sendFile(resolve(__dirname, 'dist/index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`)}
+
+      <h3>Dockerfile (Node version)</h3>
+      ${e(`FROM node:22-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server.mjs .
+COPY --from=build /app/package*.json ./
+RUN npm ci --omit=dev
+EXPOSE 3000
+CMD ["node", "server.mjs"]`,"dockerfile")}
+
+      <h2>Router Configuration</h2>
+      <p>With either Nginx or Node serving as SPA fallback, use the default path-based routing:</p>
+      ${e(`import { Router, mount } from 'onefold';
+
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/dashboard', view: () => Dashboard() },
+], () => NotFound());
+
+mount(app, document.getElementById('app')!);`)}
+
+      <h2>Docker Compose</h2>
+      ${e(`# docker-compose.yml
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    restart: unless-stopped`,"yaml")}
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="/deployment/vercel">Vercel</a> — zero-config deployment</li>
+        <li><a href="/deployment/github-pages">GitHub Pages</a> — free static hosting with hash routing</li>
+        <li><a href="/ssr">Server-Side Rendering</a> — pre-render pages for SEO</li>
+      </ul>
+    </div>
+  `}X({hash:!0});var w=(t,o)=>o??oe(),po=[{path:"/",view:()=>$e()},{path:"/getting-started",view:w,children:[{path:"/install",view:()=>Pe()},{path:"/quickstart",view:()=>Te()}]},{path:"/core",view:w,children:[{path:"/signals",view:()=>Re()},{path:"/templates",view:()=>Ne()},{path:"/css",view:()=>Ee()},{path:"/mounting",view:()=>Ie()}]},{path:"/routing",view:w,children:[{path:"/router",view:()=>Ae()},{path:"/configure",view:()=>De()},{path:"/nested",view:()=>Le()},{path:"/navigate",view:()=>Me()},{path:"/link",view:()=>He()},{path:"/params",view:()=>Oe()}]},{path:"/state",view:w,children:[{path:"/store",view:()=>Ue()},{path:"/persisted",view:()=>Be()}]},{path:"/data",view:w,children:[{path:"/resource",view:()=>je()},{path:"/http-client",view:()=>Fe()},{path:"/interceptors",view:()=>We()}]},{path:"/forms",view:w,children:[{path:"/create-form",view:()=>_e()},{path:"/validation",view:()=>ze()}]},{path:"/microfrontends",view:w,children:[{path:"/load-remote",view:()=>Ve()},{path:"/isolation",view:()=>Ge()},{path:"/communication",view:()=>Je()},{path:"/security",view:()=>qe()},{path:"/sri",view:()=>Ye()},{path:"/shared-deps",view:()=>Xe()},{path:"/cross-framework",view:()=>Qe()},{path:"/deployment",view:()=>Ke()},{path:"/api-reference",view:()=>Ze()}]},{path:"/async",view:w,children:[{path:"/suspense",view:()=>et()},{path:"/lazy-loading",view:()=>tt()},{path:"/error-boundaries",view:()=>ot()}]},{path:"/streaming",view:w,children:[{path:"/websocket",view:()=>rt()},{path:"/sse",view:()=>nt()}]},{path:"/security",view:w,children:[{path:"/guards",view:()=>ct()},{path:"/xss",view:()=>pt()}]},{path:"/performance",view:w,children:[{path:"/virtual-list",view:()=>ut()},{path:"/code-splitting",view:()=>ht()}]},{path:"/interop",view:w,children:[{path:"/wrap-imperative",view:()=>mt()},{path:"/embed-foreign",view:()=>ft()}]},{path:"/i18n",view:()=>it()},{path:"/theming",view:()=>at()},{path:"/a11y",view:()=>st()},{path:"/transitions",view:()=>dt()},{path:"/di",view:()=>lt()},{path:"/plugins",view:()=>gt()},{path:"/observability",view:()=>vt()},{path:"/meta",view:()=>bt()},{path:"/ssr",view:()=>yt()},{path:"/devtools",view:()=>wt()},{path:"/utilities",view:()=>St()},{path:"/extensions",view:()=>kt()},{path:"/cli",view:()=>xt()},{path:"/playground",view:()=>Ct()},{path:"/deployment",view:w,children:[{path:"/github-pages",view:()=>$t()},{path:"/vercel",view:()=>Pt()},{path:"/netlify",view:()=>Tt()},{path:"/cloudflare",view:()=>Rt()},{path:"/aws",view:()=>Nt()},{path:"/docker",view:()=>Et()}]}],uo=Ce(ee(po,()=>oe()));J(uo,document.getElementById("app"));document.addEventListener("click",t=>{let o=t.target.closest("a");if(!o)return;let n=o.getAttribute("href");!n||n.startsWith("http")||n.startsWith("#")||n.startsWith("mailto:")||(t.preventDefault(),k(n))});(!location.hash||location.hash==="#/")&&k("/");
 //# sourceMappingURL=app.js.map

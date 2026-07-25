@@ -428,3 +428,32 @@ td code { color: var(--text); }
   h2 { font-size: 20px; }
   pre { padding: 14px; font-size: 12px; }
 }
+
+/* ─── Breadcrumbs ─── */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.breadcrumb-link {
+  color: var(--accent, #3b82f6);
+  text-decoration: none;
+  cursor: pointer;
+}
+.breadcrumb-link:hover {
+  text-decoration: underline;
+}
+.breadcrumb-sep {
+  color: var(--muted, #94a3b8);
+  margin: 0 2px;
+  user-select: none;
+}
+.breadcrumb-current {
+  color: var(--fg, #1e293b);
+  font-weight: 500;
+}

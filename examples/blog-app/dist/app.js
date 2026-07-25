@@ -1,5 +1,6 @@
-var q=null;function G(e,t){q?q(e,t):t()}var de=new Map;function J(e){return de.get(e)}var k=null,pe=0,fe=new Set,H=class{constructor(t,o){this.deps=new Set,this.active=!0,this.fn=t,this.label=o}run(){if(!this.active)return;this.cleanup();let t=k;k=this;try{G(this.label,this.fn)}finally{k=t}}cleanup(){for(let t of this.deps)t.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},M=class{constructor(t){this.value=t,this.subscribers=new Set}get(){return k&&(this.subscribers.add(k),k.deps.add(this)),this.value}set(t){let o=typeof t=="function"?t(this.value):t;Object.is(o,this.value)||(this.value=o,this.notify())}peek(){return this.value}notify(){if(pe>0)for(let t of this.subscribers)fe.add(t);else{let t=Array.from(this.subscribers);for(let o=0;o<t.length;o++)t[o].run()}}};function h(e){let t=new M(e),o=(()=>t.get());return o.set=n=>t.set(n),o.peek=()=>t.peek(),o}function v(e,t="effect"){let o=new H(e,t);return o.run(),()=>o.dispose()}var ue=/^\s*(javascript|data|vbscript):/i,me=/^on/i;function z(e){return ue.test(e)}function O(e){return me.test(e)}function X(e){let t=document.createElement("template");t.innerHTML=e;let o=n=>{let r=[];n.childNodes.forEach(s=>{if(s.nodeType===Node.ELEMENT_NODE){let i=s,a=i.tagName.toLowerCase();if(a==="script"||a==="style"||a==="iframe"||a==="object"||a==="embed"||a==="form"){r.push(s);return}Array.from(i.attributes).forEach(l=>{(O(l.name)||(l.name==="href"||l.name==="src")&&z(l.value))&&i.removeAttribute(l.name)}),o(i)}}),r.forEach(s=>s.remove())};return o(t.content),t.innerHTML}var R=null;function he(){return R||(typeof window<"u"&&window.trustedTypes&&(R=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:e=>X(e)})),R)}function I(e){let t=he();return t?t.createHTML(e):X(e)}function D(e){return typeof e=="object"&&e!==null&&e.__onefoldRaw===!0}function j(e,t){t.textContent="",t.appendChild(e)}var N=new WeakMap,F=null;function ge(){if(F||typeof MutationObserver>"u"||typeof document>"u")return;F=new MutationObserver(t=>{for(let o of t)o.removedNodes.forEach(K)});let e=document.documentElement??document;F.observe(e,{childList:!0,subtree:!0})}function K(e){let t=N.get(e);if(t){for(let o of t)try{o()}catch(n){console.error("[onefold] Error while disposing a reactive binding:",n)}N.delete(e)}e.childNodes.forEach(K)}function S(e,t){ge();let o=N.get(e);o||(o=new Set,N.set(e,o)),o.add(t)}var y="\0nf_",w=/\x00nf_(\d+)\x00/g;function be(e){return`${y}${e}\0`}function m(e,t){return e.charAt(t)}function B(e){return parseInt(e[1]??"0",10)}function xe(e,t){let o="";for(let i=0;i<e.length;i++)o+=e[i],i<t.length&&(o+=be(i));let n=[],r=0,s=o.length;for(;r<s;){if(m(o,r)==="<"){if(o.startsWith("<!--",r)){let b=o.indexOf("-->",r+4);r=b===-1?s:b+3;continue}if(m(o,r+1)==="/"){let b=o.indexOf(">",r),L=o.slice(r+2,b).trim();n.push({kind:1,tag:L}),r=b+1;continue}let l=ve(o,r),p=m(o,l-1)==="/",c=o.slice(r+1,p?l-1:l),{tag:u,attrs:g}=ye(c,t);n.push({kind:0,tag:u});for(let b of g)n.push(b);p&&n.push({kind:1,tag:u}),r=l+1;continue}let i=o.indexOf("<",r),a=i===-1?o.slice(r):o.slice(r,i);if(r=i===-1?s:i,a.trim()||w.test(a)){w.lastIndex=0;let l=0,p;for(;(p=w.exec(a))!==null;){let u=a.slice(l,p.index);u&&n.push({kind:3,value:u}),n.push({kind:4,value:t[B(p)]}),l=p.index+p[0].length}let c=a.slice(l);c&&c.trim()&&n.push({kind:3,value:c})}}return n}function ve(e,t){let o=null;for(let n=t+1;n<e.length;n++){let r=m(e,n);if(o)r===o&&(o=null);else if(r==='"'||r==="'")o=r;else if(r===">")return n}return e.length-1}function $(e){return e===" "||e==="	"||e===`
-`||e==="\r"||e==="\f"}function ye(e,t){let o=e.search(/[\s/]/),n=o===-1?e:e.slice(0,o),r=[];if(o===-1)return{tag:n,attrs:r};let s=e.slice(o).trim();if(!s)return{tag:n,attrs:r};let i=0,a=s.length;for(;i<a;){for(;i<a&&$(m(s,i));)i++;if(i>=a)break;if(s.startsWith(y,i)){let c=s.indexOf("\0",i+y.length),u=parseInt(s.slice(i+y.length,c),10),g=t[u];if(g&&typeof g=="object")for(let[b,L]of Object.entries(g))r.push({kind:2,name:b,value:L});i=c+1;continue}let l=i;for(;i<a&&m(s,i)!=="="&&!$(m(s,i));)i++;let p=s.slice(l,i);if(!p){i++;continue}for(;i<a&&$(m(s,i));)i++;if(i>=a||m(s,i)!=="="){r.push({kind:2,name:p,value:!0});continue}for(i++;i<a&&$(m(s,i));)i++;if(s.startsWith(y,i)){let c=s.indexOf("\0",i+y.length),u=parseInt(s.slice(i+y.length,c),10);r.push({kind:2,name:p,value:t[u]}),i=c+1}else if(m(s,i)==='"'||m(s,i)==="'"){let c=m(s,i);i++;let u=i;for(;i<a&&m(s,i)!==c;)i++;let g=s.slice(u,i);i++,r.push({kind:2,name:p,value:Q(g,t)})}else{let c=i;for(;i<a&&!$(m(s,i));)i++;let u=s.slice(c,i);r.push({kind:2,name:p,value:Q(u,t)})}}return{tag:n,attrs:r}}function Q(e,t){w.lastIndex=0;let o=w.exec(e);if(!o)return e;if(o.index===0&&o[0].length===e.length)return t[B(o)];w.lastIndex=0;let n=[],r=0,s;for(;(s=w.exec(e))!==null;){s.index>r&&n.push(e.slice(r,s.index));let i=t[B(s)];n.push(typeof i=="function"?i:()=>i),r=s.index+s[0].length}return r<e.length&&n.push(e.slice(r)),()=>n.map(i=>typeof i=="function"?i():i).join("")}function we(e){let t=document.createDocumentFragment(),o=[t],n=t;for(let r of e)switch(r.kind){case 0:{let s=document.createElement(r.tag);n.appendChild(s),o.push(s),n=s;break}case 1:{o.pop(),n=o.length>0?o[o.length-1]:t;break}case 2:{ke(n,r.name,r.value);break}case 3:{n.appendChild(document.createTextNode(r.value));break}case 4:{Y(n,r.value);break}}return t.childNodes.length===1&&t.firstChild instanceof HTMLElement?t.firstChild:t}function ke(e,t,o){if(t==="ref"){typeof o=="function"&&o(e);return}if(t==="class"){A(o,n=>Se(e,n),e);return}if(t==="style"){A(o,n=>Object.assign(e.style,n??{}),e);return}if(O(t)&&typeof o=="function"){e.addEventListener(t.slice(2).toLowerCase(),o);return}if(t.startsWith("d-")){let n=J(t.slice(2));n?A(o,r=>n(e,r),e):console.warn(`[onefold] No directive registered for "${t}". Call registerDirective() first.`);return}A(o,n=>$e(e,t,n),e)}function A(e,t,o){if(typeof e=="function"){let n=v(()=>t(e()));S(o,n)}else t(e)}function Se(e,t){t?typeof t=="string"?e.className=t:typeof t=="object"&&(e.className=Object.entries(t).filter(([,o])=>o).map(([o])=>o).join(" ")):e.className=""}function $e(e,t,o){if(o===!1||o==null){e.removeAttribute(t);return}if(o===!0){e.setAttribute(t,"");return}let n=String(o);if((t==="href"||t==="src"||t==="action"||t==="formaction")&&z(n)){console.warn(`[onefold] Blocked unsafe "${t}" value:`,n),e.removeAttribute(t);return}e.setAttribute(t,n)}function Y(e,t){if(!(t==null||t===!1||t===!0)){if(t instanceof Node){e.appendChild(t);return}if(Array.isArray(t)){for(let o of t)Y(e,o);return}if(typeof t=="function"){let o=document.createComment("expr-start"),n=document.createComment("expr-end");e.appendChild(o),e.appendChild(n);let r=v(()=>{let s=t(),i=o.parentNode;if(!i)return;let a=o.nextSibling;for(;a&&a!==n;){let p=a.nextSibling;i.removeChild(a),a=p}let l=Z(s);i.insertBefore(l,n)});S(e,r);return}if(D(t)){let o=document.createElement("span");o.innerHTML=I(t.html),e.appendChild(o);return}e.appendChild(document.createTextNode(String(t)))}}function Z(e){if(e==null||e===!1||e===!0)return document.createComment("");if(e instanceof Node)return e;if(D(e)){let t=document.createElement("span");return t.innerHTML=I(e.html),t}if(Array.isArray(e)){let t=document.createDocumentFragment();for(let o of e)t.appendChild(Z(o));return t}return document.createTextNode(String(e))}function d(e,...t){let o=xe(e,t);return we(o)}var Ce=0,ee=new Map;function Ee(){return`nf-${(Ce++).toString(36)}`}function oe(e,t){let o=`.${t}`,n="",r=0,s=e.length;for(;r<s;){for(;r<s&&/\s/.test(e[r]);)n+=e[r],r++;if(r>=s)break;if(e[r]==="@"){let c=r;for(;r<s&&e[r]!=="{";)r++;n+=e.slice(c,r),r<s&&(n+=e[r],r++);let u=te(e,r-1),g=u.slice(1,-1);n+=oe(g,t),n+="}",r+=u.length-1;continue}let i=r;for(;r<s&&e[r]!=="{";)r++;let a=e.slice(i,r).trim();if(!a||r>=s)break;let l=a.split(",").map(c=>(c=c.trim(),c&&(c===":root"||c===":host"?o:c.startsWith("&")?o+c.slice(1):`${o} ${c}`))).join(", ");n+=l;let p=te(e,r);n+=p,r+=p.length}return n}function te(e,t){if(e[t]!=="{")return"";let o=0,n=t;for(;n<e.length;){if(e[n]==="{")o++;else if(e[n]==="}"&&(o--,o===0))return e.slice(t,n+1);n++}return e.slice(t)}function Te(e,t){if(typeof document>"u"||document.getElementById(t))return;let o=document.createElement("style");o.id=t,o.textContent=e,document.head.appendChild(o)}function x(e,...t){let o="";for(let a=0;a<e.length;a++)o+=e[a],a<t.length&&(o+=String(t[a]));let n=ee.get(o);if(n)return n;let r=Ee(),s=oe(o,r);Te(s,`style-${r}`);let i={scope:r,css:s};return ee.set(o,i),i}var C=null,W=null;function E(){return W===null&&(W=typeof window<"u"&&window.location.protocol==="file:"),W}function ne(){return typeof window>"u"?"/":E()?window.location.hash.slice(1)||"/":window.location.pathname}function _(){if(C)return C;if(C=h(ne()),typeof window<"u"){let e=E()?"hashchange":"popstate";window.addEventListener(e,()=>C.set(ne()))}return C}function re(e){if(typeof window>"u")return;let t=_();E()?window.location.hash=e:(window.history.pushState({},"",e),t.set(e))}function T(){return _()()}function Pe(e,t){let o=e.split("/"),n=t.split("/");if(o.length!==n.length)return null;let r={};for(let s=0;s<o.length;s++){let i=o[s],a=n[s];if(i.startsWith(":"))r[i.slice(1)]=decodeURIComponent(a);else if(i!==a)return null}return r}function U(e,t){let o=_(),n=document.createElement("div"),r=v(()=>{let s=o(),i=null;if(Array.isArray(e))for(let a of e){let l=Pe(a.path,s);if(l!==null){i=a.view(l);break}}else{let a=e[s];a&&(i=a())}n.textContent="",n.appendChild(i??t())});return S(n,r),n}function f(e,t,o){let n=document.createElement("a");if(n.setAttribute("href",E()?`#${e}`:e),o)if(typeof o=="function"){let r=v(()=>{n.className=o()});S(n,r)}else n.className=o;return n.addEventListener("click",r=>{E()||(r.preventDefault(),re(e))}),typeof t=="string"?n.textContent=t:n.appendChild(t),n}var Re=[{id:1,title:"Getting Started with Nanoframe",excerpt:"Learn how to build reactive UIs with zero dependencies and fine-grained signals.",date:"2026-07-01"},{id:2,title:"Signals vs Virtual DOM",excerpt:"Why fine-grained reactivity outperforms diffing on update-heavy workloads.",date:"2026-06-28"},{id:3,title:"Building a Router from Scratch",excerpt:"Client-side routing with the History API in under 50 lines of TypeScript.",date:"2026-06-20"},{id:4,title:"The html`` Tagged Template",excerpt:"Write templates that look like HTML with full reactive bindings \u2014 no compiler needed.",date:"2026-06-15"}];function ie(e){return d`
+var J=null;function X(e,t){J?J(e,t):t()}var me=new Map;function K(e){return me.get(e)}var k=null,he=0,ge=new Set,$=0,D=null,be=200,z=class{constructor(t,n){this.deps=new Set,this.active=!0,this.fn=t,this.label=n}run(){if(!this.active)return;this.cleanup();let t=k;k=this;try{X(this.label,this.fn)}finally{k=t}}cleanup(){for(let t of this.deps)t.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},I=class{constructor(t){this.value=t,this.subscribers=new Set}get(){return k&&(this.subscribers.add(k),k.deps.add(this)),this.value}set(t){let n=typeof t=="function"?t(this.value):t;Object.is(n,this.value)||(this.value=n,typeof __DEV__<"u"&&__DEV__&&($++,D||(D=setTimeout(()=>{$=0,D=null},1e3)),$>be&&(console.warn(`[onefold] Signal updated ${$} times in <1s. Possible infinite loop in an effect.`),$=0)),this.notify())}peek(){return this.value}notify(){if(he>0)for(let t of this.subscribers)ge.add(t);else{let t=Array.from(this.subscribers);for(let n=0;n<t.length;n++)t[n].run()}}};function h(e){let t=new I(e),n=(()=>t.get());return n.set=o=>t.set(o),n.peek=()=>t.peek(),n}function v(e,t="effect"){let n=t;if(typeof __DEV__<"u"&&__DEV__&&t==="effect")try{let s=(new Error().stack??"").split(`
+`);for(let i=2;i<s.length&&i<8;i++){let a=s[i]?.trim()??"";if(!a||/\bcreateEffect\b|\bcreateComputed\b|\bbindReactive\b|\bapplyAttr\b|\bbuildDom\b|\bappendExpr\b|\brunWithHook\b|ReactiveEffect/.test(a))continue;let l=a.match(/at\s+([A-Z]\w+)\s+\(/);if(l){let c=a.match(/:(\d+):\d+\)?$/);n=c?`${l[1]} (:${c[1]})`:l[1];break}let d=a.match(/([^/\\:]+):(\d+):\d+\)?$/);if(d){n=`${d[1]}:${d[2]}`;break}}}catch{}let o=new z(e,n);return o.run(),()=>o.dispose()}var xe=/^\s*(javascript|data|vbscript):/i,ve=/^on/i;function E(e){return xe.test(e)}function A(e){return ve.test(e)}function Q(e){let t=document.createElement("template");t.innerHTML=e;let n=o=>{let r=[];o.childNodes.forEach(s=>{if(s.nodeType===Node.ELEMENT_NODE){let i=s,a=i.tagName.toLowerCase();if(a==="script"||a==="style"||a==="iframe"||a==="object"||a==="embed"||a==="form"){r.push(s);return}Array.from(i.attributes).forEach(l=>{(A(l.name)||(l.name==="href"||l.name==="src")&&E(l.value))&&i.removeAttribute(l.name)}),n(i)}}),r.forEach(s=>s.remove())};return n(t.content),t.innerHTML}var P=null;function ye(){return P||(typeof window<"u"&&window.trustedTypes&&(P=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:e=>Q(e)})),P)}function O(e){let t=ye();return t?t.createHTML(e):Q(e)}function j(e){return typeof e=="object"&&e!==null&&e.__onefoldRaw===!0}function B(e,t){t.replaceChildren(e)}var N=new WeakMap,U=null;function we(){if(U||typeof MutationObserver>"u"||typeof document>"u")return;U=new MutationObserver(t=>{for(let n of t)n.removedNodes.forEach(Y)});let e=document.documentElement??document;U.observe(e,{childList:!0,subtree:!0})}function Y(e){let t=N.get(e);if(t){for(let n of t)try{n()}catch(o){console.error("[onefold] Error while disposing a reactive binding:",o)}N.delete(e)}e.childNodes.forEach(Y)}function S(e,t){we();let n=N.get(e);n||(n=new Set,N.set(e,n)),n.add(t)}var Z=null;var y="\0nf_",w=/\x00nf_(\d+)\x00/g;function ke(e){return`${y}${e}\0`}function m(e,t){return e.charAt(t)}function W(e){return parseInt(e[1]??"0",10)}function Se(e,t){let n="";for(let i=0;i<e.length;i++)n+=e[i],i<t.length&&(n+=ke(i));let o=[],r=0,s=n.length;for(;r<s;){if(m(n,r)==="<"){if(n.startsWith("<!--",r)){let b=n.indexOf("-->",r+4);r=b===-1?s:b+3;continue}if(m(n,r+1)==="/"){let b=n.indexOf(">",r),M=n.slice(r+2,b).trim();o.push({kind:1,tag:M}),r=b+1;continue}let l=$e(n,r),d=m(n,l-1)==="/",c=n.slice(r+1,d?l-1:l),{tag:u,attrs:g}=Ee(c,t);o.push({kind:0,tag:u});for(let b of g)o.push(b);d&&o.push({kind:1,tag:u}),r=l+1;continue}let i=n.indexOf("<",r),a=i===-1?n.slice(r):n.slice(r,i);if(r=i===-1?s:i,a.trim()||w.test(a)){w.lastIndex=0;let l=0,d;for(;(d=w.exec(a))!==null;){let u=a.slice(l,d.index);u&&o.push({kind:3,value:u}),o.push({kind:4,value:t[W(d)]}),l=d.index+d[0].length}let c=a.slice(l);c&&c.trim()&&o.push({kind:3,value:c})}}return o}function $e(e,t){let n=null;for(let o=t+1;o<e.length;o++){let r=m(e,o);if(n)r===n&&(n=null);else if(r==='"'||r==="'")n=r;else if(r===">")return o}return e.length-1}function C(e){return e===" "||e==="	"||e===`
+`||e==="\r"||e==="\f"}function Ee(e,t){let n=e.search(/[\s/]/),o=n===-1?e:e.slice(0,n),r=[];if(n===-1)return{tag:o,attrs:r};let s=e.slice(n).trim();if(!s)return{tag:o,attrs:r};let i=0,a=s.length;for(;i<a;){for(;i<a&&C(m(s,i));)i++;if(i>=a)break;if(s.startsWith(y,i)){let c=s.indexOf("\0",i+y.length),u=parseInt(s.slice(i+y.length,c),10),g=t[u];if(g&&typeof g=="object")for(let[b,M]of Object.entries(g))r.push({kind:2,name:b,value:M});i=c+1;continue}let l=i;for(;i<a&&m(s,i)!=="="&&!C(m(s,i));)i++;let d=s.slice(l,i);if(!d){i++;continue}for(;i<a&&C(m(s,i));)i++;if(i>=a||m(s,i)!=="="){r.push({kind:2,name:d,value:!0});continue}for(i++;i<a&&C(m(s,i));)i++;if(s.startsWith(y,i)){let c=s.indexOf("\0",i+y.length),u=parseInt(s.slice(i+y.length,c),10);r.push({kind:2,name:d,value:t[u]}),i=c+1}else if(m(s,i)==='"'||m(s,i)==="'"){let c=m(s,i);i++;let u=i;for(;i<a&&m(s,i)!==c;)i++;let g=s.slice(u,i);i++,r.push({kind:2,name:d,value:ee(g,t)})}else{let c=i;for(;i<a&&!C(m(s,i));)i++;let u=s.slice(c,i);r.push({kind:2,name:d,value:ee(u,t)})}}return{tag:o,attrs:r}}function ee(e,t){w.lastIndex=0;let n=w.exec(e);if(!n)return e;if(n.index===0&&n[0].length===e.length)return t[W(n)];w.lastIndex=0;let o=[],r=0,s;for(;(s=w.exec(e))!==null;){s.index>r&&o.push(e.slice(r,s.index));let i=t[W(s)];o.push(typeof i=="function"?i:()=>i),r=s.index+s[0].length}return r<e.length&&o.push(e.slice(r)),()=>o.map(i=>typeof i=="function"?i():i).join("")}function Ce(e){let t=document.createDocumentFragment(),n=[t],o=t;for(let r of e)switch(r.kind){case 0:{let s=document.createElement(r.tag);o.appendChild(s),n.push(s),o=s;break}case 1:{if(typeof __DEV__<"u"&&__DEV__){let s=o,i=s.tagName?.toLowerCase();(i==="input"||i==="textarea")&&!s.hasAttribute("value")&&s.getAttribute("data-nf-has-input")==="1"&&console.warn(`[onefold] <${i}> has oninput/onchange but no value=\${() => signal()} binding. The input won't clear on signal.set('') or form.reset(). Add: value=\${() => yourSignal()} for two-way binding.`,s)}n.pop(),o=n.length>0?n[n.length-1]:t;break}case 2:{_e(o,r.name,r.value);break}case 3:{o.appendChild(document.createTextNode(r.value));break}case 4:{te(o,r.value);break}}return t.childNodes.length===1&&t.firstChild instanceof HTMLElement?t.firstChild:t}function _e(e,t,n){if(t==="ref"){typeof n=="function"&&n(e);return}if(t==="class"){L(n,o=>Re(e,o),e);return}if(t==="style"){L(n,o=>{typeof o=="string"?e.style.cssText=o:Object.assign(e.style,o??{})},e);return}if(A(t)&&typeof n=="function"){if(e.addEventListener(t.slice(2).toLowerCase(),n),typeof __DEV__<"u"&&__DEV__){let o=t.slice(2).toLowerCase();(o==="input"||o==="change")&&e.setAttribute("data-nf-has-input","1")}return}if(t.startsWith("d-")){let o=K(t.slice(2));o?L(n,r=>o(e,r),e):console.warn(`[onefold] No directive registered for "${t}". Call registerDirective() first.`);return}L(n,o=>Te(e,t,o),e)}function L(e,t,n){if(typeof e=="function"){let o=v(()=>t(e()));S(n,o)}else t(e)}function Re(e,t){t?typeof t=="string"?e.className=t:typeof t=="object"&&(e.className=Object.entries(t).filter(([,n])=>n).map(([n])=>n).join(" ")):e.className=""}function Te(e,t,n){if(n===!1||n==null){e.removeAttribute(t);return}if(n===!0){e.setAttribute(t,"");return}let o=String(n);if(A(t)){console.warn(`[onefold] Blocked string event handler "${t}". Use a function instead.`);return}if((t==="href"||t==="src"||t==="action"||t==="formaction"||t==="xlink:href")&&E(o)){console.warn(`[onefold] Blocked unsafe "${t}" value:`,o),e.removeAttribute(t);return}if(t==="value"&&"value"in e){e.value=o;return}if(t==="checked"&&e instanceof HTMLInputElement){e.checked=n===!0||o==="true"||o==="";return}if(t==="selected"&&e instanceof HTMLOptionElement){e.selected=n===!0||o==="true"||o==="";return}e.setAttribute(t,o)}function te(e,t){if(!(t==null||t===!1||t===!0)){if(t instanceof Node){e.appendChild(t);return}if(Array.isArray(t)){for(let n of t)te(e,n);return}if(typeof t=="function"){let n=document.createComment("expr-start"),o=document.createComment("expr-end");e.appendChild(n),e.appendChild(o);let r=v(()=>{let s=t(),i=n.parentNode;if(!i)return;let a=n.nextSibling;for(;a&&a!==o;){let d=a.nextSibling;i.removeChild(a),a=d}let l=ne(s);i.insertBefore(l,o)});S(e,r);return}if(j(t)){let n=document.createElement("span");n.innerHTML=O(t.html),e.appendChild(n);return}e.appendChild(document.createTextNode(String(t)))}}function ne(e){if(e==null||e===!1||e===!0)return document.createComment("");if(e instanceof Node)return e;if(j(e)){let t=document.createElement("span");return t.innerHTML=O(e.html),t}if(Array.isArray(e)){let t=document.createDocumentFragment();for(let n of e)t.appendChild(ne(n));return t}return document.createTextNode(String(e))}function p(e,...t){if(Z)return Z(e,...t);let n=Se(e,t);return Ce(n)}var Pe=0,oe=new Map;function Ae(){return`nf-${(Pe++).toString(36)}`}function ie(e,t){let n=`.${t}`,o="",r=0,s=e.length;for(;r<s;){for(;r<s&&/\s/.test(e[r]);)o+=e[r],r++;if(r>=s)break;if(e[r]==="@"){let c=r;for(;r<s&&e[r]!=="{";)r++;o+=e.slice(c,r),r<s&&(o+=e[r],r++);let u=re(e,r-1),g=u.slice(1,-1);o+=ie(g,t),o+="}",r+=u.length-1;continue}let i=r;for(;r<s&&e[r]!=="{";)r++;let a=e.slice(i,r).trim();if(!a||r>=s)break;let l=a.split(",").map(c=>(c=c.trim(),c&&(c===":root"||c===":host"?n:c.startsWith("&")?n+c.slice(1):`${n} ${c}`))).join(", ");o+=l;let d=re(e,r);o+=d,r+=d.length}return o}function re(e,t){if(e[t]!=="{")return"";let n=0,o=t;for(;o<e.length;){if(e[o]==="{")n++;else if(e[o]==="}"&&(n--,n===0))return e.slice(t,o+1);o++}return e.slice(t)}function Ne(e,t){if(typeof document>"u"||document.getElementById(t))return;let n=document.createElement("style");n.id=t,n.textContent=e,document.head.appendChild(n)}function x(e,...t){let n="";for(let a=0;a<e.length;a++)n+=e[a],a<t.length&&(n+=String(t[a]));let o=oe.get(n);if(o)return o;let r=Ae(),s=ie(n,r);Ne(s,`style-${r}`);let i={scope:r,css:s};return oe.set(n,i),i}var _=null,F=null;function H(){return F===null&&(F=typeof window<"u"&&window.location.protocol==="file:"),F}function se(){return typeof window>"u"?"/":H()?window.location.hash.slice(1)||"/":window.location.pathname}function V(){if(_)return _;if(_=h(se()),typeof window<"u"){let e=H()?"hashchange":"popstate";window.addEventListener(e,()=>_.set(se()))}return _}function ae(e){if(typeof window>"u")return;let t=V();H()?(window.location.hash=e,t.set(e)):(window.history.pushState({},"",e),t.set(e))}function R(){return V()()}function Le(e,t){let n=e.split("/"),o=t.split("/");if(n.length!==o.length)return null;let r={};for(let s=0;s<n.length;s++){let i=n[s],a=o[s];if(i.startsWith(":"))try{r[i.slice(1)]=decodeURIComponent(a)}catch{r[i.slice(1)]=a}else if(i!==a)return null}return r}function He(e,t){if(e==="/")return{};let n=e.split("/").filter(Boolean),o=t.split("/").filter(Boolean);if(o.length<n.length)return null;let r={};for(let s=0;s<n.length;s++){let i=n[s],a=o[s];if(i.startsWith(":"))try{r[i.slice(1)]=decodeURIComponent(a)}catch{r[i.slice(1)]=a}else if(i!==a)return null}return r}function ce(e,t,n,o=""){for(let r of e){let s=Me(o,r.path);if(r.children&&r.children.length>0){let i=He(s,t);if(i!==null){let l=ce(r.children,t,n,s)??n();return r.view(i,l)}}else{let i=Le(s,t);if(i!==null)return r.view(i)}}return null}function Me(e,t){if(!e||e==="/")return t;if(t==="/")return e;let n=e.endsWith("/")?e.slice(0,-1):e,o=t.startsWith("/")?t:"/"+t;return n+o}function q(e,t){let n=V(),o=document.createElement("div"),r=v(()=>{let s=n(),i=null;if(Array.isArray(e))i=ce(e,s,t,"");else{let a=e[s];a&&(i=a())}o.textContent="",o.appendChild(i??t())});return S(o,r),o}function f(e,t,n){let o=document.createElement("a");if(E(e)?typeof __DEV__<"u"&&__DEV__&&console.warn(`[onefold] Blocked unsafe URL in Link: "${e}"`):o.setAttribute("href",H()?`#${e}`:e),n)if(typeof n=="function"){let r=v(()=>{o.className=n()});S(o,r)}else o.className=n;return o.addEventListener("click",r=>{r.preventDefault(),ae(e)}),typeof t=="string"?o.textContent=t:o.appendChild(t),o}var De=[{id:1,title:"Getting Started with Nanoframe",excerpt:"Learn how to build reactive UIs with zero dependencies and fine-grained signals.",date:"2026-07-01"},{id:2,title:"Signals vs Virtual DOM",excerpt:"Why fine-grained reactivity outperforms diffing on update-heavy workloads.",date:"2026-06-28"},{id:3,title:"Building a Router from Scratch",excerpt:"Client-side routing with the History API in under 50 lines of TypeScript.",date:"2026-06-20"},{id:4,title:"The html`` Tagged Template",excerpt:"Write templates that look like HTML with full reactive bindings \u2014 no compiler needed.",date:"2026-06-15"}];function le(e){return p`
     <div class="page">
       <section class="hero-section">
         <h1>Nanoframe Blog</h1>
@@ -9,7 +10,7 @@ var q=null;function G(e,t){q?q(e,t):t()}var de=new Map;function J(e){return de.g
       <section class="posts-section">
         <h2>Recent Posts</h2>
         <div class="post-list">
-          ${Re.map(t=>d`
+          ${De.map(t=>p`
               <article class="post-card">
                 <span class="post-date">${t.date}</span>
                 <h3>${f(`/posts/${t.id}`,t.title,"post-link")}</h3>
@@ -19,7 +20,7 @@ var q=null;function G(e,t){q?q(e,t):t()}var de=new Map;function J(e){return de.g
         </div>
       </section>
     </div>
-  `}function se(e){return d`
+  `}function de(e){return p`
     <div class="page">
       <h1>About</h1>
       <p class="about-intro">
@@ -54,7 +55,7 @@ navigate('/posts/3');</code></pre>
 
       <p>${f("/","\u2190 Back to Home","btn")}</p>
     </div>
-  `}var Ne={1:{id:1,title:"Getting Started with Nanoframe",date:"2026-07-01",author:"Core Team",content:`
+  `}var ze={1:{id:1,title:"Getting Started with Nanoframe",date:"2026-07-01",author:"Core Team",content:`
       <p>Nanoframe is a tiny, dependency-free TypeScript UI library. It uses fine-grained
       reactive signals bound directly to real DOM nodes \u2014 no virtual DOM, no diffing.</p>
       <h3>Installation</h3>
@@ -113,7 +114,7 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
       <p>It supports everything h() does: reactive attributes, event handlers, refs, directives,
       class objects, style objects, nested templates, and arrays of nodes.</p>
       <p>The security model is identical \u2014 text always goes through textContent, never innerHTML.</p>
-    `}};function ae(e){let t=Ne[e.id??""];return t?d`
+    `}};function pe(e){let t=ze[e.id??""];return t?p`
     <div class="page">
       <article class="post-full">
         <div class="post-header">
@@ -124,17 +125,17 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
           </div>
         </div>
         <div class="post-body">
-          ${()=>{let o=document.createElement("div");return o.innerHTML=t.content,o}}
+          ${()=>{let n=document.createElement("div");return n.innerHTML=t.content,n}}
         </div>
       </article>
     </div>
-  `:d`
+  `:p`
       <div class="page">
         <h2>Post Not Found</h2>
         <p>The post you're looking for doesn't exist.</p>
         ${f("/","Back to Home","btn")}
       </div>
-    `}var Ae=x`
+    `}var Ie=x`
   .header { margin-bottom: 32px; }
   .header h1 { font-size: 28px; margin-bottom: 8px; }
   .intro { color: #6b7280; font-size: 15px; line-height: 1.6; }
@@ -146,8 +147,8 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
     font-family: 'SF Mono', Menlo, monospace;
   }
   .demos { display: flex; flex-direction: column; gap: 20px; }
-`;function ce(e){return d`
-    <div class=${Ae.scope}>
+`;function fe(e){return p`
+    <div class=${Ie.scope}>
       <div class="header">
         <h1>Component-Scoped Styling</h1>
         <p class="intro">
@@ -157,19 +158,19 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
       </div>
 
       <div class="demos">
-        ${He()}
-        ${ze()}
-        ${Ie()}
         ${je()}
-        ${Be()}
-        ${_e()}
+        ${Ue()}
+        ${Fe()}
+        ${qe()}
+        ${Je()}
+        ${Ke()}
       </div>
 
       <div style=${{marginTop:"32px"}}>
         ${f("/","\u2190 Back to Home","btn")}
       </div>
     </div>
-  `}var Le=x`
+  `}var Oe=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -190,8 +191,8 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
     transition: all 0.15s;
   }
   button:hover { border-color: #4f46e5; color: #4f46e5; }
-`;function He(){let e=h(0);return d`
-    <div class=${Le.scope}>
+`;function je(){let e=h(0);return p`
+    <div class=${Oe.scope}>
       <div class="card">
         <h2>1. Scoped Counter</h2>
         <p class="desc">Styles defined with <code>css\`...\`</code> — the button styles here won't affect buttons elsewhere.</p>
@@ -203,7 +204,7 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
         </div>
       </div>
     </div>
-  `}var Me=x`
+  `}var Be=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -231,8 +232,8 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
     transition: all 0.15s;
   }
   button:hover { border-color: #4f46e5; color: #4f46e5; }
-`,V=[{name:"Indigo",border:"#6366f1",bg:"rgba(99,102,241,0.08)",color:"#6366f1"},{name:"Emerald",border:"#10b981",bg:"rgba(16,185,129,0.08)",color:"#10b981"},{name:"Amber",border:"#f59e0b",bg:"rgba(245,158,11,0.08)",color:"#f59e0b"},{name:"Rose",border:"#f43f5e",bg:"rgba(244,63,94,0.08)",color:"#f43f5e"}];function ze(){let e=h(0),t=()=>V[e()%V.length],o=()=>e.set(n=>(n+1)%V.length);return d`
-    <div class=${Me.scope}>
+`,G=[{name:"Indigo",border:"#6366f1",bg:"rgba(99,102,241,0.08)",color:"#6366f1"},{name:"Emerald",border:"#10b981",bg:"rgba(16,185,129,0.08)",color:"#10b981"},{name:"Amber",border:"#f59e0b",bg:"rgba(245,158,11,0.08)",color:"#f59e0b"},{name:"Rose",border:"#f43f5e",bg:"rgba(244,63,94,0.08)",color:"#f43f5e"}];function Ue(){let e=h(0),t=()=>G[e()%G.length],n=()=>e.set(o=>(o+1)%G.length);return p`
+    <div class=${Be.scope}>
       <div class="card">
         <h2>2. Dynamic Styles (Reactive)</h2>
         <p class="desc">Use <code>style=\${() => ({...})}</code> for reactive inline styles driven by signals.</p>
@@ -240,10 +241,10 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
           <p class="label" style=${()=>({color:t().color})}>${()=>t().name}</p>
           <p>Border and background react to signal changes</p>
         </div>
-        <button onclick=${o}>Next Theme</button>
+        <button onclick=${n}>Next Theme</button>
       </div>
     </div>
-  `}var Oe=x`
+  `}var We=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -267,21 +268,21 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
   .highlight { background: #fef08a; }
   .toggles { display: flex; gap: 16px; flex-wrap: wrap; }
   .toggles label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
-`;function Ie(){let e=h(!1),t=h(!1),o=h(!1),n=h(!1);return d`
-    <div class=${Oe.scope}>
+`;function Fe(){let e=h(!1),t=h(!1),n=h(!1),o=h(!1);return p`
+    <div class=${We.scope}>
       <div class="card">
         <h2>3. Class Object Map</h2>
         <p class="desc">Pass an object to <code>class</code> — keys are class names, values are booleans.</p>
-        <p class=${()=>({sample:!0,bold:e(),italic:t(),underline:o(),highlight:n()})}>The quick brown fox jumps over the lazy dog</p>
+        <p class=${()=>({sample:!0,bold:e(),italic:t(),underline:n(),highlight:o()})}>The quick brown fox jumps over the lazy dog</p>
         <div class="toggles">
           <label><input type="checkbox" onchange=${()=>e.set(r=>!r)} /> Bold</label>
           <label><input type="checkbox" onchange=${()=>t.set(r=>!r)} /> Italic</label>
-          <label><input type="checkbox" onchange=${()=>o.set(r=>!r)} /> Underline</label>
-          <label><input type="checkbox" onchange=${()=>n.set(r=>!r)} /> Highlight</label>
+          <label><input type="checkbox" onchange=${()=>n.set(r=>!r)} /> Underline</label>
+          <label><input type="checkbox" onchange=${()=>o.set(r=>!r)} /> Highlight</label>
         </div>
       </div>
     </div>
-  `}var De=x`
+  `}var Ve=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -300,31 +301,31 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
   .sliders { display: flex; flex-direction: column; gap: 10px; }
   .sliders label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #6b7280; }
   .sliders input[type="range"] { flex: 1; cursor: pointer; }
-`;function je(){let e=h(48),t=h(0),o=h(250);return d`
-    <div class=${De.scope}>
+`;function qe(){let e=h(48),t=h(0),n=h(250);return p`
+    <div class=${Ve.scope}>
       <div class="card">
         <h2>4. Reactive Inline Style Object</h2>
         <p class="desc">Style as a JS object with camelCase keys. Wrap in a function for reactivity.</p>
         <div class="area">
-          <div style=${()=>({width:`${e()}px`,height:`${e()}px`,transform:`rotate(${t()}deg)`,backgroundColor:`hsl(${o()}, 70%, 60%)`,borderRadius:`${Math.min(e()/4,20)}px`,transition:"all 0.15s ease"})}></div>
+          <div style=${()=>({width:`${e()}px`,height:`${e()}px`,transform:`rotate(${t()}deg)`,backgroundColor:`hsl(${n()}, 70%, 60%)`,borderRadius:`${Math.min(e()/4,20)}px`,transition:"all 0.15s ease"})}></div>
         </div>
         <div class="sliders">
           <label>Size: ${()=>`${e()}px`}
             <input type="range" min="24" max="120" value="48"
-              oninput=${n=>e.set(Number(n.target.value))} />
+              oninput=${o=>e.set(Number(o.target.value))} />
           </label>
           <label>Rotation: ${()=>`${t()}\xB0`}
             <input type="range" min="0" max="360" value="0"
-              oninput=${n=>t.set(Number(n.target.value))} />
+              oninput=${o=>t.set(Number(o.target.value))} />
           </label>
-          <label>Hue: ${()=>String(o())}
+          <label>Hue: ${()=>String(n())}
             <input type="range" min="0" max="360" value="250"
-              oninput=${n=>o.set(Number(n.target.value))} />
+              oninput=${o=>n.set(Number(o.target.value))} />
           </label>
         </div>
       </div>
     </div>
-  `}var Fe=x`
+  `}var Ge=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -342,21 +343,21 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
     font-weight: 600;
     color: white;
   }
-`;function P(e,t){return d`<span class="badge" style=${{backgroundColor:t}}>${e}</span>`}function Be(){return d`
-    <div class=${Fe.scope}>
+`;function T(e,t){return p`<span class="badge" style=${{backgroundColor:t}}>${e}</span>`}function Je(){return p`
+    <div class=${Ge.scope}>
       <div class="card">
         <h2>5. Reusable Styled Components</h2>
         <p class="desc">Define styles once, use the component anywhere. The .badge class is scoped — won't leak.</p>
         <div class="row">
-          ${P("Success","#22c55e")}
-          ${P("Warning","#eab308")}
-          ${P("Error","#ef4444")}
-          ${P("Info","#3b82f6")}
-          ${P("Neutral","#6b7280")}
+          ${T("Success","#22c55e")}
+          ${T("Warning","#eab308")}
+          ${T("Error","#ef4444")}
+          ${T("Info","#3b82f6")}
+          ${T("Neutral","#6b7280")}
         </div>
       </div>
     </div>
-  `}var We=x`
+  `}var Xe=x`
   .card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -391,8 +392,8 @@ mount(Counter(), document.getElementById('app')!);</code></pre>
     font-size: 12px;
     font-family: 'SF Mono', Menlo, monospace;
   }
-`;function _e(){return d`
-    <div class=${We.scope}>
+`;function Ke(){return p`
+    <div class=${Xe.scope}>
       <div class="card">
         <h2>How It Works</h2>
         <pre>import { css, html } from 'onefold';
@@ -427,26 +428,26 @@ function MyCard() {
         </div>
       </div>
     </div>
-  `}function le(){return d`
+  `}function ue(){return p`
     <div class="page not-found">
       <h1>404</h1>
       <p>Page not found. The route you visited doesn't match any defined pattern.</p>
       ${f("/","Go Home","btn")}
     </div>
-  `}function Ue(){return d`
+  `}function Qe(){return p`
     <nav class="navbar">
       <div class="nav-brand">
         ${f("/","onefold blog","brand-link")}
       </div>
       <div class="nav-links">
-        ${f("/","Home",()=>T()==="/"?"nav-link active":"nav-link")}
-        ${f("/styling","Styling",()=>T()==="/styling"?"nav-link active":"nav-link")}
-        ${f("/about","About",()=>T()==="/about"?"nav-link active":"nav-link")}
+        ${f("/","Home",()=>R()==="/"?"nav-link active":"nav-link")}
+        ${f("/styling","Styling",()=>R()==="/styling"?"nav-link active":"nav-link")}
+        ${f("/about","About",()=>R()==="/about"?"nav-link active":"nav-link")}
       </div>
     </nav>
-  `}function Ve(){let e=U([{path:"/",view:t=>ie(t)},{path:"/about",view:t=>se(t)},{path:"/styling",view:t=>ce(t)},{path:"/posts/:id",view:t=>ae(t)}],le);return d`
+  `}function Ye(){let e=q([{path:"/",view:t=>le(t)},{path:"/about",view:t=>de(t)},{path:"/styling",view:t=>fe(t)},{path:"/posts/:id",view:t=>pe(t)}],ue);return p`
     <div class="app-shell">
-      ${Ue()}
+      ${Qe()}
       <main class="main-content">
         ${e}
       </main>
@@ -454,4 +455,4 @@ function MyCard() {
         <p>Built with onefold — fine-grained signals · real DOM · zero dependencies</p>
       </footer>
     </div>
-  `}j(Ve(),document.getElementById("app"));
+  `}B(Ye(),document.getElementById("app"));

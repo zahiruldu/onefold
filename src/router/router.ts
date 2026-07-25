@@ -19,6 +19,29 @@ export type Routes = Record<string, () => Node> | RouteDefinition[];
 let _currentPath: Signal<string> | null = null;
 let _useHash: boolean | null = null;
 
+/**
+ * Configure the router mode. Call BEFORE creating any Router or calling navigate().
+ *
+ * By default, the router uses **path-based** routing (history.pushState),
+ * falling back to hash routing automatically on `file:` protocol.
+ *
+ * Set `hash: true` for static hosting (GitHub Pages, S3, Netlify without redirects)
+ * where the server can't handle SPA fallback.
+ *
+ * @example
+ * // Hash-based — for static hosting without server config
+ * configureRouter({ hash: true });
+ */
+export function configureRouter(opts: { hash?: boolean }): void {
+  if (opts.hash !== undefined) _useHash = opts.hash;
+}
+
+/** @internal Reset router state for testing. Not part of the public API. */
+export function _resetRouter(): void {
+  _currentPath = null;
+  _useHash = null;
+}
+
 function useHash(): boolean {
   if (_useHash === null) {
     _useHash = typeof window !== 'undefined' && window.location.protocol === 'file:';
@@ -51,6 +74,7 @@ export function navigate(path: string): void {
   const signal = getPathSignal();
   if (useHash()) {
     window.location.hash = path;
+    signal.set(path);
   } else {
     window.history.pushState({}, '', path);
     signal.set(path);
@@ -218,10 +242,8 @@ export function Link(href: string, child: Node | string, className?: string | ((
     }
   }
   el.addEventListener('click', (e) => {
-    if (!useHash()) {
-      e.preventDefault();
-      navigate(href);
-    }
+    e.preventDefault();
+    navigate(href);
   });
   if (typeof child === 'string') {
     el.textContent = child;
