@@ -19,7 +19,7 @@ var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return
       <div class="sidebar-logo">
         ${ve()}
         <span class="wordmark">one<span>fold</span></span>
-        <span class="version">v0.1.2</span>
+        <span class="version">v0.1.3</span>
       </div>
       <nav class="sidebar-nav">
         ${()=>T.map(s=>r`

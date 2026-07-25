@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://zahiruldu.github.io/onefold">
+  <a href="https://onefoldjs.com">
     <img src="docs/logo.svg" alt="onefold" width="128" height="128" />
   </a>
 </p>
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://zahiruldu.github.io/onefold"><strong>Documentation</strong></a>
+  <a href="https://onefoldjs.com"><strong>Documentation</strong></a>
   &middot;
   <a href="https://github.com/zahiruldu/onefold/issues">Report a Bug</a>
   &middot;
@@ -31,7 +31,7 @@
 - **Complete toolkit:** Routing, state, forms, i18n, theming, HTTP client, SSR, accessibility, microfrontend security, and more — all in one 3kb package with zero dependencies.
 - **TypeScript-first:** Full strict mode, no `any` escape hatches, illegal states fail at compile time.
 
-[Learn how to use onefold in your project](https://zahiruldu.github.io/onefold).
+[Learn how to use onefold in your project](https://onefoldjs.com).
 
 ## Getting Started
 
@@ -52,18 +52,24 @@ npm install onefold
 
 ## Documentation
 
-You can find the onefold documentation [on the website](https://zahiruldu.github.io/onefold).
+You can find the onefold documentation [on the website](https://onefoldjs.com).
 
 The documentation covers:
 
-- [Quick Start](https://zahiruldu.github.io/onefold#quick-start)
-- [Signals (Reactivity)](https://zahiruldu.github.io/onefold#signals)
-- [Templates](https://zahiruldu.github.io/onefold#templates)
-- [Routing](https://zahiruldu.github.io/onefold#router)
-- [State Management](https://zahiruldu.github.io/onefold#store)
-- [Forms & Validation](https://zahiruldu.github.io/onefold#forms)
-- [Microfrontends](https://zahiruldu.github.io/onefold#mfe-security)
-- [API Reference](https://zahiruldu.github.io/onefold#mfe-api-reference)
+- [Installation](https://onefoldjs.com/#/getting-started/install)
+- [Quick Start](https://onefoldjs.com/#/getting-started/quickstart)
+- [Signals (Reactivity)](https://onefoldjs.com/#/core/signals)
+- [Templates](https://onefoldjs.com/#/core/templates)
+- [Routing](https://onefoldjs.com/#/routing/router)
+- [Router Configuration](https://onefoldjs.com/#/routing/configure)
+- [State Management](https://onefoldjs.com/#/state/store)
+- [Forms & Validation](https://onefoldjs.com/#/forms/create-form)
+- [HTTP Client](https://onefoldjs.com/#/data/http-client)
+- [Microfrontends](https://onefoldjs.com/#/microfrontends/load-remote)
+- [Server-Side Rendering](https://onefoldjs.com/#/ssr)
+- [Deployment](https://onefoldjs.com/#/deployment/github-pages)
+- [CLI (create-onefold)](https://onefoldjs.com/#/cli)
+- [Playground](https://onefoldjs.com/#/playground)
 
 ## Examples
 
@@ -111,6 +117,7 @@ To help you get started, look for issues labeled [`good first issue`](https://gi
 
 - [onefold](https://www.npmjs.com/package/onefold) — The framework
 - [create-onefold](https://www.npmjs.com/package/create-onefold) — Project scaffolding CLI
+- [onefoldjs.com](https://onefoldjs.com) — Official documentation site
 
 ## License
 
