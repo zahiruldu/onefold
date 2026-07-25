@@ -7,6 +7,24 @@ export interface RouteDefinition {
     children?: RouteDefinition[];
 }
 export type Routes = Record<string, () => Node> | RouteDefinition[];
+/**
+ * Configure the router mode. Call BEFORE creating any Router or calling navigate().
+ *
+ * By default, the router uses **path-based** routing (history.pushState),
+ * falling back to hash routing automatically on `file:` protocol.
+ *
+ * Set `hash: true` for static hosting (GitHub Pages, S3, Netlify without redirects)
+ * where the server can't handle SPA fallback.
+ *
+ * @example
+ * // Hash-based — for static hosting without server config
+ * configureRouter({ hash: true });
+ */
+export declare function configureRouter(opts: {
+    hash?: boolean;
+}): void;
+/** @internal Reset router state for testing. Not part of the public API. */
+export declare function _resetRouter(): void;
 /** Navigate without a full page reload. */
 export declare function navigate(path: string): void;
 /** Read the current route path reactively. */
