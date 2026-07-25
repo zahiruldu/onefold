@@ -1,2394 +1,85 @@
-// ../../src/core/extend.ts
-var effectHook = null;
-function setEffectHook(hook) {
-  effectHook = hook;
-}
-function runWithHook(label, fn) {
-  if (effectHook) effectHook(label, fn);
-  else fn();
-}
-var directives = /* @__PURE__ */ new Map();
-function getDirective(name) {
-  return directives.get(name);
-}
-
-// ../../src/core/signal.ts
-var activeEffect = null;
-var batchDepth = 0;
-var pendingEffects = /* @__PURE__ */ new Set();
-var _devUpdateCounter = 0;
-var _devUpdateResetTimer = null;
-var _DEV_UPDATE_THRESHOLD = 200;
-var ReactiveEffect = class {
-  constructor(fn, label) {
-    this.deps = /* @__PURE__ */ new Set();
-    this.active = true;
-    this.fn = fn;
-    this.label = label;
-  }
-  run() {
-    if (!this.active) return;
-    this.cleanup();
-    const prevEffect = activeEffect;
-    activeEffect = this;
-    try {
-      runWithHook(this.label, this.fn);
-    } finally {
-      activeEffect = prevEffect;
-    }
-  }
-  cleanup() {
-    for (const dep of this.deps) dep.subscribers.delete(this);
-    this.deps.clear();
-  }
-  dispose() {
-    this.active = false;
-    this.cleanup();
-  }
-};
-var SignalImpl = class {
-  constructor(value) {
-    this.value = value;
-    this.subscribers = /* @__PURE__ */ new Set();
-  }
-  get() {
-    if (activeEffect) {
-      this.subscribers.add(activeEffect);
-      activeEffect.deps.add(this);
-    }
-    return this.value;
-  }
-  set(next) {
-    const newValue = typeof next === "function" ? next(this.value) : next;
-    if (Object.is(newValue, this.value)) return;
-    this.value = newValue;
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      _devUpdateCounter++;
-      if (!_devUpdateResetTimer) {
-        _devUpdateResetTimer = setTimeout(() => {
-          _devUpdateCounter = 0;
-          _devUpdateResetTimer = null;
-        }, 1e3);
-      }
-      if (_devUpdateCounter > _DEV_UPDATE_THRESHOLD) {
-        console.warn(
-          `[onefold] Signal updated ${_devUpdateCounter} times in <1s. Possible infinite loop in an effect.`
-        );
-        _devUpdateCounter = 0;
-      }
-    }
-    this.notify();
-  }
-  peek() {
-    return this.value;
-  }
-  notify() {
-    if (batchDepth > 0) {
-      for (const e of this.subscribers) pendingEffects.add(e);
-    } else {
-      const subs = Array.from(this.subscribers);
-      for (let i = 0; i < subs.length; i++) subs[i].run();
-    }
-  }
-};
-function createSignal(initial) {
-  const impl = new SignalImpl(initial);
-  const accessor = (() => impl.get());
-  accessor.set = (v) => impl.set(v);
-  accessor.peek = () => impl.peek();
-  return accessor;
-}
-function createEffect(fn, label = "effect") {
-  let resolvedLabel = label;
-  if (typeof __DEV__ !== "undefined" && __DEV__ && label === "effect") {
-    try {
-      const stack = new Error().stack ?? "";
-      const lines = stack.split("\n");
-      for (let i = 2; i < lines.length && i < 8; i++) {
-        const line = lines[i]?.trim() ?? "";
-        if (!line) continue;
-        if (/\bcreateEffect\b|\bcreateComputed\b|\bbindReactive\b|\bapplyAttr\b|\bbuildDom\b|\bappendExpr\b|\brunWithHook\b|ReactiveEffect/.test(line)) continue;
-        const fnMatch = line.match(/at\s+([A-Z]\w+)\s+\(/);
-        if (fnMatch) {
-          const locMatch = line.match(/:(\d+):\d+\)?$/);
-          resolvedLabel = locMatch ? `${fnMatch[1]} (:${locMatch[1]})` : fnMatch[1];
-          break;
-        }
-        const locOnly = line.match(/([^/\\:]+):(\d+):\d+\)?$/);
-        if (locOnly) {
-          resolvedLabel = `${locOnly[1]}:${locOnly[2]}`;
-          break;
-        }
-      }
-    } catch {
-    }
-  }
-  const effect = new ReactiveEffect(fn, resolvedLabel);
-  effect.run();
-  return () => effect.dispose();
-}
-function createComputed(fn) {
-  const internal = createSignal(void 0);
-  createEffect(() => internal.set(fn()), "computed");
-  const accessor = (() => internal());
-  accessor.peek = internal.peek;
-  accessor.set = () => {
-    throw new Error("[onefold] Cannot write to a computed signal.");
-  };
-  return accessor;
-}
-function batch(fn) {
-  batchDepth++;
-  try {
-    fn();
-  } finally {
-    batchDepth--;
-    if (batchDepth === 0) {
-      const effects = [...pendingEffects];
-      pendingEffects.clear();
-      for (const e of effects) e.run();
-    }
-  }
-}
-
-// ../../src/security/sanitize.ts
-var UNSAFE_URL_SCHEME = /^\s*(javascript|data|vbscript):/i;
-var EVENT_ATTR_PREFIX = /^on/i;
-function isUnsafeUrl(value) {
-  return UNSAFE_URL_SCHEME.test(value);
-}
-function isEventAttribute(name) {
-  return EVENT_ATTR_PREFIX.test(name);
-}
-function minimalSanitize(html2) {
-  const template = document.createElement("template");
-  template.innerHTML = html2;
-  const walk = (node) => {
-    const toRemove = [];
-    node.childNodes.forEach((child) => {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const el = child;
-        const tag = el.tagName.toLowerCase();
-        if (tag === "script" || tag === "style" || tag === "iframe" || tag === "object" || tag === "embed" || tag === "form") {
-          toRemove.push(child);
-          return;
-        }
-        Array.from(el.attributes).forEach((attr) => {
-          if (isEventAttribute(attr.name)) {
-            el.removeAttribute(attr.name);
-          } else if ((attr.name === "href" || attr.name === "src") && isUnsafeUrl(attr.value)) {
-            el.removeAttribute(attr.name);
-          }
-        });
-        walk(el);
-      }
-    });
-    toRemove.forEach((n) => n.remove());
-  };
-  walk(template.content);
-  return template.innerHTML;
-}
-var trustedPolicy = null;
-function getTrustedPolicy() {
-  if (trustedPolicy) return trustedPolicy;
-  if (typeof window !== "undefined" && window.trustedTypes) {
-    trustedPolicy = window.trustedTypes.createPolicy("onefold-sanitized", {
-      createHTML: (input) => minimalSanitize(input)
-    });
-  }
-  return trustedPolicy;
-}
-function toTrustedHtml(html2) {
-  const policy = getTrustedPolicy();
-  return policy ? policy.createHTML(html2) : minimalSanitize(html2);
-}
-function raw(html2) {
-  return { __onefoldRaw: true, html: minimalSanitize(html2) };
-}
-function isRawHtml(value) {
-  return typeof value === "object" && value !== null && value.__onefoldRaw === true;
-}
-
-// ../../src/core/dom.ts
-function mount(node, container) {
-  container.replaceChildren(node);
-}
-
-// ../../src/core/lifecycle.ts
-var disposersByNode = /* @__PURE__ */ new WeakMap();
-var observer = null;
-function ensureObserver() {
-  if (observer || typeof MutationObserver === "undefined" || typeof document === "undefined") return;
-  observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      mutation.removedNodes.forEach(runDisposersForSubtree);
-    }
-  });
-  const root = document.documentElement ?? document;
-  observer.observe(root, { childList: true, subtree: true });
-}
-function runDisposersForSubtree(node) {
-  const disposers = disposersByNode.get(node);
-  if (disposers) {
-    for (const dispose of disposers) {
-      try {
-        dispose();
-      } catch (err) {
-        console.error("[onefold] Error while disposing a reactive binding:", err);
-      }
-    }
-    disposersByNode.delete(node);
-  }
-  node.childNodes.forEach(runDisposersForSubtree);
-}
-function disposeOnRemove(node, dispose) {
-  ensureObserver();
-  let set = disposersByNode.get(node);
-  if (!set) {
-    set = /* @__PURE__ */ new Set();
-    disposersByNode.set(node, set);
-  }
-  set.add(dispose);
-}
-
-// ../../src/core/template.ts
-var _ssrInterceptor = null;
-var PLACEHOLDER_PREFIX = "\0nf_";
-var PLACEHOLDER_RE = /\x00nf_(\d+)\x00/g;
-function placeholder(index) {
-  return `${PLACEHOLDER_PREFIX}${index}\0`;
-}
-function charAt(s, i) {
-  return s.charAt(i);
-}
-function captureInt(match) {
-  return parseInt(match[1] ?? "0", 10);
-}
-function tokenize(strings, values) {
-  let source = "";
-  for (let i = 0; i < strings.length; i++) {
-    source += strings[i];
-    if (i < values.length) {
-      source += placeholder(i);
-    }
-  }
-  const tokens = [];
-  let pos = 0;
-  const len = source.length;
-  while (pos < len) {
-    if (charAt(source, pos) === "<") {
-      if (source.startsWith("<!--", pos)) {
-        const commentEnd = source.indexOf("-->", pos + 4);
-        pos = commentEnd === -1 ? len : commentEnd + 3;
-        continue;
-      }
-      if (charAt(source, pos + 1) === "/") {
-        const end = source.indexOf(">", pos);
-        const tag2 = source.slice(pos + 2, end).trim();
-        tokens.push({ kind: 1 /* CloseTag */, tag: tag2 });
-        pos = end + 1;
-        continue;
-      }
-      const tagEnd = findTagEnd(source, pos);
-      const selfClosing = charAt(source, tagEnd - 1) === "/";
-      const inner = source.slice(pos + 1, selfClosing ? tagEnd - 1 : tagEnd);
-      const { tag, attrs } = parseOpenTag(inner, values);
-      tokens.push({ kind: 0 /* OpenTag */, tag });
-      for (const attr of attrs) tokens.push(attr);
-      if (selfClosing) {
-        tokens.push({ kind: 1 /* CloseTag */, tag });
-      }
-      pos = tagEnd + 1;
-      continue;
-    }
-    const nextTag = source.indexOf("<", pos);
-    const text = nextTag === -1 ? source.slice(pos) : source.slice(pos, nextTag);
-    pos = nextTag === -1 ? len : nextTag;
-    if (text.trim() || PLACEHOLDER_RE.test(text)) {
-      PLACEHOLDER_RE.lastIndex = 0;
-      let lastIdx = 0;
-      let match;
-      while ((match = PLACEHOLDER_RE.exec(text)) !== null) {
-        const before = text.slice(lastIdx, match.index);
-        if (before) tokens.push({ kind: 3 /* Text */, value: before });
-        tokens.push({ kind: 4 /* Expr */, value: values[captureInt(match)] });
-        lastIdx = match.index + match[0].length;
-      }
-      const after = text.slice(lastIdx);
-      if (after && after.trim()) tokens.push({ kind: 3 /* Text */, value: after });
-    }
-  }
-  return tokens;
-}
-function findTagEnd(source, start) {
-  let inQuote = null;
-  for (let i = start + 1; i < source.length; i++) {
-    const ch = charAt(source, i);
-    if (inQuote) {
-      if (ch === inQuote) inQuote = null;
-    } else if (ch === '"' || ch === "'") {
-      inQuote = ch;
-    } else if (ch === ">") {
-      return i;
-    }
-  }
-  return source.length - 1;
-}
-function isWhitespace(ch) {
-  return ch === " " || ch === "	" || ch === "\n" || ch === "\r" || ch === "\f";
-}
-function parseOpenTag(inner, values) {
-  const firstSpace = inner.search(/[\s/]/);
-  const tag = firstSpace === -1 ? inner : inner.slice(0, firstSpace);
-  const attrs = [];
-  if (firstSpace === -1) return { tag, attrs };
-  const rest = inner.slice(firstSpace).trim();
-  if (!rest) return { tag, attrs };
-  let pos = 0;
-  const len = rest.length;
-  while (pos < len) {
-    while (pos < len && isWhitespace(charAt(rest, pos))) pos++;
-    if (pos >= len) break;
-    if (rest.startsWith(PLACEHOLDER_PREFIX, pos)) {
-      const endMarker = rest.indexOf("\0", pos + PLACEHOLDER_PREFIX.length);
-      const idx = parseInt(rest.slice(pos + PLACEHOLDER_PREFIX.length, endMarker), 10);
-      const propsObj = values[idx];
-      if (propsObj && typeof propsObj === "object") {
-        for (const [k, v] of Object.entries(propsObj)) {
-          attrs.push({ kind: 2 /* Attr */, name: k, value: v });
-        }
-      }
-      pos = endMarker + 1;
-      continue;
-    }
-    const nameStart = pos;
-    while (pos < len && charAt(rest, pos) !== "=" && !isWhitespace(charAt(rest, pos))) pos++;
-    const name = rest.slice(nameStart, pos);
-    if (!name) {
-      pos++;
-      continue;
-    }
-    while (pos < len && isWhitespace(charAt(rest, pos))) pos++;
-    if (pos >= len || charAt(rest, pos) !== "=") {
-      attrs.push({ kind: 2 /* Attr */, name, value: true });
-      continue;
-    }
-    pos++;
-    while (pos < len && isWhitespace(charAt(rest, pos))) pos++;
-    if (rest.startsWith(PLACEHOLDER_PREFIX, pos)) {
-      const endMarker = rest.indexOf("\0", pos + PLACEHOLDER_PREFIX.length);
-      const idx = parseInt(rest.slice(pos + PLACEHOLDER_PREFIX.length, endMarker), 10);
-      attrs.push({ kind: 2 /* Attr */, name, value: values[idx] });
-      pos = endMarker + 1;
-    } else if (charAt(rest, pos) === '"' || charAt(rest, pos) === "'") {
-      const quote = charAt(rest, pos);
-      pos++;
-      const valStart = pos;
-      while (pos < len && charAt(rest, pos) !== quote) pos++;
-      const rawVal = rest.slice(valStart, pos);
-      pos++;
-      attrs.push({ kind: 2 /* Attr */, name, value: resolveAttrValue(rawVal, values) });
-    } else {
-      const valStart = pos;
-      while (pos < len && !isWhitespace(charAt(rest, pos))) pos++;
-      const rawVal = rest.slice(valStart, pos);
-      attrs.push({ kind: 2 /* Attr */, name, value: resolveAttrValue(rawVal, values) });
-    }
-  }
-  return { tag, attrs };
-}
-function resolveAttrValue(rawVal, values) {
-  PLACEHOLDER_RE.lastIndex = 0;
-  const firstMatch = PLACEHOLDER_RE.exec(rawVal);
-  if (!firstMatch) return rawVal;
-  if (firstMatch.index === 0 && firstMatch[0].length === rawVal.length) {
-    return values[captureInt(firstMatch)];
-  }
-  PLACEHOLDER_RE.lastIndex = 0;
-  const parts = [];
-  let lastPh = 0;
-  let phm;
-  while ((phm = PLACEHOLDER_RE.exec(rawVal)) !== null) {
-    if (phm.index > lastPh) parts.push(rawVal.slice(lastPh, phm.index));
-    const val = values[captureInt(phm)];
-    parts.push(typeof val === "function" ? val : () => val);
-    lastPh = phm.index + phm[0].length;
-  }
-  if (lastPh < rawVal.length) parts.push(rawVal.slice(lastPh));
-  return () => parts.map((p) => typeof p === "function" ? p() : p).join("");
-}
-function buildDom(tokens) {
-  const root = document.createDocumentFragment();
-  const stack = [root];
-  let current = root;
-  for (const token of tokens) {
-    switch (token.kind) {
-      case 0 /* OpenTag */: {
-        const el = document.createElement(token.tag);
-        current.appendChild(el);
-        stack.push(el);
-        current = el;
-        break;
-      }
-      case 1 /* CloseTag */: {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          const closedEl = current;
-          const tag = closedEl.tagName?.toLowerCase();
-          if ((tag === "input" || tag === "textarea") && !closedEl.hasAttribute("value")) {
-            const hasInputHandler = closedEl.getAttribute("data-nf-has-input") === "1";
-            if (hasInputHandler) {
-              console.warn(
-                `[onefold] <${tag}> has oninput/onchange but no value=\${() => signal()} binding. The input won't clear on signal.set('') or form.reset(). Add: value=\${() => yourSignal()} for two-way binding.`,
-                closedEl
-              );
-            }
-          }
-        }
-        stack.pop();
-        current = stack.length > 0 ? stack[stack.length - 1] : root;
-        break;
-      }
-      case 2 /* Attr */: {
-        applyAttr(current, token.name, token.value);
-        break;
-      }
-      case 3 /* Text */: {
-        current.appendChild(document.createTextNode(token.value));
-        break;
-      }
-      case 4 /* Expr */: {
-        appendExpr(current, token.value);
-        break;
-      }
-    }
-  }
-  if (root.childNodes.length === 1 && root.firstChild instanceof HTMLElement) {
-    return root.firstChild;
-  }
-  return root;
-}
-function applyAttr(el, name, value) {
-  if (name === "ref") {
-    if (typeof value === "function") value(el);
-    return;
-  }
-  if (name === "class") {
-    bindReactive(value, (v) => applyClass(el, v), el);
-    return;
-  }
-  if (name === "style") {
-    bindReactive(value, (v) => {
-      if (typeof v === "string") {
-        el.style.cssText = v;
-      } else {
-        Object.assign(el.style, v ?? {});
-      }
-    }, el);
-    return;
-  }
-  if (isEventAttribute(name) && typeof value === "function") {
-    el.addEventListener(name.slice(2).toLowerCase(), value);
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      const evtName = name.slice(2).toLowerCase();
-      if (evtName === "input" || evtName === "change") {
-        el.setAttribute("data-nf-has-input", "1");
-      }
-    }
-    return;
-  }
-  if (name.startsWith("d-")) {
-    const directive = getDirective(name.slice(2));
-    if (directive) {
-      bindReactive(value, (v) => directive(el, v), el);
-    } else {
-      console.warn(`[onefold] No directive registered for "${name}". Call registerDirective() first.`);
-    }
-    return;
-  }
-  bindReactive(value, (v) => setAttr(el, name, v), el);
-}
-function bindReactive(value, apply, ownerEl) {
-  if (typeof value === "function") {
-    const dispose = createEffect(() => apply(value()));
-    disposeOnRemove(ownerEl, dispose);
-  } else {
-    apply(value);
-  }
-}
-function applyClass(el, value) {
-  if (!value) {
-    el.className = "";
-  } else if (typeof value === "string") {
-    el.className = value;
-  } else if (typeof value === "object") {
-    el.className = Object.entries(value).filter(([, on]) => on).map(([n]) => n).join(" ");
-  }
-}
-function setAttr(el, key, value) {
-  if (value === false || value == null) {
-    el.removeAttribute(key);
-    return;
-  }
-  if (value === true) {
-    el.setAttribute(key, "");
-    return;
-  }
-  const str = String(value);
-  if (isEventAttribute(key)) {
-    console.warn(`[onefold] Blocked string event handler "${key}". Use a function instead.`);
-    return;
-  }
-  if ((key === "href" || key === "src" || key === "action" || key === "formaction" || key === "xlink:href") && isUnsafeUrl(str)) {
-    console.warn(`[onefold] Blocked unsafe "${key}" value:`, str);
-    el.removeAttribute(key);
-    return;
-  }
-  if (key === "value" && "value" in el) {
-    el.value = str;
-    return;
-  }
-  if (key === "checked" && el instanceof HTMLInputElement) {
-    el.checked = value === true || str === "true" || str === "";
-    return;
-  }
-  if (key === "selected" && el instanceof HTMLOptionElement) {
-    el.selected = value === true || str === "true" || str === "";
-    return;
-  }
-  el.setAttribute(key, str);
-}
-function appendExpr(parent, value) {
-  if (value == null || value === false || value === true) return;
-  if (value instanceof Node) {
-    parent.appendChild(value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) appendExpr(parent, item);
-    return;
-  }
-  if (typeof value === "function") {
-    const startAnchor = document.createComment("expr-start");
-    const endAnchor = document.createComment("expr-end");
-    parent.appendChild(startAnchor);
-    parent.appendChild(endAnchor);
-    const dispose = createEffect(() => {
-      const result = value();
-      const parentEl = startAnchor.parentNode;
-      if (!parentEl) return;
-      let node = startAnchor.nextSibling;
-      while (node && node !== endAnchor) {
-        const next = node.nextSibling;
-        parentEl.removeChild(node);
-        node = next;
-      }
-      const newContent = toNode(result);
-      parentEl.insertBefore(newContent, endAnchor);
-    });
-    disposeOnRemove(parent, dispose);
-    return;
-  }
-  if (isRawHtml(value)) {
-    const wrapper = document.createElement("span");
-    wrapper.innerHTML = toTrustedHtml(value.html);
-    parent.appendChild(wrapper);
-    return;
-  }
-  parent.appendChild(document.createTextNode(String(value)));
-}
-function toNode(value) {
-  if (value == null || value === false || value === true) return document.createComment("");
-  if (value instanceof Node) return value;
-  if (isRawHtml(value)) {
-    const wrapper = document.createElement("span");
-    wrapper.innerHTML = toTrustedHtml(value.html);
-    return wrapper;
-  }
-  if (Array.isArray(value)) {
-    const frag = document.createDocumentFragment();
-    for (const item of value) frag.appendChild(toNode(item));
-    return frag;
-  }
-  return document.createTextNode(String(value));
-}
-function html(strings, ...values) {
-  if (_ssrInterceptor) {
-    return _ssrInterceptor(strings, ...values);
-  }
-  const tokens = tokenize(strings, values);
-  return buildDom(tokens);
-}
-
-// ../../src/core/css.ts
-var scopeCounter = 0;
-var cache = /* @__PURE__ */ new Map();
-function generateScopeId() {
-  return `nf-${(scopeCounter++).toString(36)}`;
-}
-function scopeCSS(raw2, scopeClass) {
-  const prefix = `.${scopeClass}`;
-  let result = "";
-  let i = 0;
-  const len = raw2.length;
-  while (i < len) {
-    while (i < len && /\s/.test(raw2[i])) {
-      result += raw2[i];
-      i++;
-    }
-    if (i >= len) break;
-    if (raw2[i] === "@") {
-      const atStart = i;
-      while (i < len && raw2[i] !== "{") i++;
-      result += raw2.slice(atStart, i);
-      if (i < len) {
-        result += raw2[i];
-        i++;
-      }
-      const body = extractBlock(raw2, i - 1);
-      const inner = body.slice(1, -1);
-      result += scopeCSS(inner, scopeClass);
-      result += "}";
-      i += body.length - 1;
-      continue;
-    }
-    const selStart = i;
-    while (i < len && raw2[i] !== "{") i++;
-    const selectors = raw2.slice(selStart, i).trim();
-    if (!selectors || i >= len) break;
-    const scopedSelectors = selectors.split(",").map((sel) => {
-      sel = sel.trim();
-      if (!sel) return sel;
-      if (sel === ":root" || sel === ":host") return prefix;
-      if (sel.startsWith("&")) return prefix + sel.slice(1);
-      return `${prefix} ${sel}`;
-    }).join(", ");
-    result += scopedSelectors;
-    const block = extractBlock(raw2, i);
-    result += block;
-    i += block.length;
-  }
-  return result;
-}
-function extractBlock(source, start) {
-  if (source[start] !== "{") return "";
-  let depth = 0;
-  let i = start;
-  while (i < source.length) {
-    if (source[i] === "{") depth++;
-    else if (source[i] === "}") {
-      depth--;
-      if (depth === 0) return source.slice(start, i + 1);
-    }
-    i++;
-  }
-  return source.slice(start);
-}
-function injectStyle(cssText, id) {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(id)) return;
-  const style = document.createElement("style");
-  style.id = id;
-  style.textContent = cssText;
-  document.head.appendChild(style);
-}
-function css(strings, ...values) {
-  let raw2 = "";
-  for (let i = 0; i < strings.length; i++) {
-    raw2 += strings[i];
-    if (i < values.length) raw2 += String(values[i]);
-  }
-  const cached = cache.get(raw2);
-  if (cached) return cached;
-  const scopeClass = generateScopeId();
-  const scopedCSS = scopeCSS(raw2, scopeClass);
-  injectStyle(scopedCSS, `style-${scopeClass}`);
-  const result = { scope: scopeClass, css: scopedCSS };
-  cache.set(raw2, result);
-  return result;
-}
-
-// ../../src/core/virtual-list.ts
-function VirtualList(opts) {
-  const { items, itemHeight, height, renderRow, overscan = 6 } = opts;
-  const scrollTop = createSignal(0);
-  const viewport = document.createElement("div");
-  viewport.style.height = `${height}px`;
-  viewport.style.overflowY = "auto";
-  viewport.style.position = "relative";
-  viewport.setAttribute("role", "list");
-  const spacer = document.createElement("div");
-  spacer.style.position = "relative";
-  viewport.appendChild(spacer);
-  const rowPool = /* @__PURE__ */ new Map();
-  viewport.addEventListener(
-    "scroll",
-    () => scrollTop.set(viewport.scrollTop),
-    { passive: true }
-  );
-  const dispose = createEffect(() => {
-    const list = items();
-    const total = list.length;
-    spacer.style.height = `${total * itemHeight}px`;
-    const top = scrollTop();
-    const first = Math.max(0, Math.floor(top / itemHeight) - overscan);
-    const visibleCount = Math.ceil(height / itemHeight) + overscan * 2;
-    const last = Math.min(total, first + visibleCount);
-    const wanted = /* @__PURE__ */ new Set();
-    for (let i = first; i < last; i++) wanted.add(i);
-    for (const [i, node] of rowPool) {
-      if (!wanted.has(i)) {
-        node.remove();
-        rowPool.delete(i);
-      }
-    }
-    for (let i = first; i < last; i++) {
-      if (rowPool.has(i)) continue;
-      const item = list[i];
-      if (item === void 0) continue;
-      const row = renderRow(item, i);
-      const wrapper = row instanceof HTMLElement ? row : (() => {
-        const d = document.createElement("div");
-        d.appendChild(row);
-        return d;
-      })();
-      wrapper.style.position = "absolute";
-      wrapper.style.top = `${i * itemHeight}px`;
-      wrapper.style.left = "0";
-      wrapper.style.right = "0";
-      wrapper.style.height = `${itemHeight}px`;
-      spacer.appendChild(wrapper);
-      rowPool.set(i, wrapper);
-    }
-  });
-  disposeOnRemove(viewport, dispose);
-  return viewport;
-}
-
-// ../../src/core/resource.ts
-function createResource(source, fetcher) {
-  const data = createSignal(void 0);
-  const loading = createSignal(false);
-  const error = createSignal(void 0);
-  let fetchId = 0;
-  const doFetch = (sourceValue) => {
-    const id = ++fetchId;
-    loading.set(true);
-    error.set(void 0);
-    fetcher(sourceValue).then((result) => {
-      if (id !== fetchId) return;
-      data.set(result);
-      loading.set(false);
-    }).catch((err) => {
-      if (id !== fetchId) return;
-      error.set(err);
-      loading.set(false);
-    });
-  };
-  let currentSource;
-  const disposeEffect = createEffect(() => {
-    const val = source();
-    currentSource = val;
-    doFetch(val);
-  });
-  return {
-    data,
-    loading,
-    error,
-    refetch: () => doFetch(currentSource),
-    dispose: () => {
-      disposeEffect();
-      fetchId++;
-    }
-  };
-}
-
-// ../../src/store/store.ts
-function createStore(initial) {
-  const signal = createSignal(initial);
-  signal.update = (patch) => {
-    signal.set((prev) => ({
-      ...prev,
-      ...typeof patch === "function" ? patch(prev) : patch
-    }));
-  };
-  return signal;
-}
-
-// ../../src/router/router.ts
-var _currentPath = null;
-var _useHash = null;
-function useHash() {
-  if (_useHash === null) {
-    _useHash = typeof window !== "undefined" && window.location.protocol === "file:";
-  }
-  return _useHash;
-}
-function readPath() {
-  if (typeof window === "undefined") return "/";
-  if (useHash()) return window.location.hash.slice(1) || "/";
-  return window.location.pathname;
-}
-function getPathSignal() {
-  if (_currentPath) return _currentPath;
-  _currentPath = createSignal(readPath());
-  if (typeof window !== "undefined") {
-    const event = useHash() ? "hashchange" : "popstate";
-    window.addEventListener(event, () => _currentPath.set(readPath()));
-  }
-  return _currentPath;
-}
-function navigate(path) {
-  if (typeof window === "undefined") return;
-  const signal = getPathSignal();
-  if (useHash()) {
-    window.location.hash = path;
-    signal.set(path);
-  } else {
-    window.history.pushState({}, "", path);
-    signal.set(path);
-  }
-}
-function currentRoute() {
-  return getPathSignal()();
-}
-function matchExact(pattern2, path) {
-  const patternParts = pattern2.split("/");
-  const pathParts = path.split("/");
-  if (patternParts.length !== pathParts.length) return null;
-  const params = {};
-  for (let i = 0; i < patternParts.length; i++) {
-    const pat = patternParts[i];
-    const val = pathParts[i];
-    if (pat.startsWith(":")) {
-      try {
-        params[pat.slice(1)] = decodeURIComponent(val);
-      } catch {
-        params[pat.slice(1)] = val;
-      }
-    } else if (pat !== val) {
-      return null;
-    }
-  }
-  return params;
-}
-function matchPrefix(pattern2, path) {
-  if (pattern2 === "/") {
-    return {};
-  }
-  const patternParts = pattern2.split("/").filter(Boolean);
-  const pathParts = path.split("/").filter(Boolean);
-  if (pathParts.length < patternParts.length) return null;
-  const params = {};
-  for (let i = 0; i < patternParts.length; i++) {
-    const pat = patternParts[i];
-    const val = pathParts[i];
-    if (pat.startsWith(":")) {
-      try {
-        params[pat.slice(1)] = decodeURIComponent(val);
-      } catch {
-        params[pat.slice(1)] = val;
-      }
-    } else if (pat !== val) {
-      return null;
-    }
-  }
-  return params;
-}
-function resolveRoutes(routes, path, notFound, parentPath = "") {
-  for (const route of routes) {
-    const fullPath = joinPaths(parentPath, route.path);
-    if (route.children && route.children.length > 0) {
-      const params = matchPrefix(fullPath, path);
-      if (params !== null) {
-        const childView = resolveRoutes(route.children, path, notFound, fullPath);
-        const outlet = childView ?? notFound();
-        return route.view(params, outlet);
-      }
-    } else {
-      const params = matchExact(fullPath, path);
-      if (params !== null) {
-        return route.view(params);
-      }
-    }
-  }
-  return null;
-}
-function joinPaths(parent, child) {
-  if (!parent || parent === "/") return child;
-  if (child === "/") return parent;
-  const base = parent.endsWith("/") ? parent.slice(0, -1) : parent;
-  const segment = child.startsWith("/") ? child : "/" + child;
-  return base + segment;
-}
-function Router(routes, notFound) {
-  const pathSignal = getPathSignal();
-  const container = document.createElement("div");
-  const dispose = createEffect(() => {
-    const path = pathSignal();
-    let view = null;
-    if (Array.isArray(routes)) {
-      view = resolveRoutes(routes, path, notFound, "");
-    } else {
-      const handler = routes[path];
-      if (handler) view = handler();
-    }
-    container.textContent = "";
-    container.appendChild(view ?? notFound());
-  });
-  disposeOnRemove(container, dispose);
-  return container;
-}
-
-// ../../src/core/di.ts
-function createToken(name) {
-  return { id: Symbol(name) };
-}
-var registry = /* @__PURE__ */ new Map();
-var scopeStack = [];
-function provide(token, value) {
-  if (scopeStack.length > 0) {
-    scopeStack[scopeStack.length - 1].set(token.id, value);
-  } else {
-    registry.set(token.id, value);
-  }
-}
-function inject(token) {
-  for (let i = scopeStack.length - 1; i >= 0; i--) {
-    const scope = scopeStack[i];
-    if (scope.has(token.id)) return scope.get(token.id);
-  }
-  if (registry.has(token.id)) return registry.get(token.id);
-  throw new Error(`[onefold] No provider found for token: ${token.id.toString()}`);
-}
-
-// ../../src/core/form.ts
-function required(msg = "Required") {
-  return (value) => {
-    if (value === null || value === void 0 || value === "" || Array.isArray(value) && value.length === 0) {
-      return msg;
-    }
-    return null;
-  };
-}
-function email(msg = "Invalid email") {
-  return (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : msg;
-}
-function minLength(n, msg) {
-  return (value) => value.length >= n ? null : msg ?? `Minimum ${n} characters`;
-}
-function maxLength(n, msg) {
-  return (value) => value.length <= n ? null : msg ?? `Maximum ${n} characters`;
-}
-function createForm(config) {
-  const fieldEntries = Object.entries(config);
-  const fields = {};
-  const disposers = [];
-  for (const [name, fieldConfig] of fieldEntries) {
-    const value = createSignal(fieldConfig.initial);
-    const touched = createSignal(false);
-    const error = createSignal("");
-    const valid = createSignal(true);
-    const rules = fieldConfig.rules ?? [];
-    disposers.push(createEffect(() => {
-      const val = value();
-      if (!touched()) {
-        error.set("");
-        valid.set(runRules(rules, val) === null);
-        return;
-      }
-      const err = runRules(rules, val);
-      error.set(err ?? "");
-      valid.set(err === null);
-    }));
-    fields[name] = {
-      value,
-      error,
-      touched,
-      valid,
-      handle: (e) => {
-        const target = e.target;
-        const newValue = target.type === "checkbox" ? target.checked : target.type === "number" ? Number(target.value) : target.value;
-        batch(() => {
-          value.set(newValue);
-          touched.set(true);
-        });
-      },
-      set: (v) => {
-        batch(() => {
-          value.set(v);
-          touched.set(true);
-        });
-      },
-      reset: () => {
-        batch(() => {
-          value.set(fieldConfig.initial);
-          touched.set(false);
-        });
-      }
-    };
-  }
-  const formValid = createSignal(true);
-  const formDirty = createSignal(false);
-  disposers.push(createEffect(() => {
-    let allValid = true;
-    let anyTouched = false;
-    for (const field of Object.values(fields)) {
-      if (!field.valid()) allValid = false;
-      if (field.touched()) anyTouched = true;
-    }
-    formValid.set(allValid);
-    formDirty.set(anyTouched);
-  }));
-  return {
-    fields,
-    valid: formValid,
-    dirty: formDirty,
-    values: () => {
-      const result = {};
-      for (const [name, field] of Object.entries(fields)) {
-        result[name] = field.value.peek();
-      }
-      return result;
-    },
-    submit: (handler) => {
-      batch(() => {
-        for (const field of Object.values(fields)) {
-          field.touched.set(true);
-        }
-      });
-      if (formValid.peek()) {
-        const result = {};
-        for (const [name, field] of Object.entries(fields)) {
-          result[name] = field.value.peek();
-        }
-        handler(result);
-      }
-    },
-    reset: () => {
-      batch(() => {
-        for (const field of Object.values(fields)) {
-          field.reset();
-        }
-      });
-    },
-    dispose: () => {
-      for (const dispose of disposers) dispose();
-    }
-  };
-}
-function runRules(rules, value) {
-  for (const rule of rules) {
-    const err = rule(value);
-    if (err) return err;
-  }
-  return null;
-}
-
-// ../../src/core/i18n.ts
-function createI18n(config) {
-  const locale = createSignal(config.defaultLocale);
-  const messages = { ...config.messages };
-  const fallback = config.fallbackLocale ?? config.defaultLocale;
-  const messagesVersion = createSignal(0);
-  function t(key, params) {
-    const currentLocale = locale();
-    messagesVersion();
-    const dict = messages[currentLocale];
-    let template = dict?.[key] ?? messages[fallback]?.[key] ?? key;
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        template = template.split(`{${k}}`).join(String(v));
-      }
-    }
-    return template;
-  }
-  function setLocale(newLocale) {
-    locale.set(newLocale);
-  }
-  function addMessages(loc, msgs) {
-    messages[loc] = { ...messages[loc], ...msgs };
-    messagesVersion.set((v) => v + 1);
-  }
-  function availableLocales() {
-    return Object.keys(messages);
-  }
-  return { locale, setLocale, t, addMessages, availableLocales };
-}
-
-// ../../src/core/observe.ts
-function createObserver() {
-  const listeners2 = /* @__PURE__ */ new Map();
-  function on(event, handler) {
-    if (!listeners2.has(event)) listeners2.set(event, /* @__PURE__ */ new Set());
-    const set = listeners2.get(event);
-    set.add(handler);
-    return () => {
-      set.delete(handler);
-    };
-  }
-  function emit2(event, data) {
-    const fullEvent = { ...data, timestamp: Date.now() };
-    const set = listeners2.get(event);
-    if (set) {
-      for (const handler of set) handler(fullEvent);
-    }
-  }
-  function trackRender(component2, fn) {
-    const start = performance.now();
-    const result = fn();
-    const duration = performance.now() - start;
-    emit2("render", { component: component2, duration });
-    return result;
-  }
-  function trackError(fn, context) {
-    try {
-      return fn();
-    } catch (error) {
-      emit2("error", { error, context });
-      return void 0;
-    }
-  }
-  function metric(name, value, tags) {
-    emit2("metric", { name, value, tags });
-  }
-  function log(level, message, data) {
-    emit2("log", { level, message, data });
-  }
-  function clear() {
-    listeners2.clear();
-  }
-  return { on, emit: emit2, trackRender, trackError, metric, log, clear };
-}
-
-// ../../src/core/plugin.ts
-function createPluginHost() {
-  const plugins2 = /* @__PURE__ */ new Map();
-  const hostListeners = /* @__PURE__ */ new Map();
-  const pluginEventBus = /* @__PURE__ */ new Map();
-  function hostEmit(event, ...args) {
-    const set = hostListeners.get(event);
-    if (set) for (const handler of set) handler(...args);
-  }
-  function register(definition) {
-    if (plugins2.has(definition.name)) {
-      throw new Error(`[onefold] Plugin "${definition.name}" is already registered.`);
-    }
-    plugins2.set(definition.name, {
-      definition,
-      status: "registered",
-      disposers: [],
-      setupDisposer: null
-    });
-    hostEmit("plugin:registered", definition.name, definition.version);
-  }
-  function unregister(name) {
-    const instance = plugins2.get(name);
-    if (!instance) return;
-    if (instance.status === "active") stopPlugin(name);
-    plugins2.delete(name);
-  }
-  function startPlugin(name) {
-    const instance = plugins2.get(name);
-    if (!instance || instance.status === "active") return;
-    const def = instance.definition;
-    const sandbox = def.sandbox !== false;
-    const permissions = new Set(def.permissions ?? []);
-    const ctx = {
-      name: def.name,
-      permissions,
-      hasPermission: (perm) => permissions.has(perm),
-      on: (event, handler) => {
-        const key = `${name}:${event}`;
-        if (!pluginEventBus.has(key)) pluginEventBus.set(key, /* @__PURE__ */ new Set());
-        const set = pluginEventBus.get(key);
-        set.add(handler);
-        const disposer = () => {
-          set.delete(handler);
-        };
-        instance.disposers.push(disposer);
-        return disposer;
-      },
-      emit: (event, ...args) => {
-        const key = `${name}:${event}`;
-        const set = pluginEventBus.get(key);
-        if (set) for (const handler of set) handler(...args);
-        hostEmit(`plugin:event:${event}`, name, ...args);
-      }
-    };
-    try {
-      const disposer = def.setup(ctx);
-      instance.setupDisposer = typeof disposer === "function" ? disposer : null;
-      instance.status = "active";
-      hostEmit("plugin:started", name);
-    } catch (err) {
-      instance.status = "error";
-      hostEmit("plugin:error", name, err);
-      if (!sandbox) throw err;
-    }
-  }
-  function stopPlugin(name) {
-    const instance = plugins2.get(name);
-    if (!instance || instance.status !== "active") return;
-    const sandbox = instance.definition.sandbox !== false;
-    try {
-      instance.setupDisposer?.();
-      instance.definition.teardown?.();
-      for (const disposer of instance.disposers) disposer();
-      instance.disposers.length = 0;
-    } catch (err) {
-      hostEmit("plugin:error", name, err);
-      if (!sandbox) throw err;
-    }
-    instance.status = "stopped";
-    hostEmit("plugin:stopped", name);
-  }
-  function start() {
-    for (const [name, instance] of plugins2) {
-      if (instance.status === "registered" || instance.status === "stopped") {
-        startPlugin(name);
-      }
-    }
-  }
-  function stop() {
-    for (const [name, instance] of plugins2) {
-      if (instance.status === "active") stopPlugin(name);
-    }
-  }
-  function getStatus(name) {
-    return plugins2.get(name)?.status ?? null;
-  }
-  function list() {
-    return [...plugins2.keys()];
-  }
-  function on(event, handler) {
-    if (!hostListeners.has(event)) hostListeners.set(event, /* @__PURE__ */ new Set());
-    const set = hostListeners.get(event);
-    set.add(handler);
-    return () => {
-      set.delete(handler);
-    };
-  }
-  return { register, unregister, start, startPlugin, stop, stopPlugin, getStatus, list, on };
-}
-
-// ../../src/core/persist.ts
-var POISONED_KEYS = /* @__PURE__ */ new Set(["__proto__", "constructor", "prototype"]);
-function sanitizeParsed(value) {
-  if (value === null || typeof value !== "object") return value;
-  if (Array.isArray(value)) return value.map(sanitizeParsed);
-  const clean = {};
-  for (const [k, v] of Object.entries(value)) {
-    if (!POISONED_KEYS.has(k)) {
-      clean[k] = sanitizeParsed(v);
-    }
-  }
-  return clean;
-}
-var localStorageAdapter = {
-  get(key) {
-    if (typeof localStorage === "undefined") return void 0;
-    const raw2 = localStorage.getItem(key);
-    if (raw2 === null) return void 0;
-    try {
-      return sanitizeParsed(JSON.parse(raw2));
-    } catch {
-      return void 0;
-    }
-  },
-  set(key, value) {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(key, JSON.stringify(value));
-  },
-  remove(key) {
-    if (typeof localStorage === "undefined") return;
-    localStorage.removeItem(key);
-  }
-};
-function createPersisted(key, initial, options) {
-  const storage = options?.storage ?? localStorageAdapter;
-  const debounceMs = options?.debounce ?? 0;
-  const stored = storage.get(key);
-  const signal = createSignal(stored !== void 0 ? stored : initial);
-  let timer = null;
-  createEffect(() => {
-    const value = signal();
-    if (debounceMs > 0) {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => storage.set(key, value), debounceMs);
-    } else {
-      storage.set(key, value);
-    }
-  });
-  const persisted = signal;
-  persisted.clear = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
-    signal.set(initial);
-    storage.remove(key);
-  };
-  return persisted;
-}
-
-// ../../src/core/guard.ts
-var permissionsSource = null;
-function setPermissions(source) {
-  permissionsSource = source;
-}
-function getPermissions() {
-  return permissionsSource ? permissionsSource() : /* @__PURE__ */ new Set();
-}
-function hasPermission(permission) {
-  return getPermissions().has(permission);
-}
-function hasAnyPermission(permissions) {
-  const current = getPermissions();
-  return permissions.some((p) => current.has(p));
-}
-function guard(check, view, fallback) {
-  return (params) => {
-    if (checkPermission(check)) {
-      return view(params);
-    }
-    return fallback ? fallback(params) : document.createComment("unauthorized");
-  };
-}
-function guardedNode(check, render, fallback) {
-  if (checkPermission(check)) return render();
-  return fallback ? fallback() : null;
-}
-function checkPermission(check) {
-  const perms = getPermissions();
-  if (typeof check === "function") return check(perms);
-  if (typeof check === "string") return perms.has(check);
-  return check.every((p) => perms.has(p));
-}
-
-// ../../src/core/theme.ts
-function createTheme(themes, defaultTheme) {
-  const names = Object.keys(themes);
-  const initial = defaultTheme ?? names[0] ?? "";
-  const current = createSignal(initial);
-  createEffect(() => {
-    const name = current();
-    const tokens = themes[name];
-    if (!tokens || typeof document === "undefined") return;
-    const root = document.documentElement;
-    for (const [key, value] of Object.entries(tokens)) {
-      root.style.setProperty(`--${key}`, value);
-    }
-  });
-  return {
-    current,
-    set: (name) => {
-      if (themes[name]) current.set(name);
-    },
-    toggle: () => {
-      const idx = names.indexOf(current());
-      current.set(names[(idx + 1) % names.length]);
-    },
-    themes: () => names,
-    tokens: () => themes[current()] ?? {}
-  };
-}
-
-// ../../src/core/http.ts
-async function runErrorInterceptors(interceptors, error) {
-  let currentError = error;
-  for (let i = interceptors.length - 1; i >= 0; i--) {
-    const interceptor = interceptors[i];
-    if (!interceptor.error) continue;
-    try {
-      const recovered = await interceptor.error(currentError);
-      return recovered;
-    } catch (err) {
-      currentError = err;
-    }
-  }
-  throw currentError;
-}
-function createHttpClient(options) {
-  const baseUrl = options?.baseUrl ?? "";
-  const defaultHeaders = options?.headers ?? {};
-  const interceptors = [...options?.interceptors ?? []];
-  const defaultTimeout = options?.timeout ?? 0;
-  async function request(config) {
-    const resolvedUrl = config.url.startsWith("http") ? config.url : config.url.startsWith("//") ? (() => {
-      throw new Error("[onefold:http] Protocol-relative URLs are blocked to prevent open redirect.");
-    })() : `${baseUrl}${config.url}`;
-    let fullConfig = {
-      url: resolvedUrl,
-      method: config.method,
-      headers: { ...defaultHeaders, ...config.headers },
-      body: config.body,
-      params: config.params,
-      signal: config.signal
-    };
-    for (const interceptor of interceptors) {
-      if (interceptor.request) {
-        fullConfig = await interceptor.request(fullConfig);
-      }
-    }
-    let fetchUrl = fullConfig.url;
-    if (fullConfig.params && Object.keys(fullConfig.params).length > 0) {
-      const search = new URLSearchParams(fullConfig.params).toString();
-      fetchUrl += (fetchUrl.includes("?") ? "&" : "?") + search;
-    }
-    const fetchOpts = {
-      method: fullConfig.method,
-      headers: fullConfig.headers,
-      signal: fullConfig.signal
-    };
-    if (fullConfig.body !== void 0 && fullConfig.body !== null) {
-      if (typeof fullConfig.body === "string" || fullConfig.body instanceof FormData) {
-        fetchOpts.body = fullConfig.body;
-      } else {
-        fetchOpts.body = JSON.stringify(fullConfig.body);
-        if (!fullConfig.headers["Content-Type"] && !fullConfig.headers["content-type"]) {
-          fetchOpts.headers["Content-Type"] = "application/json";
-        }
-      }
-    }
-    const timeout = defaultTimeout;
-    let timeoutId = null;
-    let controller = null;
-    if (timeout > 0 && !fullConfig.signal) {
-      controller = new AbortController();
-      fetchOpts.signal = controller.signal;
-      timeoutId = setTimeout(() => controller.abort(), timeout);
-    }
-    try {
-      const res = await fetch(fetchUrl, fetchOpts);
-      if (timeoutId) clearTimeout(timeoutId);
-      if (!res.ok) {
-        let data2 = null;
-        try {
-          data2 = await res.json();
-        } catch {
-        }
-        const httpError = {
-          message: `HTTP ${res.status}: ${res.statusText}`,
-          status: res.status,
-          statusText: res.statusText,
-          data: data2,
-          config: fullConfig
-        };
-        return await runErrorInterceptors(interceptors, httpError);
-      }
-      let data;
-      const contentType = res.headers.get("content-type") ?? "";
-      if (contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        data = await res.text();
-      }
-      let response = {
-        data,
-        status: res.status,
-        statusText: res.statusText,
-        headers: res.headers,
-        config: fullConfig
-      };
-      for (let i = interceptors.length - 1; i >= 0; i--) {
-        const interceptor = interceptors[i];
-        if (interceptor.response) {
-          response = await interceptor.response(response);
-        }
-      }
-      return response;
-    } catch (err) {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (typeof err === "object" && err !== null && "config" in err) throw err;
-      const httpError = {
-        message: err instanceof Error ? err.message : "Network error",
-        status: 0,
-        statusText: "Network Error",
-        data: null,
-        config: fullConfig
-      };
-      return await runErrorInterceptors(interceptors, httpError);
-    }
-  }
-  function buildOptions(opts) {
-    return {
-      headers: opts?.headers,
-      params: opts?.params,
-      signal: opts?.signal
-    };
-  }
-  return {
-    get: (url, opts) => request({ url, method: "GET", ...buildOptions(opts) }),
-    post: (url, body, opts) => request({ url, method: "POST", body, ...buildOptions(opts) }),
-    put: (url, body, opts) => request({ url, method: "PUT", body, ...buildOptions(opts) }),
-    patch: (url, body, opts) => request({ url, method: "PATCH", body, ...buildOptions(opts) }),
-    delete: (url, opts) => request({ url, method: "DELETE", ...buildOptions(opts) }),
-    request,
-    addInterceptor: (interceptor) => {
-      interceptors.push(interceptor);
-      return () => {
-        const idx = interceptors.indexOf(interceptor);
-        if (idx >= 0) interceptors.splice(idx, 1);
-      };
-    }
-  };
-}
-
-// ../../src/core/error-boundary.ts
-function ErrorBoundary(render, fallback) {
-  const container = document.createElement("div");
-  container.setAttribute("data-error-boundary", "");
-  function attempt() {
-    container.textContent = "";
-    try {
-      const node = render();
-      container.appendChild(node);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      container.appendChild(fallback(error, attempt));
-    }
-  }
-  attempt();
-  return container;
-}
-
-// ../../src/core/suspense.ts
-function Suspense(asyncRender, options) {
-  const container = document.createElement("div");
-  container.setAttribute("data-suspense", "");
-  const { fallback, onError, minLoadingMs = 0 } = options ?? {};
-  if (fallback) container.appendChild(fallback());
-  const startTime = Date.now();
-  let wasConnected = false;
-  asyncRender().then(async (node) => {
-    if (container.isConnected || container.parentNode) wasConnected = true;
-    if (wasConnected && !container.isConnected && !container.parentNode) return;
-    if (minLoadingMs > 0) {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < minLoadingMs) {
-        await delay(minLoadingMs - elapsed);
-      }
-    }
-    if (wasConnected && !container.isConnected && !container.parentNode) return;
-    container.textContent = "";
-    container.appendChild(node);
-  }).catch((err) => {
-    if (wasConnected && !container.isConnected && !container.parentNode) return;
-    container.textContent = "";
-    const error = err instanceof Error ? err : new Error(String(err));
-    if (onError) {
-      container.appendChild(onError(error));
-    } else {
-      container.textContent = `Error: ${error.message}`;
-    }
-  });
-  return container;
-}
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ../../src/core/transition.ts
-function Transition(source, options) {
-  const container = document.createElement("div");
-  container.setAttribute("data-transition", "");
-  container.style.position = "relative";
-  const { name, duration = 300, enterFrom, enterTo, leaveTo, mode = "default" } = options ?? {};
-  let currentNode = null;
-  const dispose = createEffect(() => {
-    const newNode = source();
-    if (newNode === currentNode) return;
-    const oldNode = currentNode;
-    if (mode === "out-in" && oldNode && oldNode instanceof HTMLElement) {
-      animateLeave(oldNode, { name, duration, leaveTo }, () => {
-        container.textContent = "";
-        if (newNode) {
-          container.appendChild(newNode);
-          if (newNode instanceof HTMLElement) {
-            animateEnter(newNode, { name, duration, enterFrom, enterTo });
-          }
-        }
-      });
-    } else {
-      if (oldNode && oldNode instanceof HTMLElement) {
-        animateLeave(oldNode, { name, duration, leaveTo }, () => {
-          oldNode.remove();
-        });
-      }
-      if (newNode) {
-        container.appendChild(newNode);
-        if (newNode instanceof HTMLElement) {
-          animateEnter(newNode, { name, duration, enterFrom, enterTo });
-        }
-      }
-    }
-    currentNode = newNode ?? null;
-  });
-  disposeOnRemove(container, dispose);
-  return container;
-}
-function animateEnter(el, options) {
-  const { name, duration = 300, enterFrom, enterTo } = options;
-  if (name) {
-    el.classList.add(`${name}-enter`, `${name}-enter-active`);
-    requestAnimationFrame(() => {
-      el.classList.remove(`${name}-enter`);
-      el.classList.add(`${name}-enter-to`);
-    });
-    setTimeout(() => {
-      el.classList.remove(`${name}-enter-active`, `${name}-enter-to`);
-    }, duration);
-  } else if (enterFrom) {
-    Object.assign(el.style, enterFrom);
-    el.style.transition = `all ${duration}ms ease`;
-    requestAnimationFrame(() => {
-      Object.assign(el.style, enterTo ?? {});
-    });
-    setTimeout(() => {
-      el.style.transition = "";
-    }, duration);
-  }
-}
-function animateLeave(el, options, done) {
-  const { name, duration = 300, leaveTo } = options;
-  if (name) {
-    el.classList.add(`${name}-leave`, `${name}-leave-active`);
-    requestAnimationFrame(() => {
-      el.classList.remove(`${name}-leave`);
-      el.classList.add(`${name}-leave-to`);
-    });
-    setTimeout(done, duration);
-  } else if (leaveTo) {
-    el.style.transition = `all ${duration}ms ease`;
-    requestAnimationFrame(() => {
-      Object.assign(el.style, leaveTo);
-    });
-    setTimeout(done, duration);
-  } else {
-    done();
-  }
-}
-
-// ../../src/core/meta.ts
-var registry2 = /* @__PURE__ */ new Map();
-function component(meta) {
-  const { render, ...metaOnly } = meta;
-  registry2.set(meta.name, {
-    meta: metaOnly,
-    factory: render
-  });
-  return render;
-}
-
-// ../../src/core/a11y.ts
-var FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable]';
-function FocusTrap(container) {
-  let previousFocus = null;
-  let active = false;
-  function getFocusableElements() {
-    return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
-  }
-  function handleKeyDown(e) {
-    if (e.key !== "Tab") return;
-    const focusable = getFocusableElements();
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
-  return {
-    get active() {
-      return active;
-    },
-    activate() {
-      previousFocus = document.activeElement;
-      active = true;
-      container.addEventListener("keydown", handleKeyDown);
-      const focusable = getFocusableElements();
-      if (focusable.length > 0) focusable[0].focus();
-      else container.focus();
-    },
-    deactivate() {
-      active = false;
-      container.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
-      previousFocus = null;
-    }
-  };
-}
-var liveRegion = null;
-function ensureLiveRegion() {
-  if (liveRegion && liveRegion.isConnected) return liveRegion;
-  liveRegion = document.createElement("div");
-  liveRegion.setAttribute("aria-live", "polite");
-  liveRegion.setAttribute("aria-atomic", "true");
-  liveRegion.setAttribute("role", "status");
-  Object.assign(liveRegion.style, {
-    position: "absolute",
-    width: "1px",
-    height: "1px",
-    padding: "0",
-    margin: "-1px",
-    overflow: "hidden",
-    clip: "rect(0, 0, 0, 0)",
-    whiteSpace: "nowrap",
-    border: "0"
-  });
-  document.body.appendChild(liveRegion);
-  return liveRegion;
-}
-function announce(message, priority = "polite") {
-  const region = ensureLiveRegion();
-  region.setAttribute("aria-live", priority);
-  region.textContent = "";
-  setTimeout(() => {
-    region.textContent = message;
-  }, 50);
-}
-function useKeyboard(keyMap, target) {
-  const map = new Map(Object.entries(keyMap));
-  const el = target ?? document;
-  function normalizeEvent(e) {
-    const parts = [];
-    if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-    if (e.shiftKey) parts.push("Shift");
-    if (e.altKey) parts.push("Alt");
-    const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-    parts.push(key);
-    return parts.join("+");
-  }
-  function handleKeyDown(e) {
-    const combo = normalizeEvent(e);
-    const handler = map.get(combo);
-    if (handler) {
-      e.preventDefault();
-      handler(e);
-    }
-  }
-  el.addEventListener("keydown", handleKeyDown);
-  return {
-    destroy: () => el.removeEventListener("keydown", handleKeyDown),
-    add: (combo, handler) => map.set(combo, handler),
-    remove: (combo) => map.delete(combo)
-  };
-}
-function SkipLink(targetSelector, text = "Skip to main content") {
-  const link = document.createElement("a");
-  link.href = targetSelector;
-  link.textContent = text;
-  link.className = "nf-skip-link";
-  Object.assign(link.style, {
-    position: "absolute",
-    top: "-100%",
-    left: "0",
-    padding: "8px 16px",
-    background: "#1f2937",
-    color: "#fff",
-    fontSize: "14px",
-    zIndex: "99999",
-    textDecoration: "none",
-    borderRadius: "0 0 4px 0",
-    transition: "top 0.2s"
-  });
-  link.addEventListener("focus", () => {
-    link.style.top = "0";
-  });
-  link.addEventListener("blur", () => {
-    link.style.top = "-100%";
-  });
-  link.addEventListener("click", (e) => {
-    e.preventDefault();
-    const target = document.querySelector(targetSelector);
-    if (target) {
-      target.setAttribute("tabindex", "-1");
-      target.focus();
-    }
-  });
-  return link;
-}
-
-// ../../src/core/devtools.ts
-var nextSignalId = 1;
-var nextEffectId = 1;
-var trackedSignals = /* @__PURE__ */ new Map();
-var trackedEffects = /* @__PURE__ */ new Map();
-var trackedStores = [];
-var routeHistory = [];
-var traceLabels = /* @__PURE__ */ new Set();
-var devtoolsInstance = null;
-var listeners = /* @__PURE__ */ new Map();
-function emit(event, ...args) {
-  const set = listeners.get(event);
-  if (set) for (const handler of set) handler(...args);
-}
-function enableDevtools() {
-  if (devtoolsInstance) return devtoolsInstance;
-  const renders = [];
-  let errorCount = 0;
-  setEffectHook((label, fn) => {
-    const start = performance.now();
-    try {
-      fn();
-    } catch (err) {
-      errorCount++;
-      emit("error", err, label);
-      throw err;
-    }
-    const duration = performance.now() - start;
-    let source = "";
-    try {
-      const stack = new Error().stack ?? "";
-      const lines = stack.split("\n");
-      const internalPatterns = /devtools|signal|template|extend|lifecycle|runWithHook/i;
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i]?.trim() ?? "";
-        if (line && !internalPatterns.test(line)) {
-          const match = line.match(/at\s+(\S+)\s+\((.+)\)/) ?? line.match(/at\s+(.+)/);
-          if (match) {
-            source = match[1] ?? line;
-            const pathMatch = source.match(/([^/\\]+\.\w+:\d+)/);
-            if (pathMatch) source = pathMatch[1];
-          }
-          break;
-        }
-      }
-    } catch {
-    }
-    const entry = { label, duration, timestamp: Date.now(), source };
-    renders.push(entry);
-    if (renders.length > 1e3) renders.shift();
-    emit("render", entry);
-  });
-  const api = {
-    version: "0.1.1",
-    active: true,
-    renders,
-    signals: () => {
-      const result = [];
-      for (const [, s] of trackedSignals) {
-        result.push({
-          id: s.id,
-          label: s.label,
-          value: s.getValue(),
-          subscribers: s.getSubscriberCount(),
-          lastUpdated: s.lastUpdated
-        });
-      }
-      return result;
-    },
-    effects: () => {
-      const result = [];
-      for (const [, e] of trackedEffects) {
-        result.push({
-          id: e.id,
-          label: e.label,
-          dependencies: e.getDependencyCount(),
-          runCount: e.runCount,
-          lastRun: e.lastRun,
-          active: e.active
-        });
-      }
-      return result;
-    },
-    stores: () => [...trackedStores],
-    routes: () => ({
-      current: routeHistory[routeHistory.length - 1] ?? "/",
-      history: [...routeHistory]
-    }),
-    inspect: (el) => {
-      console.group("%c[onefold] Inspect Element", "color:#4338CA;font-weight:bold");
-      console.log("Element:", el);
-      console.log("Tag:", el.tagName.toLowerCase());
-      console.log("Classes:", el.className || "(none)");
-      console.log("Attributes:", Object.fromEntries(
-        Array.from(el.attributes).map((a) => [a.name, a.value])
-      ));
-      console.log("Children:", el.childNodes.length);
-      console.log("Text:", el.textContent?.substring(0, 100) ?? "");
-      console.log("Parent:", el.parentElement?.tagName.toLowerCase() ?? "(none)");
-      console.log("Data attrs:", Object.fromEntries(
-        Array.from(el.attributes).filter((a) => a.name.startsWith("data-")).map((a) => [a.name, a.value])
-      ));
-      console.groupEnd();
-    },
-    highlight: (el) => {
-      const prev = el.style.outline;
-      const prevTransition = el.style.transition;
-      el.style.transition = "outline 0.1s";
-      el.style.outline = "2px solid #4338CA";
-      setTimeout(() => {
-        el.style.outline = "2px solid transparent";
-        setTimeout(() => {
-          el.style.outline = prev;
-          el.style.transition = prevTransition;
-        }, 300);
-      }, 600);
-    },
-    trace: (label) => {
-      traceLabels.add(label);
-      console.log(`%c[onefold] Tracing "${label}" \u2014 changes will be logged`, "color:#4338CA");
-      return () => {
-        traceLabels.delete(label);
-      };
-    },
-    stats: () => {
-      const total = renders.length;
-      const avg = total > 0 ? renders.reduce((s, r) => s + r.duration, 0) / total : 0;
-      const sorted = [...renders].sort((a, b) => a.duration - b.duration);
-      return {
-        totalRenders: total,
-        avgDuration: Math.round(avg * 100) / 100,
-        slowestRender: sorted.length > 0 ? sorted[sorted.length - 1] : null,
-        fastestRender: sorted.length > 0 ? sorted[0] : null,
-        totalErrors: errorCount,
-        activeSignals: trackedSignals.size,
-        activeEffects: [...trackedEffects.values()].filter((e) => e.active).length
-      };
-    },
-    clear: () => {
-      renders.length = 0;
-      errorCount = 0;
-      trackedSignals.clear();
-      trackedEffects.clear();
-      trackedStores.length = 0;
-      routeHistory.length = 0;
-      traceLabels.clear();
-      nextSignalId = 1;
-      nextEffectId = 1;
-    },
-    on: (event, handler) => {
-      if (!listeners.has(event)) listeners.set(event, /* @__PURE__ */ new Set());
-      listeners.get(event).add(handler);
-      return () => {
-        listeners.get(event)?.delete(handler);
-      };
-    },
-    dump: () => {
-      const s = api.stats();
-      console.group("%c[onefold devtools] State Dump", "color:#4338CA;font-weight:bold;font-size:14px");
-      console.log("Version:", api.version);
-      console.log("");
-      console.log("%cSignals (%d)", "font-weight:bold", s.activeSignals);
-      console.table(api.signals().map((sig) => ({
-        id: sig.id,
-        label: sig.label,
-        value: typeof sig.value === "object" ? JSON.stringify(sig.value) : sig.value,
-        subscribers: sig.subscribers
-      })));
-      console.log("");
-      console.log("%cEffects (%d active)", "font-weight:bold", s.activeEffects);
-      console.table(api.effects().filter((e) => e.active).map((eff) => ({
-        id: eff.id,
-        label: eff.label,
-        deps: eff.dependencies,
-        runs: eff.runCount
-      })));
-      console.log("");
-      console.log("%cPerformance", "font-weight:bold");
-      console.log(`  Renders: ${s.totalRenders}`);
-      console.log(`  Avg duration: ${s.avgDuration}ms`);
-      console.log(`  Slowest: ${s.slowestRender ? `${s.slowestRender.label} (${s.slowestRender.duration.toFixed(2)}ms) @ ${s.slowestRender.source}` : "N/A"}`);
-      console.log(`  Errors: ${s.totalErrors}`);
-      if (renders.length > 0) {
-        console.log("");
-        console.log("%cRecent Renders (last 10)", "font-weight:bold");
-        console.table(renders.slice(-10).map((r2) => ({
-          label: r2.label,
-          duration: r2.duration.toFixed(3) + "ms",
-          source: r2.source || "(internal)",
-          time: new Date(r2.timestamp).toLocaleTimeString()
-        })));
-      }
-      console.log("");
-      if (trackedStores.length > 0) {
-        console.log("%cStores", "font-weight:bold");
-        for (const store of trackedStores) {
-          console.log(`  ${store.label}:`, store.state);
-        }
-        console.log("");
-      }
-      const r = api.routes();
-      console.log("%cRouting", "font-weight:bold");
-      console.log(`  Current: ${r.current}`);
-      console.log(`  History: ${r.history.join(" \u2192 ")}`);
-      console.groupEnd();
-    }
-  };
-  devtoolsInstance = api;
-  if (typeof window !== "undefined") {
-    window.__ONEFOLD_DEVTOOLS__ = api;
-    console.log(
-      "%c\u{1F537} onefold devtools enabled %cv" + api.version + "%c \u2014 type __ONEFOLD_DEVTOOLS__.dump() for full state",
-      "background:#4338CA;color:#fff;padding:2px 8px;border-radius:3px;font-weight:bold",
-      "background:#818CF8;color:#fff;padding:2px 6px;border-radius:3px;margin-left:4px",
-      "color:#64748b;margin-left:8px"
-    );
-  }
-  return api;
-}
-
-// config/theme.ts
-var theme = createTheme({
-  light: {
-    "app-bg": "#f0f4f8",
-    "card-bg": "#ffffff",
-    "text-primary": "#1f2937",
-    "text-secondary": "#6b7280",
-    "accent": "#4f46e5",
-    "accent-hover": "#4338ca",
-    "border": "#e5e7eb",
-    "success": "#10b981",
-    "warning": "#f59e0b",
-    "danger": "#ef4444",
-    "sidebar-bg": "#1e293b",
-    "sidebar-text": "#f1f5f9"
-  },
-  dark: {
-    "app-bg": "#0f172a",
-    "card-bg": "#1e293b",
-    "text-primary": "#f1f5f9",
-    "text-secondary": "#94a3b8",
-    "accent": "#818cf8",
-    "accent-hover": "#6366f1",
-    "border": "#334155",
-    "success": "#34d399",
-    "warning": "#fbbf24",
-    "danger": "#f87171",
-    "sidebar-bg": "#020617",
-    "sidebar-text": "#e2e8f0"
-  }
-}, "light");
-
-// config/i18n.ts
-var i18n = createI18n({
-  defaultLocale: "en",
-  fallbackLocale: "en",
-  messages: {
-    en: {
-      "app.title": "Task Dashboard",
-      "app.subtitle": "onefold Comprehensive Demo",
-      "nav.home": "Home",
-      "nav.tasks": "Tasks",
-      "nav.users": "Users",
-      "nav.settings": "Settings",
-      "nav.analytics": "Analytics",
-      "tasks.title": "Task Management",
-      "tasks.add": "Add Task",
-      "tasks.empty": "No tasks yet. Create your first task!",
-      "tasks.total": "{count} task(s)",
-      "users.title": "User Directory",
-      "settings.title": "Settings",
-      "settings.theme": "Theme",
-      "settings.language": "Language",
-      "settings.notifications": "Notifications",
-      "analytics.title": "Analytics Dashboard",
-      "form.name": "Name",
-      "form.email": "Email",
-      "form.submit": "Submit",
-      "form.reset": "Reset",
-      "common.save": "Save",
-      "common.cancel": "Cancel",
-      "common.delete": "Delete",
-      "common.edit": "Edit",
-      "common.loading": "Loading...",
-      "common.error": "Something went wrong"
-    },
-    es: {
-      "app.title": "Panel de Tareas",
-      "app.subtitle": "Demo Completa de onefold",
-      "nav.home": "Inicio",
-      "nav.tasks": "Tareas",
-      "nav.users": "Usuarios",
-      "nav.settings": "Configuracion",
-      "nav.analytics": "Analiticas",
-      "tasks.title": "Gestion de Tareas",
-      "tasks.add": "Agregar Tarea",
-      "tasks.empty": "Sin tareas aun. Crea tu primera tarea!",
-      "tasks.total": "{count} tarea(s)",
-      "users.title": "Directorio de Usuarios",
-      "settings.title": "Configuracion",
-      "settings.theme": "Tema",
-      "settings.language": "Idioma",
-      "settings.notifications": "Notificaciones",
-      "analytics.title": "Panel de Analiticas",
-      "form.name": "Nombre",
-      "form.email": "Correo",
-      "form.submit": "Enviar",
-      "form.reset": "Reiniciar",
-      "common.save": "Guardar",
-      "common.cancel": "Cancelar",
-      "common.delete": "Eliminar",
-      "common.edit": "Editar",
-      "common.loading": "Cargando...",
-      "common.error": "Algo salio mal"
-    }
-  }
-});
-
-// config/permissions.ts
-var userPermissions = createSignal(
-  /* @__PURE__ */ new Set(["admin", "tasks:read", "tasks:write", "users:read", "analytics:read"])
-);
-setPermissions(userPermissions);
-
-// services/auth.ts
-var AuthToken = createToken("AuthService");
-var authUser = createSignal({ name: "Admin User", role: "admin" });
-var authService = {
-  user: authUser,
-  login: (name, role) => authUser.set({ name, role }),
-  logout: () => authUser.set(null)
-};
-provide(AuthToken, authService);
-
-// services/notifications.ts
-var NotifyToken = createToken("NotificationService");
-var notifList = createSignal([]);
-var notifService = {
-  notifications: notifList,
-  add: (msg) => {
-    notifList.set((prev) => [...prev.slice(-4), msg]);
-    announce(msg);
-  },
-  clear: () => notifList.set([])
-};
-provide(NotifyToken, notifService);
-
-// services/observer.ts
-var observer2 = createObserver();
-observer2.on("navigate", (e) => {
-  console.log(`[nav] ${e.from} \u2192 ${e.to}`);
-});
-observer2.on("error", (e) => {
-  console.error("[error]", e.error, e.context);
-});
-observer2.on("metric", (e) => {
-  console.log(`[metric] ${e.name}: ${e.value}`, e.tags);
-});
-
-// services/plugins.ts
-var plugins = createPluginHost();
-plugins.register({
-  name: "analytics",
-  version: "1.0.0",
-  permissions: ["observe", "navigate"],
-  setup: (ctx) => {
-    ctx.on("pageview", (path) => {
-      observer2.metric("pageview", 1, { path });
-    });
-    console.log(`[plugin] ${ctx.name} v1.0.0 loaded`);
-    return () => console.log(`[plugin] ${ctx.name} unloaded`);
-  }
-});
-plugins.register({
-  name: "perf-monitor",
-  version: "1.0.0",
-  permissions: ["observe"],
-  setup: (ctx) => {
-    const start = performance.now();
-    ctx.on("check", () => {
-      observer2.metric("uptime", performance.now() - start);
-    });
-    console.log(`[plugin] ${ctx.name} v1.0.0 loaded`);
-  }
-});
-plugins.start();
-
-// services/devtools.ts
-var devtools = enableDevtools();
-devtools.on("render", (entry) => {
-  const e = entry;
-  if (e.duration > 5) {
-    console.warn(`[perf] Slow effect: ${e.label} (${e.duration.toFixed(2)}ms)`);
-  }
-});
-
-// services/store.ts
-var appStore = createStore({
-  tasks: [
-    { id: 1, title: "Implement authentication", description: "Add JWT-based auth flow", status: "done", priority: "high", assignee: "Alice", createdAt: "2024-01-15" },
-    { id: 2, title: "Design dashboard UI", description: "Create responsive layout", status: "in-progress", priority: "medium", assignee: "Bob", createdAt: "2024-01-16" },
-    { id: 3, title: "Write unit tests", description: "Cover critical paths", status: "todo", priority: "high", assignee: "Charlie", createdAt: "2024-01-17" },
-    { id: 4, title: "Setup CI/CD pipeline", description: "GitHub Actions workflow", status: "todo", priority: "medium", assignee: "Alice", createdAt: "2024-01-18" },
-    { id: 5, title: "API documentation", description: "OpenAPI spec for all endpoints", status: "in-progress", priority: "low", assignee: "Diana", createdAt: "2024-01-19" },
-    { id: 6, title: "Performance audit", description: "Lighthouse and bundle analysis", status: "todo", priority: "medium", assignee: "Bob", createdAt: "2024-01-20" }
-  ],
-  filter: "all",
-  searchQuery: ""
-});
-var filteredTasks = createComputed(() => {
-  const state = appStore();
-  const { tasks, filter, searchQuery } = state;
-  let result = tasks;
-  if (filter !== "all") {
-    result = result.filter((t) => t.status === filter);
-  }
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    result = result.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.assignee.toLowerCase().includes(q)
-    );
-  }
-  return result;
-});
-var taskStats = createComputed(() => {
-  const { tasks } = appStore();
-  return {
-    total: tasks.length,
-    todo: tasks.filter((t) => t.status === "todo").length,
-    inProgress: tasks.filter((t) => t.status === "in-progress").length,
-    done: tasks.filter((t) => t.status === "done").length,
-    highPriority: tasks.filter((t) => t.priority === "high").length
-  };
-});
-var sidebarCollapsed = createPersisted("sidebar-collapsed", false);
-var preferredLocale = createPersisted("preferred-locale", "en");
-var notificationsEnabled = createPersisted("notifications-enabled", true);
-createEffect(() => {
-  i18n.setLocale(preferredLocale());
-});
-
-// components/Sidebar.ts
-function Sidebar() {
-  const navItems = [
-    { path: "/", icon: "\u25C9", label: () => i18n.t("nav.home") },
-    { path: "/tasks", icon: "\u2630", label: () => i18n.t("nav.tasks") },
-    { path: "/users", icon: "\u25CE", label: () => i18n.t("nav.users") },
-    { path: "/analytics", icon: "\u25C7", label: () => i18n.t("nav.analytics") },
-    { path: "/settings", icon: "\u2699", label: () => i18n.t("nav.settings") }
-  ];
-  return html`
-    <aside class=${() => `sidebar ${sidebarCollapsed() ? "collapsed" : ""}`} role="navigation" aria-label="Main navigation">
+var ke=null;function ht(e){ke=e}function xt(e,t){ke?ke(e,t):t()}var Yt=new Map;function yt(e){return Yt.get(e)}var U=null,de=0,Se=new Set,B=0,we=null,Jt=200,Ee=class{constructor(t,n){this.deps=new Set;this.active=!0;this.fn=t,this.label=n}run(){if(!this.active)return;this.cleanup();let t=U;U=this;try{xt(this.label,this.fn)}finally{U=t}}cleanup(){for(let t of this.deps)t.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},$e=class{constructor(t){this.value=t;this.subscribers=new Set}get(){return U&&(this.subscribers.add(U),U.deps.add(this)),this.value}set(t){let n=typeof t=="function"?t(this.value):t;Object.is(n,this.value)||(this.value=n,typeof __DEV__<"u"&&__DEV__&&(B++,we||(we=setTimeout(()=>{B=0,we=null},1e3)),B>Jt&&(console.warn(`[onefold] Signal updated ${B} times in <1s. Possible infinite loop in an effect.`),B=0)),this.notify())}peek(){return this.value}notify(){if(de>0)for(let t of this.subscribers)Se.add(t);else{let t=Array.from(this.subscribers);for(let n=0;n<t.length;n++)t[n].run()}}};function b(e){let t=new $e(e),n=(()=>t.get());return n.set=o=>t.set(o),n.peek=()=>t.peek(),n}function y(e,t="effect"){let n=t;if(typeof __DEV__<"u"&&__DEV__&&t==="effect")try{let i=(new Error().stack??"").split(`
+`);for(let s=2;s<i.length&&s<8;s++){let a=i[s]?.trim()??"";if(!a||/\bcreateEffect\b|\bcreateComputed\b|\bbindReactive\b|\bapplyAttr\b|\bbuildDom\b|\bappendExpr\b|\brunWithHook\b|ReactiveEffect/.test(a))continue;let c=a.match(/at\s+([A-Z]\w+)\s+\(/);if(c){let d=a.match(/:(\d+):\d+\)?$/);n=d?`${c[1]} (:${d[1]})`:c[1];break}let l=a.match(/([^/\\:]+):(\d+):\d+\)?$/);if(l){n=`${l[1]}:${l[2]}`;break}}}catch{}let o=new Ee(e,n);return o.run(),()=>o.dispose()}function ue(e){let t=b(void 0);y(()=>t.set(e()),"computed");let n=(()=>t());return n.peek=t.peek,n.set=()=>{throw new Error("[onefold] Cannot write to a computed signal.")},n}function F(e){de++;try{e()}finally{if(de--,de===0){let t=[...Se];Se.clear();for(let n of t)n.run()}}}var Xt=/^\s*(javascript|data|vbscript):/i,Qt=/^on/i;function Re(e){return Xt.test(e)}function fe(e){return Qt.test(e)}function Ce(e){let t=document.createElement("template");t.innerHTML=e;let n=o=>{let r=[];o.childNodes.forEach(i=>{if(i.nodeType===Node.ELEMENT_NODE){let s=i,a=s.tagName.toLowerCase();if(a==="script"||a==="style"||a==="iframe"||a==="object"||a==="embed"||a==="form"){r.push(i);return}Array.from(s.attributes).forEach(c=>{(fe(c.name)||(c.name==="href"||c.name==="src")&&Re(c.value))&&s.removeAttribute(c.name)}),n(s)}}),r.forEach(i=>i.remove())};return n(t.content),t.innerHTML}var pe=null;function Zt(){return pe||(typeof window<"u"&&window.trustedTypes&&(pe=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:e=>Ce(e)})),pe)}function Pe(e){let t=Zt();return t?t.createHTML(e):Ce(e)}function Ae(e){return{__onefoldRaw:!0,html:Ce(e)}}function He(e){return typeof e=="object"&&e!==null&&e.__onefoldRaw===!0}function Le(e,t){t.replaceChildren(e)}var me=new WeakMap,Ne=null;function en(){if(Ne||typeof MutationObserver>"u"||typeof document>"u")return;Ne=new MutationObserver(t=>{for(let n of t)n.removedNodes.forEach(Tt)});let e=document.documentElement??document;Ne.observe(e,{childList:!0,subtree:!0})}function Tt(e){let t=me.get(e);if(t){for(let n of t)try{n()}catch(o){console.error("[onefold] Error while disposing a reactive binding:",o)}me.delete(e)}e.childNodes.forEach(Tt)}function D(e,t){en();let n=me.get(e);n||(n=new Set,me.set(e,n)),n.add(t)}var kt=null;var j="\0nf_",K=/\x00nf_(\d+)\x00/g;function tn(e){return`${j}${e}\0`}function S(e,t){return e.charAt(t)}function De(e){return parseInt(e[1]??"0",10)}function nn(e,t){let n="";for(let s=0;s<e.length;s++)n+=e[s],s<t.length&&(n+=tn(s));let o=[],r=0,i=n.length;for(;r<i;){if(S(n,r)==="<"){if(n.startsWith("<!--",r)){let u=n.indexOf("-->",r+4);r=u===-1?i:u+3;continue}if(S(n,r+1)==="/"){let u=n.indexOf(">",r),m=n.slice(r+2,u).trim();o.push({kind:1,tag:m}),r=u+1;continue}let c=on(n,r),l=S(n,c-1)==="/",d=n.slice(r+1,l?c-1:c),{tag:f,attrs:h}=rn(d,t);o.push({kind:0,tag:f});for(let u of h)o.push(u);l&&o.push({kind:1,tag:f}),r=c+1;continue}let s=n.indexOf("<",r),a=s===-1?n.slice(r):n.slice(r,s);if(r=s===-1?i:s,a.trim()||K.test(a)){K.lastIndex=0;let c=0,l;for(;(l=K.exec(a))!==null;){let f=a.slice(c,l.index);f&&o.push({kind:3,value:f}),o.push({kind:4,value:t[De(l)]}),c=l.index+l[0].length}let d=a.slice(c);d&&d.trim()&&o.push({kind:3,value:d})}}return o}function on(e,t){let n=null;for(let o=t+1;o<e.length;o++){let r=S(e,o);if(n)r===n&&(n=null);else if(r==='"'||r==="'")n=r;else if(r===">")return o}return e.length-1}function G(e){return e===" "||e==="	"||e===`
+`||e==="\r"||e==="\f"}function rn(e,t){let n=e.search(/[\s/]/),o=n===-1?e:e.slice(0,n),r=[];if(n===-1)return{tag:o,attrs:r};let i=e.slice(n).trim();if(!i)return{tag:o,attrs:r};let s=0,a=i.length;for(;s<a;){for(;s<a&&G(S(i,s));)s++;if(s>=a)break;if(i.startsWith(j,s)){let d=i.indexOf("\0",s+j.length),f=parseInt(i.slice(s+j.length,d),10),h=t[f];if(h&&typeof h=="object")for(let[u,m]of Object.entries(h))r.push({kind:2,name:u,value:m});s=d+1;continue}let c=s;for(;s<a&&S(i,s)!=="="&&!G(S(i,s));)s++;let l=i.slice(c,s);if(!l){s++;continue}for(;s<a&&G(S(i,s));)s++;if(s>=a||S(i,s)!=="="){r.push({kind:2,name:l,value:!0});continue}for(s++;s<a&&G(S(i,s));)s++;if(i.startsWith(j,s)){let d=i.indexOf("\0",s+j.length),f=parseInt(i.slice(s+j.length,d),10);r.push({kind:2,name:l,value:t[f]}),s=d+1}else if(S(i,s)==='"'||S(i,s)==="'"){let d=S(i,s);s++;let f=s;for(;s<a&&S(i,s)!==d;)s++;let h=i.slice(f,s);s++,r.push({kind:2,name:l,value:wt(h,t)})}else{let d=s;for(;s<a&&!G(S(i,s));)s++;let f=i.slice(d,s);r.push({kind:2,name:l,value:wt(f,t)})}}return{tag:o,attrs:r}}function wt(e,t){K.lastIndex=0;let n=K.exec(e);if(!n)return e;if(n.index===0&&n[0].length===e.length)return t[De(n)];K.lastIndex=0;let o=[],r=0,i;for(;(i=K.exec(e))!==null;){i.index>r&&o.push(e.slice(r,i.index));let s=t[De(i)];o.push(typeof s=="function"?s:()=>s),r=i.index+i[0].length}return r<e.length&&o.push(e.slice(r)),()=>o.map(s=>typeof s=="function"?s():s).join("")}function sn(e){let t=document.createDocumentFragment(),n=[t],o=t;for(let r of e)switch(r.kind){case 0:{let i=document.createElement(r.tag);o.appendChild(i),n.push(i),o=i;break}case 1:{if(typeof __DEV__<"u"&&__DEV__){let i=o,s=i.tagName?.toLowerCase();(s==="input"||s==="textarea")&&!i.hasAttribute("value")&&i.getAttribute("data-nf-has-input")==="1"&&console.warn(`[onefold] <${s}> has oninput/onchange but no value=\${() => signal()} binding. The input won't clear on signal.set('') or form.reset(). Add: value=\${() => yourSignal()} for two-way binding.`,i)}n.pop(),o=n.length>0?n[n.length-1]:t;break}case 2:{an(o,r.name,r.value);break}case 3:{o.appendChild(document.createTextNode(r.value));break}case 4:{St(o,r.value);break}}return t.childNodes.length===1&&t.firstChild instanceof HTMLElement?t.firstChild:t}function an(e,t,n){if(t==="ref"){typeof n=="function"&&n(e);return}if(t==="class"){ge(n,o=>ln(e,o),e);return}if(t==="style"){ge(n,o=>{typeof o=="string"?e.style.cssText=o:Object.assign(e.style,o??{})},e);return}if(fe(t)&&typeof n=="function"){if(e.addEventListener(t.slice(2).toLowerCase(),n),typeof __DEV__<"u"&&__DEV__){let o=t.slice(2).toLowerCase();(o==="input"||o==="change")&&e.setAttribute("data-nf-has-input","1")}return}if(t.startsWith("d-")){let o=yt(t.slice(2));o?ge(n,r=>o(e,r),e):console.warn(`[onefold] No directive registered for "${t}". Call registerDirective() first.`);return}ge(n,o=>cn(e,t,o),e)}function ge(e,t,n){if(typeof e=="function"){let o=y(()=>t(e()));D(n,o)}else t(e)}function ln(e,t){t?typeof t=="string"?e.className=t:typeof t=="object"&&(e.className=Object.entries(t).filter(([,n])=>n).map(([n])=>n).join(" ")):e.className=""}function cn(e,t,n){if(n===!1||n==null){e.removeAttribute(t);return}if(n===!0){e.setAttribute(t,"");return}let o=String(n);if(fe(t)){console.warn(`[onefold] Blocked string event handler "${t}". Use a function instead.`);return}if((t==="href"||t==="src"||t==="action"||t==="formaction"||t==="xlink:href")&&Re(o)){console.warn(`[onefold] Blocked unsafe "${t}" value:`,o),e.removeAttribute(t);return}if(t==="value"&&"value"in e){e.value=o;return}if(t==="checked"&&e instanceof HTMLInputElement){e.checked=n===!0||o==="true"||o==="";return}if(t==="selected"&&e instanceof HTMLOptionElement){e.selected=n===!0||o==="true"||o==="";return}e.setAttribute(t,o)}function St(e,t){if(!(t==null||t===!1||t===!0)){if(t instanceof Node){e.appendChild(t);return}if(Array.isArray(t)){for(let n of t)St(e,n);return}if(typeof t=="function"){let n=document.createComment("expr-start"),o=document.createComment("expr-end");e.appendChild(n),e.appendChild(o);let r=y(()=>{let i=t(),s=n.parentNode;if(!s)return;let a=n.nextSibling;for(;a&&a!==o;){let l=a.nextSibling;s.removeChild(a),a=l}let c=Et(i);s.insertBefore(c,o)});D(e,r);return}if(He(t)){let n=document.createElement("span");n.innerHTML=Pe(t.html),e.appendChild(n);return}e.appendChild(document.createTextNode(String(t)))}}function Et(e){if(e==null||e===!1||e===!0)return document.createComment("");if(e instanceof Node)return e;if(He(e)){let t=document.createElement("span");return t.innerHTML=Pe(e.html),t}if(Array.isArray(e)){let t=document.createDocumentFragment();for(let n of e)t.appendChild(Et(n));return t}return document.createTextNode(String(e))}function p(e,...t){if(kt)return kt(e,...t);let n=nn(e,t);return sn(n)}var dn=0,$t=new Map;function un(){return`nf-${(dn++).toString(36)}`}function Ct(e,t){let n=`.${t}`,o="",r=0,i=e.length;for(;r<i;){for(;r<i&&/\s/.test(e[r]);)o+=e[r],r++;if(r>=i)break;if(e[r]==="@"){let d=r;for(;r<i&&e[r]!=="{";)r++;o+=e.slice(d,r),r<i&&(o+=e[r],r++);let f=Rt(e,r-1),h=f.slice(1,-1);o+=Ct(h,t),o+="}",r+=f.length-1;continue}let s=r;for(;r<i&&e[r]!=="{";)r++;let a=e.slice(s,r).trim();if(!a||r>=i)break;let c=a.split(",").map(d=>(d=d.trim(),d&&(d===":root"||d===":host"?n:d.startsWith("&")?n+d.slice(1):`${n} ${d}`))).join(", ");o+=c;let l=Rt(e,r);o+=l,r+=l.length}return o}function Rt(e,t){if(e[t]!=="{")return"";let n=0,o=t;for(;o<e.length;){if(e[o]==="{")n++;else if(e[o]==="}"&&(n--,n===0))return e.slice(t,o+1);o++}return e.slice(t)}function pn(e,t){if(typeof document>"u"||document.getElementById(t))return;let n=document.createElement("style");n.id=t,n.textContent=e,document.head.appendChild(n)}function Me(e,...t){let n="";for(let a=0;a<e.length;a++)n+=e[a],a<t.length&&(n+=String(t[a]));let o=$t.get(n);if(o)return o;let r=un(),i=Ct(n,r);pn(i,`style-${r}`);let s={scope:r,css:i};return $t.set(n,s),s}function Oe(e){let{items:t,itemHeight:n,height:o,renderRow:r,overscan:i=6}=e,s=b(0),a=document.createElement("div");a.style.height=`${o}px`,a.style.overflowY="auto",a.style.position="relative",a.setAttribute("role","list");let c=document.createElement("div");c.style.position="relative",a.appendChild(c);let l=new Map;a.addEventListener("scroll",()=>s.set(a.scrollTop),{passive:!0});let d=y(()=>{let f=t(),h=f.length;c.style.height=`${h*n}px`;let u=s(),m=Math.max(0,Math.floor(u/n)-i),g=Math.ceil(o/n)+i*2,w=Math.min(h,m+g),V=new Set;for(let T=m;T<w;T++)V.add(T);for(let[T,x]of l)V.has(T)||(x.remove(),l.delete(T));for(let T=m;T<w;T++){if(l.has(T))continue;let x=f[T];if(x===void 0)continue;let E=r(x,T),C=E instanceof HTMLElement?E:(()=>{let I=document.createElement("div");return I.appendChild(E),I})();C.style.position="absolute",C.style.top=`${T*n}px`,C.style.left="0",C.style.right="0",C.style.height=`${n}px`,c.appendChild(C),l.set(T,C)}});return D(a,d),a}function Ie(e,t){let n=b(void 0),o=b(!1),r=b(void 0),i=0,s=l=>{let d=++i;o.set(!0),r.set(void 0),t(l).then(f=>{d===i&&(n.set(f),o.set(!1))}).catch(f=>{d===i&&(r.set(f),o.set(!1))})},a,c=y(()=>{let l=e();a=l,s(l)});return{data:n,loading:o,error:r,refetch:()=>s(a),dispose:()=>{c(),i++}}}function _e(e){let t=b(e);return t.update=n=>{t.set(o=>({...o,...typeof n=="function"?n(o):n}))},t}var Y=null,Fe=null;function je(){return Fe===null&&(Fe=typeof window<"u"&&window.location.protocol==="file:"),Fe}function Pt(){return typeof window>"u"?"/":je()?window.location.hash.slice(1)||"/":window.location.pathname}function Ke(){if(Y)return Y;if(Y=b(Pt()),typeof window<"u"){let e=je()?"hashchange":"popstate";window.addEventListener(e,()=>Y.set(Pt()))}return Y}function q(e){if(typeof window>"u")return;let t=Ke();je()?(window.location.hash=e,t.set(e)):(window.history.pushState({},"",e),t.set(e))}function J(){return Ke()()}function fn(e,t){let n=e.split("/"),o=t.split("/");if(n.length!==o.length)return null;let r={};for(let i=0;i<n.length;i++){let s=n[i],a=o[i];if(s.startsWith(":"))try{r[s.slice(1)]=decodeURIComponent(a)}catch{r[s.slice(1)]=a}else if(s!==a)return null}return r}function mn(e,t){if(e==="/")return{};let n=e.split("/").filter(Boolean),o=t.split("/").filter(Boolean);if(o.length<n.length)return null;let r={};for(let i=0;i<n.length;i++){let s=n[i],a=o[i];if(s.startsWith(":"))try{r[s.slice(1)]=decodeURIComponent(a)}catch{r[s.slice(1)]=a}else if(s!==a)return null}return r}function At(e,t,n,o=""){for(let r of e){let i=gn(o,r.path);if(r.children&&r.children.length>0){let s=mn(i,t);if(s!==null){let c=At(r.children,t,n,i)??n();return r.view(s,c)}}else{let s=fn(i,t);if(s!==null)return r.view(s)}}return null}function gn(e,t){if(!e||e==="/")return t;if(t==="/")return e;let n=e.endsWith("/")?e.slice(0,-1):e,o=t.startsWith("/")?t:"/"+t;return n+o}function ze(e,t){let n=Ke(),o=document.createElement("div"),r=y(()=>{let i=n(),s=null;if(Array.isArray(e))s=At(e,i,t,"");else{let a=e[i];a&&(s=a())}o.textContent="",o.appendChild(s??t())});return D(o,r),o}function Q(e){return{id:Symbol(e)}}var Ve=new Map,X=[];function Z(e,t){X.length>0?X[X.length-1].set(e.id,t):Ve.set(e.id,t)}function $(e){for(let t=X.length-1;t>=0;t--){let n=X[t];if(n.has(e.id))return n.get(e.id)}if(Ve.has(e.id))return Ve.get(e.id);throw new Error(`[onefold] No provider found for token: ${e.id.toString()}`)}function M(e="Required"){return t=>t==null||t===""||Array.isArray(t)&&t.length===0?e:null}function Ue(e="Invalid email"){return t=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)?null:e}function ee(e,t){return n=>n.length>=e?null:t??`Minimum ${e} characters`}function te(e,t){return n=>n.length<=e?null:t??`Maximum ${e} characters`}function ne(e){let t=Object.entries(e),n={},o=[];for(let[s,a]of t){let c=b(a.initial),l=b(!1),d=b(""),f=b(!0),h=a.rules??[];o.push(y(()=>{let u=c();if(!l()){d.set(""),f.set(Ht(h,u)===null);return}let m=Ht(h,u);d.set(m??""),f.set(m===null)})),n[s]={value:c,error:d,touched:l,valid:f,handle:u=>{let m=u.target,g=m.type==="checkbox"?m.checked:m.type==="number"?Number(m.value):m.value;F(()=>{c.set(g),l.set(!0)})},set:u=>{F(()=>{c.set(u),l.set(!0)})},reset:()=>{F(()=>{c.set(a.initial),l.set(!1)})}}}let r=b(!0),i=b(!1);return o.push(y(()=>{let s=!0,a=!1;for(let c of Object.values(n))c.valid()||(s=!1),c.touched()&&(a=!0);r.set(s),i.set(a)})),{fields:n,valid:r,dirty:i,values:()=>{let s={};for(let[a,c]of Object.entries(n))s[a]=c.value.peek();return s},submit:s=>{if(F(()=>{for(let a of Object.values(n))a.touched.set(!0)}),r.peek()){let a={};for(let[c,l]of Object.entries(n))a[c]=l.value.peek();s(a)}},reset:()=>{F(()=>{for(let s of Object.values(n))s.reset()})},dispose:()=>{for(let s of o)s()}}}function Ht(e,t){for(let n of e){let o=n(t);if(o)return o}return null}function qe(e){let t=b(e.defaultLocale),n={...e.messages},o=e.fallbackLocale??e.defaultLocale,r=b(0);function i(l,d){let f=t();r();let u=n[f]?.[l]??n[o]?.[l]??l;if(d)for(let[m,g]of Object.entries(d))u=u.split(`{${m}}`).join(String(g));return u}function s(l){t.set(l)}function a(l,d){n[l]={...n[l],...d},r.set(f=>f+1)}function c(){return Object.keys(n)}return{locale:t,setLocale:s,t:i,addMessages:a,availableLocales:c}}function We(){let e=new Map;function t(c,l){e.has(c)||e.set(c,new Set);let d=e.get(c);return d.add(l),()=>{d.delete(l)}}function n(c,l){let d={...l,timestamp:Date.now()},f=e.get(c);if(f)for(let h of f)h(d)}function o(c,l){let d=performance.now(),f=l(),h=performance.now()-d;return n("render",{component:c,duration:h}),f}function r(c,l){try{return c()}catch(d){n("error",{error:d,context:l});return}}function i(c,l,d){n("metric",{name:c,value:l,tags:d})}function s(c,l,d){n("log",{level:c,message:l,data:d})}function a(){e.clear()}return{on:t,emit:n,trackRender:o,trackError:r,metric:i,log:s,clear:a}}function Be(){let e=new Map,t=new Map,n=new Map;function o(u,...m){let g=t.get(u);if(g)for(let w of g)w(...m)}function r(u){if(e.has(u.name))throw new Error(`[onefold] Plugin "${u.name}" is already registered.`);e.set(u.name,{definition:u,status:"registered",disposers:[],setupDisposer:null}),o("plugin:registered",u.name,u.version)}function i(u){let m=e.get(u);m&&(m.status==="active"&&a(u),e.delete(u))}function s(u){let m=e.get(u);if(!m||m.status==="active")return;let g=m.definition,w=g.sandbox!==!1,V=new Set(g.permissions??[]),T={name:g.name,permissions:V,hasPermission:x=>V.has(x),on:(x,E)=>{let C=`${u}:${x}`;n.has(C)||n.set(C,new Set);let I=n.get(C);I.add(E);let ce=()=>{I.delete(E)};return m.disposers.push(ce),ce},emit:(x,...E)=>{let C=`${u}:${x}`,I=n.get(C);if(I)for(let ce of I)ce(...E);o(`plugin:event:${x}`,u,...E)}};try{let x=g.setup(T);m.setupDisposer=typeof x=="function"?x:null,m.status="active",o("plugin:started",u)}catch(x){if(m.status="error",o("plugin:error",u,x),!w)throw x}}function a(u){let m=e.get(u);if(!m||m.status!=="active")return;let g=m.definition.sandbox!==!1;try{m.setupDisposer?.(),m.definition.teardown?.();for(let w of m.disposers)w();m.disposers.length=0}catch(w){if(o("plugin:error",u,w),!g)throw w}m.status="stopped",o("plugin:stopped",u)}function c(){for(let[u,m]of e)(m.status==="registered"||m.status==="stopped")&&s(u)}function l(){for(let[u,m]of e)m.status==="active"&&a(u)}function d(u){return e.get(u)?.status??null}function f(){return[...e.keys()]}function h(u,m){t.has(u)||t.set(u,new Set);let g=t.get(u);return g.add(m),()=>{g.delete(m)}}return{register:r,unregister:i,start:c,startPlugin:s,stop:l,stopPlugin:a,getStatus:d,list:f,on:h}}var vn=new Set(["__proto__","constructor","prototype"]);function Ge(e){if(e===null||typeof e!="object")return e;if(Array.isArray(e))return e.map(Ge);let t={};for(let[n,o]of Object.entries(e))vn.has(n)||(t[n]=Ge(o));return t}var Lt={get(e){if(typeof localStorage>"u")return;let t=localStorage.getItem(e);if(t!==null)try{return Ge(JSON.parse(t))}catch{return}},set(e,t){typeof localStorage>"u"||localStorage.setItem(e,JSON.stringify(t))},remove(e){typeof localStorage>"u"||localStorage.removeItem(e)}};function oe(e,t,n){let o=n?.storage??Lt,r=n?.debounce??0,i=o.get(e),s=b(i!==void 0?i:t),a=null;y(()=>{let l=s();r>0?(a&&clearTimeout(a),a=setTimeout(()=>o.set(e,l),r)):o.set(e,l)});let c=s;return c.clear=()=>{a&&(clearTimeout(a),a=null),s.set(t),o.remove(e)},c}var Ye=null;function Je(e){Ye=e}function ve(){return Ye?Ye():new Set}function Xe(e){return ve().has(e)}function Qe(e){let t=ve();return e.some(n=>t.has(n))}function re(e,t,n){return o=>Nt(e)?t(o):n?n(o):document.createComment("unauthorized")}function z(e,t,n){return Nt(e)?t():n?n():null}function Nt(e){let t=ve();return typeof e=="function"?e(t):typeof e=="string"?t.has(e):e.every(n=>t.has(n))}function Ze(e,t){let n=Object.keys(e),o=t??n[0]??"",r=b(o);return y(()=>{let i=r(),s=e[i];if(!s||typeof document>"u")return;let a=document.documentElement;for(let[c,l]of Object.entries(s))a.style.setProperty(`--${c}`,l)}),{current:r,set:i=>{e[i]&&r.set(i)},toggle:()=>{let i=n.indexOf(r());r.set(n[(i+1)%n.length])},themes:()=>n,tokens:()=>e[r()]??{}}}async function Dt(e,t){let n=t;for(let o=e.length-1;o>=0;o--){let r=e[o];if(r.error)try{return await r.error(n)}catch(i){n=i}}throw n}function et(e){let t=e?.baseUrl??"",n=e?.headers??{},o=[...e?.interceptors??[]],r=e?.timeout??0;async function i(a){let l={url:a.url.startsWith("http")?a.url:a.url.startsWith("//")?(()=>{throw new Error("[onefold:http] Protocol-relative URLs are blocked to prevent open redirect.")})():`${t}${a.url}`,method:a.method,headers:{...n,...a.headers},body:a.body,params:a.params,signal:a.signal};for(let g of o)g.request&&(l=await g.request(l));let d=l.url;if(l.params&&Object.keys(l.params).length>0){let g=new URLSearchParams(l.params).toString();d+=(d.includes("?")?"&":"?")+g}let f={method:l.method,headers:l.headers,signal:l.signal};l.body!==void 0&&l.body!==null&&(typeof l.body=="string"||l.body instanceof FormData?f.body=l.body:(f.body=JSON.stringify(l.body),!l.headers["Content-Type"]&&!l.headers["content-type"]&&(f.headers["Content-Type"]="application/json")));let h=r,u=null,m=null;h>0&&!l.signal&&(m=new AbortController,f.signal=m.signal,u=setTimeout(()=>m.abort(),h));try{let g=await fetch(d,f);if(u&&clearTimeout(u),!g.ok){let x=null;try{x=await g.json()}catch{}let E={message:`HTTP ${g.status}: ${g.statusText}`,status:g.status,statusText:g.statusText,data:x,config:l};return await Dt(o,E)}let w;(g.headers.get("content-type")??"").includes("application/json")?w=await g.json():w=await g.text();let T={data:w,status:g.status,statusText:g.statusText,headers:g.headers,config:l};for(let x=o.length-1;x>=0;x--){let E=o[x];E.response&&(T=await E.response(T))}return T}catch(g){if(u&&clearTimeout(u),typeof g=="object"&&g!==null&&"config"in g)throw g;let w={message:g instanceof Error?g.message:"Network error",status:0,statusText:"Network Error",data:null,config:l};return await Dt(o,w)}}function s(a){return{headers:a?.headers,params:a?.params,signal:a?.signal}}return{get:(a,c)=>i({url:a,method:"GET",...s(c)}),post:(a,c,l)=>i({url:a,method:"POST",body:c,...s(l)}),put:(a,c,l)=>i({url:a,method:"PUT",body:c,...s(l)}),patch:(a,c,l)=>i({url:a,method:"PATCH",body:c,...s(l)}),delete:(a,c)=>i({url:a,method:"DELETE",...s(c)}),request:i,addInterceptor:a=>(o.push(a),()=>{let c=o.indexOf(a);c>=0&&o.splice(c,1)})}}function tt(e,t){let n=document.createElement("div");n.setAttribute("data-error-boundary","");function o(){n.textContent="";try{let r=e();n.appendChild(r)}catch(r){let i=r instanceof Error?r:new Error(String(r));n.appendChild(t(i,o))}}return o(),n}function nt(e,t){let n=document.createElement("div");n.setAttribute("data-suspense","");let{fallback:o,onError:r,minLoadingMs:i=0}=t??{};o&&n.appendChild(o());let s=Date.now(),a=!1;return e().then(async c=>{if((n.isConnected||n.parentNode)&&(a=!0),!(a&&!n.isConnected&&!n.parentNode)){if(i>0){let l=Date.now()-s;l<i&&await bn(i-l)}a&&!n.isConnected&&!n.parentNode||(n.textContent="",n.appendChild(c))}}).catch(c=>{if(a&&!n.isConnected&&!n.parentNode)return;n.textContent="";let l=c instanceof Error?c:new Error(String(c));r?n.appendChild(r(l)):n.textContent=`Error: ${l.message}`}),n}function bn(e){return new Promise(t=>setTimeout(t,e))}function st(e,t){let n=document.createElement("div");n.setAttribute("data-transition",""),n.style.position="relative";let{name:o,duration:r=300,enterFrom:i,enterTo:s,leaveTo:a,mode:c="default"}=t??{},l=null,d=y(()=>{let f=e();if(f===l)return;let h=l;c==="out-in"&&h&&h instanceof HTMLElement?rt(h,{name:o,duration:r,leaveTo:a},()=>{n.textContent="",f&&(n.appendChild(f),f instanceof HTMLElement&&ot(f,{name:o,duration:r,enterFrom:i,enterTo:s}))}):(h&&h instanceof HTMLElement&&rt(h,{name:o,duration:r,leaveTo:a},()=>{h.remove()}),f&&(n.appendChild(f),f instanceof HTMLElement&&ot(f,{name:o,duration:r,enterFrom:i,enterTo:s}))),l=f??null});return D(n,d),n}function ot(e,t){let{name:n,duration:o=300,enterFrom:r,enterTo:i}=t;n?(e.classList.add(`${n}-enter`,`${n}-enter-active`),requestAnimationFrame(()=>{e.classList.remove(`${n}-enter`),e.classList.add(`${n}-enter-to`)}),setTimeout(()=>{e.classList.remove(`${n}-enter-active`,`${n}-enter-to`)},o)):r&&(Object.assign(e.style,r),e.style.transition=`all ${o}ms ease`,requestAnimationFrame(()=>{Object.assign(e.style,i??{})}),setTimeout(()=>{e.style.transition=""},o))}function rt(e,t,n){let{name:o,duration:r=300,leaveTo:i}=t;o?(e.classList.add(`${o}-leave`,`${o}-leave-active`),requestAnimationFrame(()=>{e.classList.remove(`${o}-leave`),e.classList.add(`${o}-leave-to`)}),setTimeout(n,r)):i?(e.style.transition=`all ${r}ms ease`,requestAnimationFrame(()=>{Object.assign(e.style,i)}),setTimeout(n,r)):n()}var hn=new Map;function se(e){let{render:t,...n}=e;return hn.set(e.name,{meta:n,factory:t}),t}var xn='a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable]';function it(e){let t=null,n=!1;function o(){return Array.from(e.querySelectorAll(xn))}function r(i){if(i.key!=="Tab")return;let s=o();if(s.length===0)return;let a=s[0],c=s[s.length-1];i.shiftKey&&document.activeElement===a?(i.preventDefault(),c.focus()):!i.shiftKey&&document.activeElement===c&&(i.preventDefault(),a.focus())}return{get active(){return n},activate(){t=document.activeElement,n=!0,e.addEventListener("keydown",r);let i=o();i.length>0?i[0].focus():e.focus()},deactivate(){n=!1,e.removeEventListener("keydown",r),t?.focus(),t=null}}}var H=null;function yn(){return H&&H.isConnected||(H=document.createElement("div"),H.setAttribute("aria-live","polite"),H.setAttribute("aria-atomic","true"),H.setAttribute("role","status"),Object.assign(H.style,{position:"absolute",width:"1px",height:"1px",padding:"0",margin:"-1px",overflow:"hidden",clip:"rect(0, 0, 0, 0)",whiteSpace:"nowrap",border:"0"}),document.body.appendChild(H)),H}function _(e,t="polite"){let n=yn();n.setAttribute("aria-live",t),n.textContent="",setTimeout(()=>{n.textContent=e},50)}function at(e,t){let n=new Map(Object.entries(e)),o=t??document;function r(s){let a=[];(s.ctrlKey||s.metaKey)&&a.push("Ctrl"),s.shiftKey&&a.push("Shift"),s.altKey&&a.push("Alt");let c=s.key.length===1?s.key.toUpperCase():s.key;return a.push(c),a.join("+")}function i(s){let a=r(s),c=n.get(a);c&&(s.preventDefault(),c(s))}return o.addEventListener("keydown",i),{destroy:()=>o.removeEventListener("keydown",i),add:(s,a)=>n.set(s,a),remove:s=>n.delete(s)}}function lt(e,t="Skip to main content"){let n=document.createElement("a");return n.href=e,n.textContent=t,n.className="nf-skip-link",Object.assign(n.style,{position:"absolute",top:"-100%",left:"0",padding:"8px 16px",background:"#1f2937",color:"#fff",fontSize:"14px",zIndex:"99999",textDecoration:"none",borderRadius:"0 0 4px 0",transition:"top 0.2s"}),n.addEventListener("focus",()=>{n.style.top="0"}),n.addEventListener("blur",()=>{n.style.top="-100%"}),n.addEventListener("click",o=>{o.preventDefault();let r=document.querySelector(e);r&&(r.setAttribute("tabindex","-1"),r.focus())}),n}var Tn=1,kn=1,ct=new Map,dt=new Map,be=[],he=[],ut=new Set;var pt=null,ie=new Map;function Mt(e,...t){let n=ie.get(e);if(n)for(let o of n)o(...t)}function ft(){if(pt)return pt;let e=[],t=0;ht((o,r)=>{let i=performance.now();try{r()}catch(l){throw t++,Mt("error",l,o),l}let s=performance.now()-i,a="";try{let d=(new Error().stack??"").split(`
+`),f=/devtools|signal|template|extend|lifecycle|runWithHook/i;for(let h=1;h<d.length;h++){let u=d[h]?.trim()??"";if(u&&!f.test(u)){let m=u.match(/at\s+(\S+)\s+\((.+)\)/)??u.match(/at\s+(.+)/);if(m){a=m[1]??u;let g=a.match(/([^/\\]+\.\w+:\d+)/);g&&(a=g[1])}break}}}catch{}let c={label:o,duration:s,timestamp:Date.now(),source:a};e.push(c),e.length>1e3&&e.shift(),Mt("render",c)});let n={version:"0.1.1",active:!0,renders:e,signals:()=>{let o=[];for(let[,r]of ct)o.push({id:r.id,label:r.label,value:r.getValue(),subscribers:r.getSubscriberCount(),lastUpdated:r.lastUpdated});return o},effects:()=>{let o=[];for(let[,r]of dt)o.push({id:r.id,label:r.label,dependencies:r.getDependencyCount(),runCount:r.runCount,lastRun:r.lastRun,active:r.active});return o},stores:()=>[...be],routes:()=>({current:he[he.length-1]??"/",history:[...he]}),inspect:o=>{console.group("%c[onefold] Inspect Element","color:#4338CA;font-weight:bold"),console.log("Element:",o),console.log("Tag:",o.tagName.toLowerCase()),console.log("Classes:",o.className||"(none)"),console.log("Attributes:",Object.fromEntries(Array.from(o.attributes).map(r=>[r.name,r.value]))),console.log("Children:",o.childNodes.length),console.log("Text:",o.textContent?.substring(0,100)??""),console.log("Parent:",o.parentElement?.tagName.toLowerCase()??"(none)"),console.log("Data attrs:",Object.fromEntries(Array.from(o.attributes).filter(r=>r.name.startsWith("data-")).map(r=>[r.name,r.value]))),console.groupEnd()},highlight:o=>{let r=o.style.outline,i=o.style.transition;o.style.transition="outline 0.1s",o.style.outline="2px solid #4338CA",setTimeout(()=>{o.style.outline="2px solid transparent",setTimeout(()=>{o.style.outline=r,o.style.transition=i},300)},600)},trace:o=>(ut.add(o),console.log(`%c[onefold] Tracing "${o}" \u2014 changes will be logged`,"color:#4338CA"),()=>{ut.delete(o)}),stats:()=>{let o=e.length,r=o>0?e.reduce((s,a)=>s+a.duration,0)/o:0,i=[...e].sort((s,a)=>s.duration-a.duration);return{totalRenders:o,avgDuration:Math.round(r*100)/100,slowestRender:i.length>0?i[i.length-1]:null,fastestRender:i.length>0?i[0]:null,totalErrors:t,activeSignals:ct.size,activeEffects:[...dt.values()].filter(s=>s.active).length}},clear:()=>{e.length=0,t=0,ct.clear(),dt.clear(),be.length=0,he.length=0,ut.clear(),Tn=1,kn=1},on:(o,r)=>(ie.has(o)||ie.set(o,new Set),ie.get(o).add(r),()=>{ie.get(o)?.delete(r)}),dump:()=>{let o=n.stats();if(console.group("%c[onefold devtools] State Dump","color:#4338CA;font-weight:bold;font-size:14px"),console.log("Version:",n.version),console.log(""),console.log("%cSignals (%d)","font-weight:bold",o.activeSignals),console.table(n.signals().map(i=>({id:i.id,label:i.label,value:typeof i.value=="object"?JSON.stringify(i.value):i.value,subscribers:i.subscribers}))),console.log(""),console.log("%cEffects (%d active)","font-weight:bold",o.activeEffects),console.table(n.effects().filter(i=>i.active).map(i=>({id:i.id,label:i.label,deps:i.dependencies,runs:i.runCount}))),console.log(""),console.log("%cPerformance","font-weight:bold"),console.log(`  Renders: ${o.totalRenders}`),console.log(`  Avg duration: ${o.avgDuration}ms`),console.log(`  Slowest: ${o.slowestRender?`${o.slowestRender.label} (${o.slowestRender.duration.toFixed(2)}ms) @ ${o.slowestRender.source}`:"N/A"}`),console.log(`  Errors: ${o.totalErrors}`),e.length>0&&(console.log(""),console.log("%cRecent Renders (last 10)","font-weight:bold"),console.table(e.slice(-10).map(i=>({label:i.label,duration:i.duration.toFixed(3)+"ms",source:i.source||"(internal)",time:new Date(i.timestamp).toLocaleTimeString()})))),console.log(""),be.length>0){console.log("%cStores","font-weight:bold");for(let i of be)console.log(`  ${i.label}:`,i.state);console.log("")}let r=n.routes();console.log("%cRouting","font-weight:bold"),console.log(`  Current: ${r.current}`),console.log(`  History: ${r.history.join(" \u2192 ")}`),console.groupEnd()}};return pt=n,typeof window<"u"&&(window.__ONEFOLD_DEVTOOLS__=n,console.log("%c\u{1F537} onefold devtools enabled %cv"+n.version+"%c \u2014 type __ONEFOLD_DEVTOOLS__.dump() for full state","background:#4338CA;color:#fff;padding:2px 8px;border-radius:3px;font-weight:bold","background:#818CF8;color:#fff;padding:2px 6px;border-radius:3px;margin-left:4px","color:#64748b;margin-left:8px")),n}var L=Ze({light:{"app-bg":"#f0f4f8","card-bg":"#ffffff","text-primary":"#1f2937","text-secondary":"#6b7280",accent:"#4f46e5","accent-hover":"#4338ca",border:"#e5e7eb",success:"#10b981",warning:"#f59e0b",danger:"#ef4444","sidebar-bg":"#1e293b","sidebar-text":"#f1f5f9"},dark:{"app-bg":"#0f172a","card-bg":"#1e293b","text-primary":"#f1f5f9","text-secondary":"#94a3b8",accent:"#818cf8","accent-hover":"#6366f1",border:"#334155",success:"#34d399",warning:"#fbbf24",danger:"#f87171","sidebar-bg":"#020617","sidebar-text":"#e2e8f0"}},"light");var v=qe({defaultLocale:"en",fallbackLocale:"en",messages:{en:{"app.title":"Task Dashboard","app.subtitle":"onefold Comprehensive Demo","nav.home":"Home","nav.tasks":"Tasks","nav.users":"Users","nav.settings":"Settings","nav.analytics":"Analytics","tasks.title":"Task Management","tasks.add":"Add Task","tasks.empty":"No tasks yet. Create your first task!","tasks.total":"{count} task(s)","users.title":"User Directory","settings.title":"Settings","settings.theme":"Theme","settings.language":"Language","settings.notifications":"Notifications","analytics.title":"Analytics Dashboard","form.name":"Name","form.email":"Email","form.submit":"Submit","form.reset":"Reset","common.save":"Save","common.cancel":"Cancel","common.delete":"Delete","common.edit":"Edit","common.loading":"Loading...","common.error":"Something went wrong"},es:{"app.title":"Panel de Tareas","app.subtitle":"Demo Completa de onefold","nav.home":"Inicio","nav.tasks":"Tareas","nav.users":"Usuarios","nav.settings":"Configuracion","nav.analytics":"Analiticas","tasks.title":"Gestion de Tareas","tasks.add":"Agregar Tarea","tasks.empty":"Sin tareas aun. Crea tu primera tarea!","tasks.total":"{count} tarea(s)","users.title":"Directorio de Usuarios","settings.title":"Configuracion","settings.theme":"Tema","settings.language":"Idioma","settings.notifications":"Notificaciones","analytics.title":"Panel de Analiticas","form.name":"Nombre","form.email":"Correo","form.submit":"Enviar","form.reset":"Reiniciar","common.save":"Guardar","common.cancel":"Cancelar","common.delete":"Eliminar","common.edit":"Editar","common.loading":"Cargando...","common.error":"Algo salio mal"}}});var Ot=b(new Set(["admin","tasks:read","tasks:write","users:read","analytics:read"]));Je(Ot);var gt=Q("AuthService"),mt=b({name:"Admin User",role:"admin"}),xe={user:mt,login:(e,t)=>mt.set({name:e,role:t}),logout:()=>mt.set(null)};Z(gt,xe);var A=Q("NotificationService"),vt=b([]),It={notifications:vt,add:e=>{vt.set(t=>[...t.slice(-4),e]),_(e)},clear:()=>vt.set([])};Z(A,It);var k=We();k.on("navigate",e=>{console.log(`[nav] ${e.from} \u2192 ${e.to}`)});k.on("error",e=>{console.error("[error]",e.error,e.context)});k.on("metric",e=>{console.log(`[metric] ${e.name}: ${e.value}`,e.tags)});var N=Be();N.register({name:"analytics",version:"1.0.0",permissions:["observe","navigate"],setup:e=>(e.on("pageview",t=>{k.metric("pageview",1,{path:t})}),console.log(`[plugin] ${e.name} v1.0.0 loaded`),()=>console.log(`[plugin] ${e.name} unloaded`))});N.register({name:"perf-monitor",version:"1.0.0",permissions:["observe"],setup:e=>{let t=performance.now();e.on("check",()=>{k.metric("uptime",performance.now()-t)}),console.log(`[plugin] ${e.name} v1.0.0 loaded`)}});N.start();var W=ft();W.on("render",e=>{let t=e;t.duration>5&&console.warn(`[perf] Slow effect: ${t.label} (${t.duration.toFixed(2)}ms)`)});var O=_e({tasks:[{id:1,title:"Implement authentication",description:"Add JWT-based auth flow",status:"done",priority:"high",assignee:"Alice",createdAt:"2024-01-15"},{id:2,title:"Design dashboard UI",description:"Create responsive layout",status:"in-progress",priority:"medium",assignee:"Bob",createdAt:"2024-01-16"},{id:3,title:"Write unit tests",description:"Cover critical paths",status:"todo",priority:"high",assignee:"Charlie",createdAt:"2024-01-17"},{id:4,title:"Setup CI/CD pipeline",description:"GitHub Actions workflow",status:"todo",priority:"medium",assignee:"Alice",createdAt:"2024-01-18"},{id:5,title:"API documentation",description:"OpenAPI spec for all endpoints",status:"in-progress",priority:"low",assignee:"Diana",createdAt:"2024-01-19"},{id:6,title:"Performance audit",description:"Lighthouse and bundle analysis",status:"todo",priority:"medium",assignee:"Bob",createdAt:"2024-01-20"}],filter:"all",searchQuery:""}),bt=ue(()=>{let e=O(),{tasks:t,filter:n,searchQuery:o}=e,r=t;if(n!=="all"&&(r=r.filter(i=>i.status===n)),o.trim()){let i=o.toLowerCase();r=r.filter(s=>s.title.toLowerCase().includes(i)||s.description.toLowerCase().includes(i)||s.assignee.toLowerCase().includes(i))}return r}),_t=ue(()=>{let{tasks:e}=O();return{total:e.length,todo:e.filter(t=>t.status==="todo").length,inProgress:e.filter(t=>t.status==="in-progress").length,done:e.filter(t=>t.status==="done").length,highPriority:e.filter(t=>t.priority==="high").length}}),P=oe("sidebar-collapsed",!1),ae=oe("preferred-locale","en"),le=oe("notifications-enabled",!0);y(()=>{v.setLocale(ae())});function Ft(){return p`
+    <aside class=${()=>`sidebar ${P()?"collapsed":""}`} role="navigation" aria-label="Main navigation">
       <div class="sidebar-header">
         <span class="sidebar-logo">◈</span>
-        ${() => sidebarCollapsed() ? null : html`<h1>${() => i18n.t("app.title")}</h1>`}
+        ${()=>P()?null:p`<h1>${()=>v.t("app.title")}</h1>`}
       </div>
       <nav>
-        ${navItems.map((item) => html`
+        ${[{path:"/",icon:"\u25C9",label:()=>v.t("nav.home")},{path:"/tasks",icon:"\u2630",label:()=>v.t("nav.tasks")},{path:"/users",icon:"\u25CE",label:()=>v.t("nav.users")},{path:"/analytics",icon:"\u25C7",label:()=>v.t("nav.analytics")},{path:"/settings",icon:"\u2699",label:()=>v.t("nav.settings")}].map(t=>p`
           <button
-            class=${() => `nav-item ${currentRoute() === item.path ? "active" : ""}`}
-            onclick=${() => {
-    navigate(item.path);
-    observer2.emit("navigate", { from: currentRoute(), to: item.path });
-  }}
-            aria-current=${() => currentRoute() === item.path ? "page" : "false"}
+            class=${()=>`nav-item ${J()===t.path?"active":""}`}
+            onclick=${()=>{q(t.path),k.emit("navigate",{from:J(),to:t.path})}}
+            aria-current=${()=>J()===t.path?"page":"false"}
           >
-            <span class="icon">${item.icon}</span>
-            ${() => sidebarCollapsed() ? null : html`<span>${item.label()}</span>`}
+            <span class="icon">${t.icon}</span>
+            ${()=>P()?null:p`<span>${t.label()}</span>`}
           </button>
         `)}
       </nav>
       <div class="sidebar-footer">
-        ${() => sidebarCollapsed() ? null : html`
+        ${()=>P()?null:p`
           <div class="sidebar-version">onefold v0.1.0</div>
         `}
       </div>
     </aside>
-  `;
-}
-
-// components/TopBar.ts
-function TopBar() {
-  const auth = inject(AuthToken);
-  return html`
+  `}function jt(){let e=$(gt);return p`
     <header class="topbar" role="banner">
       <div class="topbar-left">
         <button
           class="btn btn-ghost btn-sm"
-          onclick=${() => sidebarCollapsed.set(!sidebarCollapsed())}
+          onclick=${()=>P.set(!P())}
           aria-label="Toggle sidebar"
         >
           ☰
         </button>
-        <span class="topbar-subtitle">${() => i18n.t("app.subtitle")}</span>
+        <span class="topbar-subtitle">${()=>v.t("app.subtitle")}</span>
       </div>
       <div class="topbar-right">
         <button
           class="btn btn-ghost btn-sm"
-          onclick=${() => theme.toggle()}
+          onclick=${()=>L.toggle()}
           aria-label="Toggle theme"
         >
-          ${() => theme.current() === "dark" ? "\u2600" : "\u263E"}
+          ${()=>L.current()==="dark"?"\u2600":"\u263E"}
         </button>
         <select
           class="locale-select"
-          onchange=${(e) => preferredLocale.set(e.target.value)}
+          onchange=${t=>ae.set(t.target.value)}
         >
           <option value="en">EN</option>
           <option value="es">ES</option>
         </select>
-        ${() => {
-    const user = auth.user();
-    if (!user) {
-      return html`<button class="btn btn-primary btn-sm" onclick=${() => auth.login("Admin", "admin")}>Login</button>`;
-    }
-    return html`
+        ${()=>{let t=e.user();return t?p`
             <div class="user-info">
-              <div class="user-avatar-sm">${user.name.charAt(0)}</div>
-              <span class="user-name">${user.name}</span>
-              <button class="btn btn-ghost btn-sm" onclick=${() => auth.logout()}>Logout</button>
+              <div class="user-avatar-sm">${t.name.charAt(0)}</div>
+              <span class="user-name">${t.name}</span>
+              <button class="btn btn-ghost btn-sm" onclick=${()=>e.logout()}>Logout</button>
             </div>
-          `;
-  }}
+          `:p`<button class="btn btn-primary btn-sm" onclick=${()=>e.login("Admin","admin")}>Login</button>`}}
       </div>
     </header>
-  `;
-}
-
-// components/Notifications.ts
-function NotificationToasts() {
-  const notif = inject(NotifyToken);
-  return html`
+  `}function Kt(){let e=$(A);return p`
     <div class="notification-toast">
-      ${() => notif.notifications().map((msg) => html`
-        <div class="toast-item">${msg}</div>
+      ${()=>e.notifications().map(t=>p`
+        <div class="toast-item">${t}</div>
       `)}
     </div>
-  `;
-}
-
-// components/StatCard.ts
-var StatCard = component({
-  name: "StatCard",
-  description: "Displays a single statistic with label",
-  props: {
-    value: { type: "string | number", required: true },
-    label: { type: "string", required: true },
-    color: { type: "string", required: false }
-  },
-  tags: ["stat", "dashboard"],
-  render: ({ value, label, color }) => html`
+  `}var R=se({name:"StatCard",description:"Displays a single statistic with label",props:{value:{type:"string | number",required:!0},label:{type:"string",required:!0},color:{type:"string",required:!1}},tags:["stat","dashboard"],render:({value:e,label:t,color:n})=>p`
     <div class="stat-card">
-      <div class="stat-value" style=${color ? { color } : {}}>${value}</div>
-      <div class="stat-label">${label}</div>
+      <div class="stat-value" style=${n?{color:n}:{}}>${e}</div>
+      <div class="stat-label">${t}</div>
     </div>
-  `
-});
-
-// pages/Home.ts
-function HomePage() {
-  return html`
+  `});function zt(){return p`
     <div>
       <div class="page-header">
-        <h2>${() => i18n.t("app.title")}<span class="feature-badge">Signals + Store + i18n</span></h2>
+        <h2>${()=>v.t("app.title")}<span class="feature-badge">Signals + Store + i18n</span></h2>
       </div>
 
       <div class="stats-grid">
-        ${() => {
-    const stats = taskStats();
-    return [
-      StatCard({ value: stats.total, label: "Total Tasks" }),
-      StatCard({ value: stats.todo, label: "To Do", color: "var(--warning)" }),
-      StatCard({ value: stats.inProgress, label: "In Progress", color: "var(--accent)" }),
-      StatCard({ value: stats.done, label: "Completed", color: "var(--success)" })
-    ];
-  }}
+        ${()=>{let e=_t();return[R({value:e.total,label:"Total Tasks"}),R({value:e.todo,label:"To Do",color:"var(--warning)"}),R({value:e.inProgress,label:"In Progress",color:"var(--accent)"}),R({value:e.done,label:"Completed",color:"var(--success)"})]}}
       </div>
 
       <div class="card">
@@ -2399,130 +90,38 @@ function HomePage() {
           explore different features.
         </p>
         <div class="feature-grid">
-          ${FeatureList()}
+          ${wn()}
         </div>
       </div>
     </div>
-  `;
-}
-function FeatureList() {
-  const features = [
-    "Signals & Reactivity",
-    "HTML Templates",
-    "Scoped CSS",
-    "Router & Navigation",
-    "Store (State)",
-    "Dependency Injection",
-    "HTTP Client",
-    "Forms & Validation",
-    "i18n",
-    "Persisted State",
-    "RBAC Guards",
-    "Theming",
-    "Observability",
-    "Plugins",
-    "Error Boundaries",
-    "Suspense",
-    "Transitions",
-    "Virtual List",
-    "Streaming (WS/SSE)",
-    "Accessibility",
-    "DevTools",
-    "Component Meta"
-  ];
-  return html`
-    ${features.map((f) => html`<div class="feature-item">${f}</div>`)}
-  `;
-}
-
-// components/TaskCard.ts
-var TaskCard = component({
-  name: "TaskCard",
-  description: "Displays a single task with status management",
-  props: {
-    task: { type: "Task", required: true, description: "The task object to display" },
-    onStatusChange: { type: "function", required: true, description: "Status change callback" }
-  },
-  tags: ["task", "card"],
-  render: ({ task, onStatusChange }) => {
-    const nextStatus = (current) => {
-      const flow = {
-        "todo": "in-progress",
-        "in-progress": "done",
-        "done": "todo"
-      };
-      return flow[current];
-    };
-    return html`
+  `}function wn(){return p`
+    ${["Signals & Reactivity","HTML Templates","Scoped CSS","Router & Navigation","Store (State)","Dependency Injection","HTTP Client","Forms & Validation","i18n","Persisted State","RBAC Guards","Theming","Observability","Plugins","Error Boundaries","Suspense","Transitions","Virtual List","Streaming (WS/SSE)","Accessibility","DevTools","Component Meta"].map(t=>p`<div class="feature-item">${t}</div>`)}
+  `}var Vt=se({name:"TaskCard",description:"Displays a single task with status management",props:{task:{type:"Task",required:!0,description:"The task object to display"},onStatusChange:{type:"function",required:!0,description:"Status change callback"}},tags:["task","card"],render:({task:e,onStatusChange:t})=>{let n=o=>({todo:"in-progress","in-progress":"done",done:"todo"})[o];return p`
       <div class="task-card">
         <div class="task-info">
-          <div class="task-title">${task.title}</div>
-          <div class="task-desc">${task.description}</div>
+          <div class="task-title">${e.title}</div>
+          <div class="task-desc">${e.description}</div>
           <div class="task-meta">
-            <span class=${`badge badge-${task.status}`}>${task.status}</span>
-            <span class=${`badge badge-${task.priority}`}>${task.priority}</span>
-            <span class="task-assignee">${task.assignee}</span>
+            <span class=${`badge badge-${e.status}`}>${e.status}</span>
+            <span class=${`badge badge-${e.priority}`}>${e.priority}</span>
+            <span class="task-assignee">${e.assignee}</span>
           </div>
         </div>
         <button
           class="btn btn-ghost btn-sm"
-          onclick=${() => onStatusChange(task.id, nextStatus(task.status))}
-          aria-label=${`Move task "${task.title}" to ${nextStatus(task.status)}`}
+          onclick=${()=>t(e.id,n(e.status))}
+          aria-label=${`Move task "${e.title}" to ${n(e.status)}`}
         >
           Next
         </button>
       </div>
-    `;
-  }
-});
-
-// pages/Tasks.ts
-function TasksPage() {
-  const showModal = createSignal(false);
-  const taskForm = createForm({
-    title: { initial: "", rules: [required("Title is required"), minLength(3, "At least 3 characters")] },
-    description: { initial: "", rules: [required("Description is required"), maxLength(200, "Max 200 chars")] },
-    priority: { initial: "medium", rules: [required()] },
-    assignee: { initial: "", rules: [required("Assignee is required")] }
-  });
-  const handleStatusChange = (id, newStatus) => {
-    appStore.update((prev) => ({
-      tasks: prev.tasks.map((t) => t.id === id ? { ...t, status: newStatus } : t)
-    }));
-    const notif = inject(NotifyToken);
-    notif.add(`Task status updated to "${newStatus}"`);
-    observer2.emit("custom", { type: "task-status-change", payload: { id, newStatus } });
-  };
-  const handleAddTask = () => {
-    taskForm.submit((values) => {
-      const newTask = {
-        id: Date.now(),
-        title: values.title,
-        description: values.description,
-        status: "todo",
-        priority: values.priority,
-        assignee: values.assignee,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
-      };
-      appStore.update((prev) => ({ tasks: [...prev.tasks, newTask] }));
-      inject(NotifyToken).add(`Task "${values.title}" created`);
-      taskForm.reset();
-      showModal.set(false);
-    });
-  };
-  const handleFilterChange = (filter) => {
-    appStore.update({ filter });
-  };
-  const handleSearch = (e) => {
-    appStore.update({ searchQuery: e.target.value });
-  };
-  return html`
+    `}});function Ut(){let e=b(!1),t=ne({title:{initial:"",rules:[M("Title is required"),ee(3,"At least 3 characters")]},description:{initial:"",rules:[M("Description is required"),te(200,"Max 200 chars")]},priority:{initial:"medium",rules:[M()]},assignee:{initial:"",rules:[M("Assignee is required")]}}),n=(s,a)=>{O.update(l=>({tasks:l.tasks.map(d=>d.id===s?{...d,status:a}:d)})),$(A).add(`Task status updated to "${a}"`),k.emit("custom",{type:"task-status-change",payload:{id:s,newStatus:a}})},o=()=>{t.submit(s=>{let a={id:Date.now(),title:s.title,description:s.description,status:"todo",priority:s.priority,assignee:s.assignee,createdAt:new Date().toISOString().split("T")[0]};O.update(c=>({tasks:[...c.tasks,a]})),$(A).add(`Task "${s.title}" created`),t.reset(),e.set(!1)})},r=s=>{O.update({filter:s})};return p`
     <div>
       <div class="page-header">
-        <h2>${() => i18n.t("tasks.title")}<span class="feature-badge">Forms + Store + Guards</span></h2>
-        ${() => guardedNode(["tasks:write"], () => html`
-          <button class="btn btn-primary" onclick=${() => showModal.set(true)}>
-            + ${() => i18n.t("tasks.add")}
+        <h2>${()=>v.t("tasks.title")}<span class="feature-badge">Forms + Store + Guards</span></h2>
+        ${()=>z(["tasks:write"],()=>p`
+          <button class="btn btn-primary" onclick=${()=>e.set(!0)}>
+            + ${()=>v.t("tasks.add")}
           </button>
         `)}
       </div>
@@ -2532,72 +131,51 @@ function TasksPage() {
           class="search-input"
           type="text"
           placeholder="Search tasks..."
-          value=${() => appStore().searchQuery}
-          oninput=${handleSearch}
+          value=${()=>O().searchQuery}
+          oninput=${s=>{O.update({searchQuery:s.target.value})}}
           aria-label="Search tasks"
         />
-        ${["all", "todo", "in-progress", "done"].map((f) => html`
+        ${["all","todo","in-progress","done"].map(s=>p`
           <button
-            class=${() => `filter-btn ${appStore().filter === f ? "active" : ""}`}
-            onclick=${() => handleFilterChange(f)}
+            class=${()=>`filter-btn ${O().filter===s?"active":""}`}
+            onclick=${()=>r(s)}
           >
-            ${f === "all" ? "All" : f}
+            ${s==="all"?"All":s}
           </button>
         `)}
         <span class="filter-count">
-          ${() => i18n.t("tasks.total", { count: filteredTasks().length })}
+          ${()=>v.t("tasks.total",{count:bt().length})}
         </span>
       </div>
 
       <div class="task-grid">
-        ${() => {
-    const tasks = filteredTasks();
-    if (tasks.length === 0) {
-      return html`<div class="card empty-state">
-              <p>${() => i18n.t("tasks.empty")}</p>
-            </div>`;
-    }
-    return tasks.map((task) => TaskCard({ task, onStatusChange: handleStatusChange }));
-  }}
+        ${()=>{let s=bt();return s.length===0?p`<div class="card empty-state">
+              <p>${()=>v.t("tasks.empty")}</p>
+            </div>`:s.map(a=>Vt({task:a,onStatusChange:n}))}}
       </div>
 
-      ${() => showModal() ? TaskFormModal(taskForm, handleAddTask, () => {
-    showModal.set(false);
-    taskForm.reset();
-  }) : null}
+      ${()=>e()?Sn(t,o,()=>{e.set(!1),t.reset()}):null}
     </div>
-  `;
-}
-function TaskFormModal(form, onSubmit, onClose) {
-  setTimeout(() => {
-    const modal = document.querySelector(".modal");
-    if (modal) {
-      const trap = FocusTrap(modal);
-      trap.activate();
-    }
-  }, 0);
-  return html`
-    <div class="modal-overlay" onclick=${(e) => {
-    if (e.target.classList.contains("modal-overlay")) onClose();
-  }}>
+  `}function Sn(e,t,n){return setTimeout(()=>{let o=document.querySelector(".modal");o&&it(o).activate()},0),p`
+    <div class="modal-overlay" onclick=${o=>{o.target.classList.contains("modal-overlay")&&n()}}>
       <div class="modal">
-        <h2>${() => i18n.t("tasks.add")}</h2>
+        <h2>${()=>v.t("tasks.add")}</h2>
 
         <div class="form-group">
           <label class="form-label">Title</label>
-          <input class="form-input" type="text" value=${() => form.fields.title.value()} oninput=${form.fields.title.handle} placeholder="Task title..." />
-          <div class="form-error">${() => form.fields.title.error()}</div>
+          <input class="form-input" type="text" value=${()=>e.fields.title.value()} oninput=${e.fields.title.handle} placeholder="Task title..." />
+          <div class="form-error">${()=>e.fields.title.error()}</div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea class="form-input" rows="3" value=${() => form.fields.description.value()} oninput=${form.fields.description.handle} placeholder="Task description..."></textarea>
-          <div class="form-error">${() => form.fields.description.error()}</div>
+          <textarea class="form-input" rows="3" value=${()=>e.fields.description.value()} oninput=${e.fields.description.handle} placeholder="Task description..."></textarea>
+          <div class="form-error">${()=>e.fields.description.error()}</div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Priority</label>
-          <select class="form-select" onchange=${form.fields.priority.handle}>
+          <select class="form-select" onchange=${e.fields.priority.handle}>
             <option value="low">Low</option>
             <option value="medium" selected>Medium</option>
             <option value="high">High</option>
@@ -2606,92 +184,43 @@ function TaskFormModal(form, onSubmit, onClose) {
 
         <div class="form-group">
           <label class="form-label">Assignee</label>
-          <input class="form-input" type="text" value=${() => form.fields.assignee.value()} oninput=${form.fields.assignee.handle} placeholder="Assignee name..." />
-          <div class="form-error">${() => form.fields.assignee.error()}</div>
+          <input class="form-input" type="text" value=${()=>e.fields.assignee.value()} oninput=${e.fields.assignee.handle} placeholder="Assignee name..." />
+          <div class="form-error">${()=>e.fields.assignee.error()}</div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-ghost" onclick=${onClose}>${() => i18n.t("common.cancel")}</button>
-          <button class="btn btn-primary" onclick=${onSubmit}>${() => i18n.t("form.submit")}</button>
+          <button class="btn btn-ghost" onclick=${n}>${()=>v.t("common.cancel")}</button>
+          <button class="btn btn-primary" onclick=${t}>${()=>v.t("form.submit")}</button>
         </div>
       </div>
     </div>
-  `;
-}
-
-// services/http.ts
-var http = createHttpClient({
-  baseUrl: "https://jsonplaceholder.typicode.com",
-  headers: { "Accept": "application/json" },
-  interceptors: [
-    {
-      request: (config) => {
-        const user = authService.user.peek();
-        if (user) {
-          config.headers["X-User"] = user.name;
-        }
-        observer2.log("info", `HTTP ${config.method} ${config.url}`);
-        return config;
-      },
-      response: (res) => {
-        observer2.metric("http.response", res.status, { url: res.config.url });
-        return res;
-      }
-    }
-  ]
-});
-
-// pages/Users.ts
-function UsersPage() {
-  return html`
+  `}var ye=et({baseUrl:"https://jsonplaceholder.typicode.com",headers:{Accept:"application/json"},interceptors:[{request:e=>{let t=xe.user.peek();return t&&(e.headers["X-User"]=t.name),k.log("info",`HTTP ${e.method} ${e.url}`),e},response:e=>(k.metric("http.response",e.status,{url:e.config.url}),e)}]});function qt(){return p`
     <div>
       <div class="page-header">
-        <h2>${() => i18n.t("users.title")}<span class="feature-badge">Resource + ErrorBoundary + VirtualList</span></h2>
+        <h2>${()=>v.t("users.title")}<span class="feature-badge">Resource + ErrorBoundary + VirtualList</span></h2>
       </div>
 
-      ${ErrorBoundary(
-    () => UsersContent(),
-    (error, retry) => html`
+      ${tt(()=>En(),(e,t)=>p`
           <div class="card empty-state">
-            <p class="error-text">${() => i18n.t("common.error")}: ${error.message}</p>
-            <button class="btn btn-primary" onclick=${retry}>Retry</button>
+            <p class="error-text">${()=>v.t("common.error")}: ${e.message}</p>
+            <button class="btn btn-primary" onclick=${t}>Retry</button>
           </div>
-        `
-  )}
+        `)}
     </div>
-  `;
-}
-function UsersContent() {
-  const users = createResource(
-    () => "users",
-    async () => {
-      const response = await http.get("/users");
-      return response.data;
-    }
-  );
-  return html`
+  `}function En(){let e=Ie(()=>"users",async()=>(await ye.get("/users")).data);return p`
     <div>
-      ${() => {
-    if (users.loading()) {
-      return html`<div class="card empty-state"><p>${() => i18n.t("common.loading")}</p></div>`;
-    }
-    if (users.error()) {
-      return html`<div class="card empty-state">
+      ${()=>{if(e.loading())return p`<div class="card empty-state"><p>${()=>v.t("common.loading")}</p></div>`;if(e.error())return p`<div class="card empty-state">
             <p class="error-text">Failed to load users</p>
-            <button class="btn btn-primary" onclick=${() => users.refetch()}>Retry</button>
-          </div>`;
-    }
-    const data = users.data();
-    if (!data) return html`<p>No data</p>`;
-    return html`
+            <button class="btn btn-primary" onclick=${()=>e.refetch()}>Retry</button>
+          </div>`;let t=e.data();return t?p`
           <div class="user-grid">
-            ${data.map((user) => html`
+            ${t.map(n=>p`
               <div class="user-card">
-                <div class="user-avatar">${user.name.charAt(0)}</div>
+                <div class="user-avatar">${n.name.charAt(0)}</div>
                 <div class="user-details">
-                  <div class="user-name">${user.name}</div>
-                  <div class="user-email">${user.email}</div>
-                  <div class="user-company">${user.company.name}</div>
+                  <div class="user-name">${n.name}</div>
+                  <div class="user-email">${n.email}</div>
+                  <div class="user-company">${n.company.name}</div>
                 </div>
               </div>
             `)}
@@ -2701,130 +230,73 @@ function UsersContent() {
             <h3>Virtual List Demo (1000 items, windowed)
               <span class="feature-badge">VirtualList</span>
             </h3>
-            ${VirtualListDemo()}
+            ${$n()}
           </div>
-        `;
-  }}
+        `:p`<p>No data</p>`}}
     </div>
-  `;
-}
-function VirtualListDemo() {
-  const items = createSignal(
-    Array.from({ length: 1e3 }, (_, i) => ({
-      id: i + 1,
-      name: `Item #${i + 1} \u2014 ${["Alpha", "Beta", "Gamma", "Delta", "Epsilon"][i % 5]}`,
-      value: Math.round(Math.random() * 1e4) / 100
-    }))
-  );
-  return VirtualList({
-    items,
-    itemHeight: 40,
-    height: 300,
-    overscan: 4,
-    renderRow: (item) => html`
+  `}function $n(){let e=b(Array.from({length:1e3},(t,n)=>({id:n+1,name:`Item #${n+1} \u2014 ${["Alpha","Beta","Gamma","Delta","Epsilon"][n%5]}`,value:Math.round(Math.random()*1e4)/100})));return Oe({items:e,itemHeight:40,height:300,overscan:4,renderRow:t=>p`
       <div class="virtual-row">
-        <span class="virtual-row-id">#${item.id}</span>
-        <span class="virtual-row-name">${item.name}</span>
-        <span class="virtual-row-value">$${item.value.toFixed(2)}</span>
+        <span class="virtual-row-id">#${t.id}</span>
+        <span class="virtual-row-name">${t.name}</span>
+        <span class="virtual-row-value">$${t.value.toFixed(2)}</span>
       </div>
-    `
-  });
-}
-
-// pages/Analytics.ts
-function AnalyticsPage() {
-  const activeTab = createSignal("overview");
-  return html`
+    `})}function Wt(){let e=b("overview");return p`
     <div>
       <div class="page-header">
-        <h2>${() => i18n.t("analytics.title")}<span class="feature-badge">Suspense + Transition + DevTools</span></h2>
+        <h2>${()=>v.t("analytics.title")}<span class="feature-badge">Suspense + Transition + DevTools</span></h2>
       </div>
 
       <div class="filter-bar">
-        ${["overview", "performance", "plugins"].map((tab) => html`
+        ${["overview","performance","plugins"].map(t=>p`
           <button
-            class=${() => `filter-btn ${activeTab() === tab ? "active" : ""}`}
-            onclick=${() => activeTab.set(tab)}
+            class=${()=>`filter-btn ${e()===t?"active":""}`}
+            onclick=${()=>e.set(t)}
           >
-            ${tab.charAt(0).toUpperCase() + tab.slice(1)}
+            ${t.charAt(0).toUpperCase()+t.slice(1)}
           </button>
         `)}
       </div>
 
-      ${Transition(
-    () => {
-      const tab = activeTab();
-      if (tab === "overview") return AnalyticsOverview();
-      if (tab === "performance") return PerformanceTab();
-      return PluginsTab();
-    },
-    {
-      enterFrom: { opacity: "0", transform: "translateY(8px)" },
-      enterTo: { opacity: "1", transform: "translateY(0)" },
-      leaveTo: { opacity: "0", transform: "translateY(-8px)" },
-      duration: 200,
-      mode: "out-in"
-    }
-  )}
+      ${st(()=>{let t=e();return t==="overview"?Rn():t==="performance"?Cn():Pn()},{enterFrom:{opacity:"0",transform:"translateY(8px)"},enterTo:{opacity:"1",transform:"translateY(0)"},leaveTo:{opacity:"0",transform:"translateY(-8px)"},duration:200,mode:"out-in"})}
     </div>
-  `;
-}
-function AnalyticsOverview() {
-  return Suspense(
-    async () => {
-      const response = await http.get("/todos?_limit=20");
-      const todos = response.data;
-      const completed = todos.filter((t) => t.completed).length;
-      const pending = todos.length - completed;
-      return html`
+  `}function Rn(){return nt(async()=>{let t=(await ye.get("/todos?_limit=20")).data,n=t.filter(r=>r.completed).length,o=t.length-n;return p`
         <div>
           <div class="stats-grid">
-            ${StatCard({ value: todos.length, label: "Total Items Fetched" })}
-            ${StatCard({ value: completed, label: "Completed", color: "var(--success)" })}
-            ${StatCard({ value: pending, label: "Pending", color: "var(--warning)" })}
-            ${StatCard({ value: `${Math.round(completed / todos.length * 100)}%`, label: "Completion Rate", color: "var(--accent)" })}
+            ${R({value:t.length,label:"Total Items Fetched"})}
+            ${R({value:n,label:"Completed",color:"var(--success)"})}
+            ${R({value:o,label:"Pending",color:"var(--warning)"})}
+            ${R({value:`${Math.round(n/t.length*100)}%`,label:"Completion Rate",color:"var(--accent)"})}
           </div>
           <div class="card">
             <h3>Remote Data (JSONPlaceholder API) <span class="feature-badge">HTTP Client</span></h3>
             <div class="todo-list">
-              ${todos.map((todo) => html`
+              ${t.map(r=>p`
                 <div class="todo-item">
-                  <span class=${todo.completed ? "todo-check done" : "todo-check"}>
-                    ${todo.completed ? "\u2713" : "\u25CB"}
+                  <span class=${r.completed?"todo-check done":"todo-check"}>
+                    ${r.completed?"\u2713":"\u25CB"}
                   </span>
-                  <span class=${todo.completed ? "todo-text completed" : "todo-text"}>${todo.title}</span>
+                  <span class=${r.completed?"todo-text completed":"todo-text"}>${r.title}</span>
                 </div>
               `)}
             </div>
           </div>
         </div>
-      `;
-    },
-    {
-      fallback: () => html`
+      `},{fallback:()=>p`
         <div class="card empty-state">
           <p>Loading analytics data...</p>
           <div class="spinner"></div>
         </div>
-      `,
-      onError: (err) => html`
+      `,onError:e=>p`
         <div class="card empty-state">
-          <p class="error-text">Failed to load analytics: ${err.message}</p>
+          <p class="error-text">Failed to load analytics: ${e.message}</p>
         </div>
-      `
-    }
-  );
-}
-function PerformanceTab() {
-  const stats = devtools.stats();
-  console.log("stats", stats);
-  return html`
+      `})}function Cn(){let e=W.stats();return console.log("stats",e),p`
     <div>
       <div class="stats-grid">
-        ${StatCard({ value: stats.totalRenders, label: "Total Renders" })}
-        ${StatCard({ value: stats.avgDuration.toFixed(2) + "ms", label: "Avg Duration" })}
-        ${StatCard({ value: stats.slowestRender ? stats.slowestRender.duration.toFixed(2) + "ms" : "N/A", label: "Slowest Render" })}
-        ${StatCard({ value: stats.totalErrors, label: "Total Errors" })}
+        ${R({value:e.totalRenders,label:"Total Renders"})}
+        ${R({value:e.avgDuration.toFixed(2)+"ms",label:"Avg Duration"})}
+        ${R({value:e.slowestRender?e.slowestRender.duration.toFixed(2)+"ms":"N/A",label:"Slowest Render"})}
+        ${R({value:e.totalErrors,label:"Total Errors"})}
       </div>
 
       <div class="card">
@@ -2832,10 +304,7 @@ function PerformanceTab() {
         <p class="card-description">
           The devtools hook monitors every effect execution. Connect to APM via the observer.
         </p>
-        <button class="btn btn-ghost" onclick=${() => {
-    devtools.clear();
-    inject(NotifyToken).add("DevTools data cleared");
-  }}>Clear Stats</button>
+        <button class="btn btn-ghost" onclick=${()=>{W.clear(),$(A).add("DevTools data cleared")}}>Clear Stats</button>
       </div>
 
       <div class="card section-gap">
@@ -2844,16 +313,13 @@ function PerformanceTab() {
           Check the browser console to see structured events being emitted.
         </p>
         <div class="btn-row">
-          <button class="btn btn-ghost btn-sm" onclick=${() => observer2.emit("navigate", { from: "/analytics", to: "/test" })}>Emit Navigate</button>
-          <button class="btn btn-ghost btn-sm" onclick=${() => observer2.metric("test-metric", Math.random() * 100)}>Emit Metric</button>
-          <button class="btn btn-ghost btn-sm" onclick=${() => observer2.log("info", "Test log message", { source: "analytics" })}>Emit Log</button>
+          <button class="btn btn-ghost btn-sm" onclick=${()=>k.emit("navigate",{from:"/analytics",to:"/test"})}>Emit Navigate</button>
+          <button class="btn btn-ghost btn-sm" onclick=${()=>k.metric("test-metric",Math.random()*100)}>Emit Metric</button>
+          <button class="btn btn-ghost btn-sm" onclick=${()=>k.log("info","Test log message",{source:"analytics"})}>Emit Log</button>
         </div>
       </div>
     </div>
-  `;
-}
-function PluginsTab() {
-  return html`
+  `}function Pn(){return p`
     <div>
       <div class="card">
         <h3>Plugin System <span class="feature-badge">Plugins</span></h3>
@@ -2861,21 +327,15 @@ function PluginsTab() {
           Plugins extend onefold with isolated lifecycle management and permissions.
         </p>
         <div class="plugin-list">
-          ${plugins.list().map((name) => html`
+          ${N.list().map(e=>p`
             <div class="plugin-item">
               <div class="plugin-info">
-                <span class="plugin-name">${name}</span>
-                <span class="badge badge-done">${plugins.getStatus(name)}</span>
+                <span class="plugin-name">${e}</span>
+                <span class="badge badge-done">${N.getStatus(e)}</span>
               </div>
               <div class="btn-row">
-                <button class="btn btn-ghost btn-sm" onclick=${() => {
-    plugins.stopPlugin(name);
-    inject(NotifyToken).add(`Plugin "${name}" stopped`);
-  }}>Stop</button>
-                <button class="btn btn-ghost btn-sm" onclick=${() => {
-    plugins.startPlugin(name);
-    inject(NotifyToken).add(`Plugin "${name}" started`);
-  }}>Start</button>
+                <button class="btn btn-ghost btn-sm" onclick=${()=>{N.stopPlugin(e),$(A).add(`Plugin "${e}" stopped`)}}>Stop</button>
+                <button class="btn btn-ghost btn-sm" onclick=${()=>{N.startPlugin(e),$(A).add(`Plugin "${e}" started`)}}>Start</button>
               </div>
             </div>
           `)}
@@ -2888,7 +348,7 @@ function PluginsTab() {
           onefold uses textContent by default. The raw() function provides sanitized HTML.
         </p>
         <div class="code-block">
-          ${raw("<strong>This is sanitized HTML via raw()</strong> \u2014 safe to use")}
+          ${Ae("<strong>This is sanitized HTML via raw()</strong> \u2014 safe to use")}
         </div>
         <div class="code-block">
           XSS attempt (auto-escaped): ${'<script>alert("xss")<\/script>'}
@@ -2901,62 +361,48 @@ function PluginsTab() {
           Permission-based access control. Current: admin, tasks:read/write, users:read, analytics:read
         </p>
         <div class="badge-row">
-          ${() => guardedNode(["admin"], () => html`<span class="badge badge-done">Admin Access</span>`)}
-          ${() => guardedNode(["tasks:write"], () => html`<span class="badge badge-done">Tasks Write</span>`)}
-          ${() => guardedNode(
-    ["billing:manage"],
-    () => html`<span class="badge badge-high">Billing</span>`,
-    () => html`<span class="badge badge-todo">Billing (no access)</span>`
-  )}
+          ${()=>z(["admin"],()=>p`<span class="badge badge-done">Admin Access</span>`)}
+          ${()=>z(["tasks:write"],()=>p`<span class="badge badge-done">Tasks Write</span>`)}
+          ${()=>z(["billing:manage"],()=>p`<span class="badge badge-high">Billing</span>`,()=>p`<span class="badge badge-todo">Billing (no access)</span>`)}
         </div>
         <p class="card-description">
-          hasPermission('admin'): ${() => hasPermission("admin") ? "true" : "false"} |
-          hasAnyPermission(['billing:manage','admin']): ${() => hasAnyPermission(["billing:manage", "admin"]) ? "true" : "false"}
+          hasPermission('admin'): ${()=>Xe("admin")?"true":"false"} |
+          hasAnyPermission(['billing:manage','admin']): ${()=>Qe(["billing:manage","admin"])?"true":"false"}
         </p>
       </div>
     </div>
-  `;
-}
-
-// pages/Settings.ts
-function SettingsPage() {
-  const contactForm = createForm({
-    name: { initial: "", rules: [required("Name is required"), minLength(2)] },
-    contactEmail: { initial: "", rules: [required("Email is required"), email("Invalid email format")] },
-    bio: { initial: "", rules: [maxLength(500, "Bio must be under 500 characters")] }
-  });
-  return html`
+  `}function Bt(){let e=ne({name:{initial:"",rules:[M("Name is required"),ee(2)]},contactEmail:{initial:"",rules:[M("Email is required"),Ue("Invalid email format")]},bio:{initial:"",rules:[te(500,"Bio must be under 500 characters")]}});return p`
     <div>
       <div class="page-header">
-        <h2>${() => i18n.t("settings.title")}<span class="feature-badge">Persist + Theme + i18n + Forms</span></h2>
+        <h2>${()=>v.t("settings.title")}<span class="feature-badge">Persist + Theme + i18n + Forms</span></h2>
       </div>
 
       <div class="settings-grid">
         <div class="card">
           <div class="settings-section">
-            <h3>${() => i18n.t("settings.theme")}</h3>
+            <h3>${()=>v.t("settings.theme")}</h3>
             <div class="setting-row">
               <span>Dark Mode</span>
               <button
-                class=${() => `toggle ${theme.current() === "dark" ? "on" : ""}`}
-                onclick=${() => theme.toggle()}
+                class=${()=>`toggle ${L.current()==="dark"?"on":""}`}
+                onclick=${()=>L.toggle()}
                 aria-label="Toggle dark mode"
                 role="switch"
-                aria-checked=${() => theme.current() === "dark" ? "true" : "false"}
+                aria-checked=${()=>L.current()==="dark"?"true":"false"}
               ></button>
             </div>
             <div class="setting-row">
               <span>Current Theme</span>
-              <span class="setting-value">${() => theme.current()}</span>
+              <span class="setting-value">${()=>L.current()}</span>
             </div>
           </div>
 
           <div class="settings-section">
-            <h3>${() => i18n.t("settings.language")}</h3>
+            <h3>${()=>v.t("settings.language")}</h3>
             <div class="setting-row">
               <span>Locale</span>
               <select class="form-select inline-select"
-                onchange=${(e) => preferredLocale.set(e.target.value)}
+                onchange=${t=>ae.set(t.target.value)}
               >
                 <option value="en" selected>English</option>
                 <option value="es">Espanol</option>
@@ -2964,30 +410,30 @@ function SettingsPage() {
             </div>
             <div class="setting-row">
               <span>Active Locale</span>
-              <span class="setting-value">${() => i18n.locale()}</span>
+              <span class="setting-value">${()=>v.locale()}</span>
             </div>
           </div>
 
           <div class="settings-section">
-            <h3>${() => i18n.t("settings.notifications")}</h3>
+            <h3>${()=>v.t("settings.notifications")}</h3>
             <div class="setting-row">
               <span>Enable Notifications</span>
               <button
-                class=${() => `toggle ${notificationsEnabled() ? "on" : ""}`}
-                onclick=${() => notificationsEnabled.set(!notificationsEnabled())}
+                class=${()=>`toggle ${le()?"on":""}`}
+                onclick=${()=>le.set(!le())}
                 aria-label="Toggle notifications"
                 role="switch"
-                aria-checked=${() => notificationsEnabled() ? "true" : "false"}
+                aria-checked=${()=>le()?"true":"false"}
               ></button>
             </div>
             <div class="setting-row">
               <span>Sidebar Collapsed</span>
               <button
-                class=${() => `toggle ${sidebarCollapsed() ? "on" : ""}`}
-                onclick=${() => sidebarCollapsed.set(!sidebarCollapsed())}
+                class=${()=>`toggle ${P()?"on":""}`}
+                onclick=${()=>P.set(!P())}
                 aria-label="Toggle sidebar"
                 role="switch"
-                aria-checked=${() => sidebarCollapsed() ? "true" : "false"}
+                aria-checked=${()=>P()?"true":"false"}
               ></button>
             </div>
           </div>
@@ -2997,60 +443,45 @@ function SettingsPage() {
           <h3>Profile Form <span class="feature-badge">Form Validation</span></h3>
           <div class="form-body">
             <div class="form-group">
-              <label class="form-label">${() => i18n.t("form.name")}</label>
-              <input class="form-input" type="text" value=${() => contactForm.fields.name.value()} oninput=${contactForm.fields.name.handle} placeholder="Your name" />
-              <div class="form-error">${() => contactForm.fields.name.error()}</div>
+              <label class="form-label">${()=>v.t("form.name")}</label>
+              <input class="form-input" type="text" value=${()=>e.fields.name.value()} oninput=${e.fields.name.handle} placeholder="Your name" />
+              <div class="form-error">${()=>e.fields.name.error()}</div>
             </div>
             <div class="form-group">
-              <label class="form-label">${() => i18n.t("form.email")}</label>
-              <input class="form-input" type="email" value=${() => contactForm.fields.contactEmail.value()} oninput=${contactForm.fields.contactEmail.handle} placeholder="your@email.com" />
-              <div class="form-error">${() => contactForm.fields.contactEmail.error()}</div>
+              <label class="form-label">${()=>v.t("form.email")}</label>
+              <input class="form-input" type="email" value=${()=>e.fields.contactEmail.value()} oninput=${e.fields.contactEmail.handle} placeholder="your@email.com" />
+              <div class="form-error">${()=>e.fields.contactEmail.error()}</div>
             </div>
             <div class="form-group">
               <label class="form-label">Bio</label>
-              <textarea class="form-input" rows="4" value=${() => contactForm.fields.bio.value()} oninput=${contactForm.fields.bio.handle} placeholder="Tell us about yourself..."></textarea>
-              <div class="form-error">${() => contactForm.fields.bio.error()}</div>
+              <textarea class="form-input" rows="4" value=${()=>e.fields.bio.value()} oninput=${e.fields.bio.handle} placeholder="Tell us about yourself..."></textarea>
+              <div class="form-error">${()=>e.fields.bio.error()}</div>
             </div>
             <div class="btn-row">
-              <button class="btn btn-primary" onclick=${() => contactForm.submit((vals) => {
-    inject(NotifyToken).add(`Profile saved for ${vals.name}`);
-    announce("Profile saved successfully");
-  })}>${() => i18n.t("common.save")}</button>
-              <button class="btn btn-ghost" onclick=${() => contactForm.reset()}>${() => i18n.t("form.reset")}</button>
+              <button class="btn btn-primary" onclick=${()=>e.submit(t=>{$(A).add(`Profile saved for ${t.name}`),_("Profile saved successfully")})}>${()=>v.t("common.save")}</button>
+              <button class="btn btn-ghost" onclick=${()=>e.reset()}>${()=>v.t("form.reset")}</button>
             </div>
             <p class="form-status">
-              Form valid: ${() => contactForm.valid() ? "Yes" : "No"} |
-              Dirty: ${() => contactForm.dirty() ? "Yes" : "No"}
+              Form valid: ${()=>e.valid()?"Yes":"No"} |
+              Dirty: ${()=>e.dirty()?"Yes":"No"}
             </p>
           </div>
         </div>
       </div>
     </div>
-  `;
-}
-
-// pages/NotFound.ts
-function NotFoundPage() {
-  return html`
+  `}function Gt(){return p`
     <div class="card empty-state">
       <h2 class="error-code">404</h2>
       <p class="error-text">Page not found</p>
-      <button class="btn btn-primary" onclick=${() => navigate("/")}>Go Home</button>
+      <button class="btn btn-primary" onclick=${()=>q("/")}>Go Home</button>
     </div>
-  `;
-}
-function AccessDeniedPage() {
-  return html`
+  `}function Te(){return p`
     <div class="card empty-state">
       <h2 class="access-denied-title">Access Denied</h2>
       <p class="error-text">You don't have permission to view this page.</p>
-      <button class="btn btn-primary" onclick=${() => navigate("/")}>Go Home</button>
+      <button class="btn btn-primary" onclick=${()=>q("/")}>Go Home</button>
     </div>
-  `;
-}
-
-// main.ts
-var appStyles = css`
+  `}var An=Me`
   .app-shell {
     display: flex;
     min-height: 100vh;
@@ -3438,48 +869,18 @@ var appStyles = css`
     margin: 12px auto 0;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-`;
-function App() {
-  useKeyboard({
-    "Escape": () => announce("Modal closed"),
-    "Ctrl+K": () => {
-      const search = document.querySelector(".search-input");
-      if (search) search.focus();
-      announce("Search focused");
-    }
-  });
-  const router = Router(
-    [
-      { path: "/", view: () => HomePage() },
-      { path: "/tasks", view: guard(["tasks:read"], () => TasksPage(), () => AccessDeniedPage()) },
-      { path: "/users", view: guard(["users:read"], () => UsersPage(), () => AccessDeniedPage()) },
-      { path: "/analytics", view: guard(["analytics:read"], () => AnalyticsPage(), () => AccessDeniedPage()) },
-      { path: "/settings", view: () => SettingsPage() }
-    ],
-    () => NotFoundPage()
-  );
-  return html`
-    <div class=${appStyles.scope}>
-      ${SkipLink("#main-content")}
-      ${NotificationToasts()}
+`;function Hn(){at({Escape:()=>_("Modal closed"),"Ctrl+K":()=>{let t=document.querySelector(".search-input");t&&t.focus(),_("Search focused")}});let e=ze([{path:"/",view:()=>zt()},{path:"/tasks",view:re(["tasks:read"],()=>Ut(),()=>Te())},{path:"/users",view:re(["users:read"],()=>qt(),()=>Te())},{path:"/analytics",view:re(["analytics:read"],()=>Wt(),()=>Te())},{path:"/settings",view:()=>Bt()}],()=>Gt());return p`
+    <div class=${An.scope}>
+      ${lt("#main-content")}
+      ${Kt()}
       <div class="app-shell">
-        ${Sidebar()}
+        ${Ft()}
         <div class="main-area">
-          ${TopBar()}
+          ${jt()}
           <main class="content" id="main-content" role="main">
-            ${router}
+            ${e}
           </main>
         </div>
       </div>
     </div>
-  `;
-}
-mount(App(), document.getElementById("app"));
-console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-console.log(" onefold Comprehensive Demo");
-console.log(" Features: 22+");
-console.log(" DevTools:", devtools.active ? "enabled" : "disabled");
-console.log(" Plugins:", plugins.list().join(", "));
-console.log(" Theme:", theme.current());
-console.log(" Locale:", i18n.locale());
-console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+  `}Le(Hn(),document.getElementById("app"));console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");console.log(" onefold Comprehensive Demo");console.log(" Features: 22+");console.log(" DevTools:",W.active?"enabled":"disabled");console.log(" Plugins:",N.list().join(", "));console.log(" Theme:",L.current());console.log(" Locale:",v.locale());console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
