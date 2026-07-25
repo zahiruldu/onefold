@@ -1,13 +1,13 @@
 {
   "name": "onefold",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Zero-dependency TypeScript UI framework: fine-grained reactive signals, real-DOM rendering, secure-by-default templating, and full-stack enterprise features in under 13kb gzipped.",
   "author": "Md. Zahirul Haque <zahirul.arb@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zahiruldu/onefold.git"
   },
-  "homepage": "https://github.com/zahiruldu/onefold#readme",
+  "homepage": "https://onefoldjs.com",
   "bugs": {
     "url": "https://github.com/zahiruldu/onefold/issues"
   },

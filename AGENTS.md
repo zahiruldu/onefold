@@ -2,7 +2,20 @@
 
 Coding conventions for AI assistants (Claude, Copilot, Cursor, etc.) working with onefold. Read this before generating onefold code.
 
-Full API documentation: [zahiruldu.github.io/onefold](https://zahiruldu.github.io/onefold)
+Full API documentation: [onefoldjs.com](https://onefoldjs.com)
+
+Key documentation pages:
+- [Signals](https://onefoldjs.com/#/core/signals)
+- [Templates](https://onefoldjs.com/#/core/templates)
+- [Routing](https://onefoldjs.com/#/routing/router)
+- [configureRouter](https://onefoldjs.com/#/routing/configure)
+- [State Management](https://onefoldjs.com/#/state/store)
+- [Forms](https://onefoldjs.com/#/forms/create-form)
+- [HTTP Client](https://onefoldjs.com/#/data/http-client)
+- [Microfrontends](https://onefoldjs.com/#/microfrontends/load-remote)
+- [Security](https://onefoldjs.com/#/microfrontends/security)
+- [SSR](https://onefoldjs.com/#/ssr)
+- [Deployment](https://onefoldjs.com/#/deployment/github-pages)
 
 ## Architecture
 

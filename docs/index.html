@@ -3,12 +3,242 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>onefold — Documentation</title>
-  <meta name="description" content="Official documentation for onefold — a reactive UI framework with signals, templates, routing, and microfrontend security." />
+  <title>onefold — A Modern Reactive UI Framework for TypeScript | Lightweight, Complete, Fast</title>
+  <meta name="description" content="onefold is a modern reactive UI framework for building web applications with TypeScript. It includes everything you need — signals, routing, state management, forms, HTTP client, i18n, server-side rendering, and secure microfrontends — in a single 3kb package with zero dependencies." />
+  <meta name="keywords" content="onefold, onefoldjs, JavaScript framework, TypeScript framework, reactive UI, signals, web framework, SPA framework, routing, state management, microfrontends, SSR, server-side rendering, forms, i18n, theming, lightweight framework, frontend framework, real DOM, signal-based reactivity" />
+  <meta name="author" content="onefold" />
+  <meta name="application-name" content="onefold" />
+  <meta name="generator" content="onefold" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://onefoldjs.com/" />
+
+  <!-- Language -->
+  <link rel="alternate" hreflang="en" href="https://onefoldjs.com/" />
+  <link rel="alternate" hreflang="x-default" href="https://onefoldjs.com/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://onefoldjs.com/" />
+  <meta property="og:title" content="onefold — A Modern Reactive UI Framework for TypeScript" />
+  <meta property="og:description" content="Build web applications with everything included — signals, routing, state, forms, HTTP client, server-side rendering, and microfrontend security. One framework, one import, 3kb gzipped, zero dependencies." />
+  <meta property="og:image" content="https://onefoldjs.com/images/logo.svg" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:image:alt" content="onefold framework logo" />
+  <meta property="og:site_name" content="onefold" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="onefold — A Modern Reactive UI Framework" />
+  <meta name="twitter:description" content="Everything you need to build web applications — signals, routing, state, forms, HTTP, SSR, microfrontends. One framework, 3kb, zero dependencies." />
+  <meta name="twitter:image" content="https://onefoldjs.com/images/logo.svg" />
+  <meta name="twitter:image:alt" content="onefold framework logo" />
+
+  <!-- Structured Data: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "onefold",
+    "alternateName": "onefoldjs",
+    "description": "A modern reactive UI framework for building web applications with TypeScript. Includes fine-grained signals, real DOM rendering, routing, state management, forms, HTTP client, internationalization, server-side rendering, and secure microfrontend loading — all in a single 3kb package with zero dependencies.",
+    "url": "https://onefoldjs.com",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "Web Framework",
+    "operatingSystem": "Web",
+    "programmingLanguage": ["TypeScript", "JavaScript"],
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "license": "https://opensource.org/licenses/MIT",
+    "softwareVersion": "0.1.3",
+    "downloadUrl": "https://www.npmjs.com/package/onefold",
+    "installUrl": "https://www.npmjs.com/package/onefold",
+    "codeRepository": "https://github.com/zahiruldu/onefold",
+    "author": {
+      "@type": "Organization",
+      "name": "onefold",
+      "url": "https://onefoldjs.com"
+    },
+    "featureList": [
+      "Fine-grained reactivity with signals",
+      "Real DOM rendering without a virtual DOM",
+      "Client-side routing with nested routes and dynamic parameters",
+      "Reactive state management with stores",
+      "Form creation and validation",
+      "HTTP client with interceptors",
+      "Internationalization and locale switching",
+      "Server-side rendering with streaming",
+      "Secure microfrontend module loading",
+      "Scoped CSS for component styles",
+      "Theming with CSS variables",
+      "Accessibility utilities",
+      "Zero runtime dependencies",
+      "3kb gzipped total bundle size",
+      "TypeScript-first with strict mode support"
+    ]
+  }
+  </script>
+
+  <!-- Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is onefold?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "onefold is a modern reactive UI framework for building web applications with TypeScript. It provides everything you need in a single package — signals for reactivity, routing, state management, forms, an HTTP client, internationalization, server-side rendering, and a new secure microfrontend architecture. The entire framework is 3kb gzipped with zero dependencies."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What makes onefold different from other frameworks?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "onefold includes everything in one package — you do not need to install separate libraries for routing, state, forms, or HTTP. It uses fine-grained signals that update only the exact DOM node that changed, without a virtual DOM or diffing step. It requires no compiler or build step to get started, and the entire framework ships in 3kb gzipped."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does onefold require a compiler or build tool?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. onefold uses tagged template literals to build DOM nodes at runtime. You can use it directly in a browser with a script tag, or add TypeScript and a bundler for production builds. There is no JSX transform or compilation step required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How large is the onefold framework?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The entire framework is approximately 3kb gzipped. This includes routing, state management, forms, HTTP client, internationalization, theming, accessibility utilities, and microfrontend security. It has zero runtime dependencies."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does onefold support server-side rendering?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. onefold includes a built-in renderHTML function that renders components to HTML strings on the server. It supports streaming responses, async data fetching, and selective hydration on the client side."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Structured Data: WebSite -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "onefold",
+    "alternateName": "onefoldjs",
+    "url": "https://onefoldjs.com"
+  }
+  </script>
+
+  <!-- Additional SEO -->
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="theme-color" content="#3b82f6" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="onefold" />
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://www.npmjs.com" />
+
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./images/logo.svg" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <!-- Static content for search engine crawlers (hash-based SPA content is not crawlable) -->
+  <noscript>
+    <header>
+      <h1>onefold — A Modern Reactive UI Framework for TypeScript</h1>
+      <p>Everything you need to build web applications — in one framework, one import, 3kb gzipped, with zero dependencies.</p>
+    </header>
+
+    <main>
+      <section>
+        <h2>Why developers choose onefold</h2>
+        <p>onefold gives you a complete set of tools for building modern web applications without needing to install or configure dozens of separate libraries. Signals keep your UI in sync automatically. Routing, forms, state, and data fetching are all included and work together out of the box.</p>
+      </section>
+
+      <section>
+        <h2>What is included</h2>
+        <ul>
+          <li><strong>Signals</strong> — Reactive primitives that update only the exact part of the page that changed. Fast and precise.</li>
+          <li><strong>Templates</strong> — Write your UI with familiar HTML syntax using tagged template literals. No special syntax to learn.</li>
+          <li><strong>Routing</strong> — Navigate between pages without reloading. Supports nested routes, dynamic segments, and hash or path modes.</li>
+          <li><strong>State Management</strong> — A reactive store for shared state, with support for persisting data across sessions.</li>
+          <li><strong>Forms</strong> — Create and validate forms with simple, declarative rules.</li>
+          <li><strong>HTTP Client</strong> — Make API requests with built-in support for interceptors, retries, and typed responses.</li>
+          <li><strong>Internationalization</strong> — Support multiple languages with reactive locale switching.</li>
+          <li><strong>Theming</strong> — Switch themes using CSS variables, reactively.</li>
+          <li><strong>Server-Side Rendering</strong> — Render pages to HTML on the server for fast initial loads and better search visibility.</li>
+          <li><strong>Microfrontends</strong> — Load remote modules securely at runtime with origin checking, integrity verification, and isolation.</li>
+          <li><strong>Accessibility</strong> — Built-in focus traps, screen reader announcements, keyboard shortcuts, and skip links.</li>
+          <li><strong>Scoped CSS</strong> — Keep component styles contained without affecting the rest of your application.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <p>onefold uses fine-grained signals for reactivity. When a value changes, only the specific part of the page that depends on it updates — nothing else re-renders. There is no virtual DOM and no diffing step. This makes updates fast and predictable.</p>
+        <p>Components are plain TypeScript functions that return DOM nodes. There are no classes, decorators, or special syntax. If you know HTML and JavaScript, you can start building with onefold right away.</p>
+      </section>
+
+      <section>
+        <h2>Get started</h2>
+        <p>Create a new project:</p>
+        <p><code>npm create onefold@latest my-app</code></p>
+        <p>Or add to an existing project:</p>
+        <p><code>npm install onefold</code></p>
+      </section>
+
+      <section>
+        <h2>Documentation</h2>
+        <nav>
+          <ul>
+            <li><a href="https://onefoldjs.com/#/getting-started/install">Installation</a></li>
+            <li><a href="https://onefoldjs.com/#/getting-started/quickstart">Quick Start</a></li>
+            <li><a href="https://onefoldjs.com/#/core/signals">Signals and Reactivity</a></li>
+            <li><a href="https://onefoldjs.com/#/core/templates">Templates</a></li>
+            <li><a href="https://onefoldjs.com/#/routing/router">Routing</a></li>
+            <li><a href="https://onefoldjs.com/#/routing/configure">Router Configuration</a></li>
+            <li><a href="https://onefoldjs.com/#/state/store">State Management</a></li>
+            <li><a href="https://onefoldjs.com/#/forms/create-form">Forms</a></li>
+            <li><a href="https://onefoldjs.com/#/data/http-client">HTTP Client</a></li>
+            <li><a href="https://onefoldjs.com/#/microfrontends/load-remote">Microfrontends</a></li>
+            <li><a href="https://onefoldjs.com/#/ssr">Server-Side Rendering</a></li>
+            <li><a href="https://onefoldjs.com/#/deployment/github-pages">Deployment</a></li>
+          </ul>
+        </nav>
+      </section>
+
+      <section>
+        <h2>Links</h2>
+        <ul>
+          <li><a href="https://onefoldjs.com">Official website — onefoldjs.com</a></li>
+          <li><a href="https://github.com/zahiruldu/onefold">Source code on GitHub</a></li>
+          <li><a href="https://www.npmjs.com/package/onefold">Install from npm</a></li>
+          <li><a href="https://www.npmjs.com/package/create-onefold">Project scaffolding CLI</a></li>
+        </ul>
+      </section>
+    </main>
+  </noscript>
+
   <div id="app"></div>
   <script type="module" src="./app.js"></script>
 </body>
