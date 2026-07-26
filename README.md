@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://onefoldjs.com">
-    <img src="docs/logo.svg" alt="onefold" width="128" height="128" />
+    <img src="https://onefoldjs.com/images/logo.svg" alt="onefold" width="128" height="128" />
   </a>
 </p>
 

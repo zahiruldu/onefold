@@ -1,0 +1,864 @@
+# onefold
+
+> A modern reactive UI framework for building web applications with TypeScript.
+> Everything included in one package. No virtual DOM. No compiler required. 3kb gzipped. Zero dependencies.
+
+Author: Md. Zahirul Haque
+Official website: https://onefoldjs.com
+GitHub: https://github.com/zahiruldu/onefold
+npm: https://www.npmjs.com/package/onefold
+CLI: https://www.npmjs.com/package/create-onefold
+Version: 0.1.2
+License: MIT
+Language: TypeScript / JavaScript
+Bundle size: ~3kb gzipped (entire framework)
+Dependencies: 0
+
+---
+
+## How onefold Works
+
+onefold has no virtual DOM and no compiler. The `html` tagged template literal parses template
+strings at runtime and builds real DOM nodes directly. Reactivity is per-binding: a signal read
+inside a closure creates one effect that updates only that specific DOM node when the signal
+changes. Nothing else re-renders. Components are plain functions that return DOM Nodes.
+
+---
+
+## Core Principles
+
+1. Components are plain functions returning `Node`
+2. Fine-grained reactivity via signals — only the affected DOM node updates
+3. No virtual DOM — direct real DOM construction and patching
+4. No compiler or build step required
+5. TypeScript-first with strict mode (`noUncheckedIndexedAccess: true`)
+6. Everything ships in one package (routing, state, forms, HTTP, i18n, SSR, etc.)
+7. Zero runtime dependencies
+8. Secure by default: text uses `textContent` (never `innerHTML`), no `eval`, CSP-compatible
+9. One way to build UI — no JSX, no hyperscript, no alternative APIs
+
+---
+
+## Installation
+
+```bash
+# Scaffold a new project
+npm create onefold@latest my-app
+
+# Or add to existing project
+npm install onefold
+```
+
+All imports come from one package:
+```ts
+import { createSignal, html, mount, Router, navigate, createForm, createHttpClient } from 'onefold';
+```
+
+---
+
+## API Reference
+
+### Reactivity (Signals)
+
+```ts
+import { createSignal, createComputed, createEffect, batch } from 'onefold';
+```
+
+#### createSignal<T>(initial: T): Signal<T>
+Create a reactive value. Reading it inside an effect subscribes that effect.
+
+```ts
+const count = createSignal(0);
+count()          // read: 0 (subscribes current effect)
+count.set(5)     // write: set to 5
+count.set(n => n + 1) // write: updater function
+count.peek()     // read without subscribing
+```
+
+Signal<T> interface:
+- `(): T` — read value (tracks dependency)
+- `set(value: T | ((prev: T) => T)): void` — update value
+- `peek(): T` — read without tracking
+
+#### createComputed<T>(fn: () => T): Signal<T>
+Read-only signal derived from other signals. Recomputes when dependencies change.
+
+```ts
+const doubled = createComputed(() => count() * 2);
+doubled()    // reactive read
+doubled.set  // throws Error — cannot write to computed
+```
+
+#### createEffect(fn: () => void, label?: string): () => void
+Run `fn` immediately and re-run whenever any signal read inside changes. Returns a dispose function.
+
+```ts
+const dispose = createEffect(() => {
+  console.log(`Count is ${count()}`);
+});
+dispose(); // stop the effect
+```
+
+#### batch(fn: () => void): void
+Group multiple signal writes into a single effect flush.
+
+```ts
+batch(() => {
+  firstName.set('Alice');
+  lastName.set('Smith');
+}); // effects that read either signal run only once
+```
+
+---
+
+### Templates (html)
+
+```ts
+import { html } from 'onefold';
+```
+
+`html` is the ONLY way to create UI in onefold. It is a tagged template literal that produces real DOM nodes.
+
+**Critical rule: wrap signal reads in `() =>` to make them reactive.**
+
+```ts
+// STATIC — renders once, never updates
+html`<p>${count}</p>`
+
+// REACTIVE — updates when count() changes
+html`<p>${() => count()}</p>`
+```
+
+#### Template Features
+
+```ts
+// Text (reactive)
+html`<p>${() => message()}</p>`
+
+// Attributes (reactive)
+html`<div class=${() => active() ? 'on' : 'off'}>content</div>`
+
+// Style (object)
+html`<div style=${{ color: 'red', fontSize: '16px' }}>text</div>`
+
+// Style (reactive)
+html`<div style=${() => ({ color: theme() === 'dark' ? '#fff' : '#000' })}>text</div>`
+
+// Boolean attributes
+html`<button disabled=${() => loading()}>Submit</button>`
+
+// Events (always a function, prefix: on)
+html`<button onclick=${() => save()}>Save</button>`
+html`<input oninput=${(e) => name.set(e.target.value)} />`
+
+// Refs (called with element after creation)
+html`<input ref=${(el) => el.focus()} />`
+
+// Two-way binding (required for form.reset() to clear inputs)
+html`<input value=${() => name()} oninput=${(e) => name.set(e.target.value)} />`
+
+// Conditional rendering
+html`<div>${() => loggedIn() ? html`<p>Welcome</p>` : html`<p>Please log in</p>`}</div>`
+
+// Lists
+html`<ul>${() => items().map(item => html`<li>${item.name}</li>`)}</ul>`
+
+// Spread props (object as attribute)
+html`<div ${{ id: 'main', role: 'region', 'aria-label': 'Content' }}>...</div>`
+
+// Directives (d- prefix)
+html`<div d-tooltip="Hello">Hover me</div>`
+
+// Child nodes
+html`<div>${ChildComponent()}</div>`
+
+// Nested templates
+html`<div>${() => items().map(item => html`<span class="tag">${item}</span>`)}</div>`
+```
+
+---
+
+### Mounting
+
+```ts
+import { mount } from 'onefold';
+
+mount(App(), document.getElementById('app')!);
+```
+
+`mount(node, container)` replaces the container's contents with the node. Call once at app startup.
+
+---
+
+### Routing
+
+```ts
+import { Router, navigate, currentRoute, Link, configureRouter } from 'onefold';
+```
+
+#### configureRouter(opts: { hash?: boolean }): void
+Set routing mode. Call BEFORE Router or navigate.
+- Default: path-based (history.pushState). Auto-detects `file:` protocol for hash fallback.
+- `{ hash: true }`: hash-based routing for static hosting (GitHub Pages, S3).
+
+#### Router(routes: Routes, notFound: () => Node): Node
+Create a client-side router. Returns a DOM node that reactively swaps content on navigation.
+
+Routes can be:
+1. Simple record: `{ '/': () => Home(), '/about': () => About() }`
+2. Array of RouteDefinition with params and nested children
+
+```ts
+// RouteDefinition interface:
+interface RouteDefinition {
+  path: string;          // URL pattern (supports :param segments)
+  view: (params: Record<string, string>, outlet?: Node) => Node;
+  children?: RouteDefinition[];  // nested child routes
+}
+```
+
+#### Flat routes with dynamic params
+```ts
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/about', view: () => About() },
+  { path: '/users/:id', view: (params) => UserProfile(params.id) },
+  { path: '/posts/:slug', view: (params) => Post(params.slug) },
+], () => NotFound());
+```
+
+#### Nested routes (layouts with child outlets)
+```ts
+const app = Router([
+  { path: '/', view: () => Home() },
+  { path: '/settings', view: (_params, outlet) => {
+    return html`<div class="settings-layout">
+      <nav>...</nav>
+      <main>${outlet}</main>
+    </div>`;
+  }, children: [
+    { path: '/profile', view: () => ProfilePage() },
+    { path: '/billing', view: () => BillingPage() },
+  ]},
+], () => NotFound());
+// /settings/profile → renders ProfilePage inside settings layout
+```
+
+#### navigate(path: string): void
+Programmatic navigation without page reload.
+
+#### currentRoute(): string
+Read the current path reactively. Use in templates for active link styling.
+
+#### Link(href: string, child: Node | string, className?: string | (() => string)): Node
+Reactive navigation link. Adapts href format to hash/path mode automatically.
+
+```ts
+Link('/about', 'About Us')
+Link('/about', html`<span>About</span>`, () => currentRoute() === '/about' ? 'active' : '')
+```
+
+---
+
+### State Management
+
+#### createStore<T extends object>(initial: T): Store<T>
+
+A signal holding an object with a convenience `update()` for partial merges.
+
+```ts
+import { createStore } from 'onefold';
+
+const store = createStore({ user: null, theme: 'light', count: 0 });
+
+store()              // read entire state
+store.set(newState)  // replace entire state
+store.update({ theme: 'dark' })  // partial merge
+store.update(prev => ({ count: prev.count + 1 }))  // updater
+```
+
+Store<T> extends Signal<T> with:
+- `update(patch: Partial<T> | ((prev: T) => Partial<T>)): void`
+
+#### createPersisted<T>(key: string, initial: T, options?: PersistOptions): PersistedSignal<T>
+
+Signal that auto-saves to storage. Rehydrates on creation.
+
+```ts
+import { createPersisted, sessionStorageAdapter } from 'onefold';
+
+// localStorage (default)
+const prefs = createPersisted('user-prefs', { theme: 'dark', lang: 'en' });
+
+// sessionStorage
+const session = createPersisted('session', {}, { storage: sessionStorageAdapter });
+
+// With debounce
+const draft = createPersisted('draft', '', { debounce: 500 });
+
+prefs.clear()  // remove from storage and reset to initial
+```
+
+PersistOptions:
+- `storage?: StorageAdapter` — default: localStorageAdapter
+- `debounce?: number` — ms delay before saving. Default: 0 (immediate)
+
+---
+
+### Forms
+
+```ts
+import { createForm, required, email, minLength, maxLength, pattern, min, max, custom } from 'onefold';
+```
+
+#### createForm<T>(config: T): Form<T>
+
+Create a reactive form with typed fields and validation.
+
+```ts
+const form = createForm({
+  name: { initial: '', rules: [required('Name is required')] },
+  email: { initial: '', rules: [required(), email('Invalid email')] },
+  password: { initial: '', rules: [required(), minLength(8, 'At least 8 characters')] },
+  age: { initial: 0, rules: [min(18, 'Must be 18+'), max(120)] },
+});
+```
+
+Form<T> interface:
+- `fields` — object of FormField for each key
+- `valid: Signal<boolean>` — all fields valid (reactive)
+- `dirty: Signal<boolean>` — any field touched (reactive)
+- `values(): object` — get all current values
+- `submit(handler: (values) => void): void` — validates all, calls handler if valid
+- `reset(): void` — reset all fields to initial values
+- `dispose(): void` — stop validation effects (for cleanup)
+
+FormField<T> interface:
+- `value: Signal<T>` — current value (reactive)
+- `error: Signal<string>` — first error message or '' (reactive)
+- `touched: Signal<boolean>` — has been interacted with (reactive)
+- `valid: Signal<boolean>` — passes all rules (reactive)
+- `handle: (e: Event) => void` — oninput handler (updates value + marks touched)
+- `set(value: T): void` — set programmatically
+- `reset(): void` — reset to initial
+
+#### Validation Rules
+- `required(msg?)` — non-empty
+- `email(msg?)` — email pattern
+- `minLength(n, msg?)` — string length >= n
+- `maxLength(n, msg?)` — string length <= n
+- `pattern(regex, msg?)` — regex match
+- `min(n, msg?)` — number >= n
+- `max(n, msg?)` — number <= n
+- `custom(predicate, msg)` — custom logic
+
+#### Form in template
+```ts
+html`
+  <form onsubmit=${(e) => { e.preventDefault(); form.submit(handleLogin); }}>
+    <input value=${() => form.fields.email.value()} oninput=${form.fields.email.handle} />
+    <span class="error">${() => form.fields.email.error()}</span>
+
+    <input type="password" value=${() => form.fields.password.value()} oninput=${form.fields.password.handle} />
+    <span class="error">${() => form.fields.password.error()}</span>
+
+    <button disabled=${() => !form.valid()}>Submit</button>
+  </form>
+`
+```
+
+---
+
+### HTTP Client
+
+```ts
+import { createHttpClient } from 'onefold';
+```
+
+#### createHttpClient(options?: HttpClientOptions): HttpClient
+
+```ts
+const http = createHttpClient({
+  baseUrl: '/api',
+  headers: { 'Accept': 'application/json' },
+  timeout: 10000,
+  interceptors: [authInterceptor, logInterceptor],
+});
+```
+
+HttpClient methods:
+- `get<T>(url, options?): Promise<HttpResponse<T>>`
+- `post<T>(url, body?, options?): Promise<HttpResponse<T>>`
+- `put<T>(url, body?, options?): Promise<HttpResponse<T>>`
+- `patch<T>(url, body?, options?): Promise<HttpResponse<T>>`
+- `delete<T>(url, options?): Promise<HttpResponse<T>>`
+- `request<T>(config): Promise<HttpResponse<T>>`
+- `addInterceptor(interceptor): () => void`
+
+HttpResponse<T>:
+- `data: T` — parsed response body
+- `status: number`
+- `statusText: string`
+- `headers: Headers`
+- `config: HttpConfig`
+
+#### Interceptors
+
+```ts
+const authInterceptor: HttpInterceptor = {
+  request: (config) => {
+    config.headers['Authorization'] = `Bearer ${getToken()}`;
+    return config;
+  },
+  response: (res) => res,
+  error: (err) => {
+    if (err.status === 401) navigate('/login');
+    throw err;
+  },
+};
+```
+
+HttpInterceptor (all optional):
+- `request?: (config: HttpConfig) => HttpConfig | Promise<HttpConfig>`
+- `response?: <T>(response: HttpResponse<T>) => HttpResponse<T> | Promise<HttpResponse<T>>`
+- `error?: (error: HttpError) => HttpResponse | never`
+
+---
+
+### Internationalization (i18n)
+
+```ts
+import { createI18n } from 'onefold';
+```
+
+#### createI18n(config: I18nConfig): I18n
+
+```ts
+const i18n = createI18n({
+  defaultLocale: 'en',
+  fallbackLocale: 'en',
+  messages: {
+    en: { greeting: 'Hello, {name}!', items: '{count} items' },
+    es: { greeting: '¡Hola, {name}!', items: '{count} elementos' },
+    fr: { greeting: 'Bonjour, {name}!', items: '{count} éléments' },
+  },
+});
+```
+
+I18n interface:
+- `locale: Signal<string>` — current locale (reactive)
+- `setLocale(locale: string): void` — change language
+- `t(key: string, params?: Record<string, string | number>): string` — translate with interpolation
+- `addMessages(locale: string, messages: Messages): void` — lazy-load translations
+- `availableLocales(): string[]` — list locale codes
+
+```ts
+// Reactive in templates
+html`<h1>${() => i18n.t('greeting', { name: user() })}</h1>`
+
+// Switch language — all t() bindings update automatically
+i18n.setLocale('es');
+```
+
+---
+
+### Theming
+
+```ts
+import { createTheme } from 'onefold';
+```
+
+#### createTheme(themes: ThemeMap, defaultTheme?: string): Theme
+
+Applies CSS custom properties to `document.documentElement`.
+
+```ts
+const theme = createTheme({
+  light: { bg: '#ffffff', text: '#1f2937', accent: '#4f46e5' },
+  dark: { bg: '#0f172a', text: '#f1f5f9', accent: '#818cf8' },
+}, 'light');
+```
+
+Theme interface:
+- `current: Signal<string>` — current theme name (reactive)
+- `set(name: string): void` — switch to a theme
+- `toggle(): void` — cycle through themes
+- `themes(): string[]` — list available theme names
+- `tokens(): ThemeTokens` — get current theme's values
+
+Use in CSS: `background: var(--bg); color: var(--text);`
+
+---
+
+### Scoped CSS
+
+```ts
+import { css } from 'onefold';
+```
+
+```ts
+function Card(): Node {
+  const styles = css`
+    .card { padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+    .card h2 { margin: 0 0 8px; }
+  `;
+
+  return html`<div class="card" ${styles}><h2>Title</h2><p>Content</p></div>`;
+}
+```
+
+Styles are scoped to the component — they do not leak to other elements.
+
+---
+
+### Microfrontends
+
+```ts
+import { loadRemote, configureSecurity, preloadRemote, clearRemoteCache } from 'onefold';
+```
+
+#### configureSecurity(config: SecurityConfig): void
+Call once at app startup before loading any remotes.
+
+```ts
+configureSecurity({
+  trustedOrigins: ['https://cdn.example.com', 'https://widgets.example.com'],
+  requireIntegrity: true,
+  blockAll: false,
+  timeout: 10000,
+});
+```
+
+SecurityConfig:
+- `trustedOrigins?: string[]` — allowed origins (protocol + host + port)
+- `requireIntegrity?: boolean` — all remotes must provide SRI hash
+- `blockAll?: boolean` — kill switch, blocks all remote loading
+- `timeout?: number` — max load time in ms (default: 10000)
+
+#### loadRemote<P>(options: RemoteOptions<P>): (props?: P) => Node
+
+```ts
+const widget = loadRemote({
+  url: 'https://cdn.example.com/widget.js',
+  integrity: 'sha384-...',
+  isolate: 'shadow',       // 'none' | 'shadow' | 'iframe'
+  permissions: ['dom'],    // 'dom' | 'storage' | 'network' | 'navigation' | 'clipboard'
+  fallback: () => html`<p>Loading...</p>`,
+  onError: (err) => html`<p>Error: ${err.message}</p>`,
+  props: { plan: 'enterprise' },
+  timeout: 5000,
+});
+```
+
+RemoteOptions:
+- `url: string` — remote ES module URL
+- `exportName?: string` — named export (default: 'default')
+- `isolate?: 'none' | 'shadow' | 'iframe'`
+- `integrity?: string` — SRI hash (sha256/sha384/sha512)
+- `permissions?: RemotePermission[]`
+- `fallback?: () => Node`
+- `onError?: (error: Error) => Node`
+- `props?: P`
+- `timeout?: number`
+
+Remote module format:
+```ts
+// The remote must export a default function returning Node
+export default function Widget(props: { plan: string }): Node {
+  return html`<div>Plan: ${props.plan}</div>`;
+}
+```
+
+#### preloadRemote(url: string, integrity?: string): void
+Start fetching a remote module before it's needed.
+
+#### clearRemoteCache(): void
+Clear all cached remote modules.
+
+---
+
+### Server-Side Rendering (SSR)
+
+```ts
+import { renderHTML } from 'onefold';
+```
+
+#### renderHTML(componentFn: () => unknown): string | Promise<string>
+
+Renders components to HTML strings. No jsdom required. Same `html` syntax as client.
+Reactive values are evaluated once (snapshot). Event handlers are stripped.
+
+```ts
+// Sync
+const result = renderHTML(() => html`<h1>Hello</h1>`);
+
+// Async (with data fetching)
+const result = await renderHTML(async () => {
+  const users = await db.getUsers();
+  return html`<ul>${users.map(u => html`<li>${u.name}</li>`)}</ul>`;
+});
+
+// Express integration
+app.get('*', async (req, res) => {
+  const body = await renderHTML(() => App());
+  res.send(`<!DOCTYPE html><html><body><div id="app">${body}</div>
+    <script type="module" src="/app.js"></script></body></html>`);
+});
+```
+
+---
+
+### Streaming (WebSocket & SSE)
+
+```ts
+import { createWebSocket, createEventSource } from 'onefold';
+```
+
+#### createWebSocket<T>(url: string, options?: WebSocketOptions): WebSocketStream<T>
+
+```ts
+const chat = createWebSocket<ChatMessage>('wss://chat.app.com/room/1', {
+  maxMessages: 100,
+  autoReconnect: true,
+  reconnectDelay: 3000,
+  maxRetries: 5,
+});
+
+html`<ul>${() => chat.data().map(m => html`<li>${m.text}</li>`)}</ul>`
+chat.send({ text: 'Hello!' });
+chat.close();
+chat.reconnect();
+```
+
+WebSocketStream<T>:
+- `data: Signal<T[]>` — all received messages (reactive)
+- `latest: Signal<T | null>` — most recent message (reactive)
+- `status: Signal<'connecting' | 'open' | 'closed' | 'error'>` — connection state (reactive)
+- `send(message: unknown): void`
+- `close(): void`
+- `reconnect(): void`
+
+#### createEventSource<T>(url: string, options?: EventSourceOptions): EventSourceStream<T>
+
+```ts
+const feed = createEventSource<Notification>('/api/notifications', {
+  maxEvents: 50,
+  eventName: 'message',
+});
+
+html`<span>${() => feed.latest()?.title}</span>`
+feed.close();
+```
+
+EventSourceStream<T>:
+- `data: Signal<T[]>` — all events (reactive)
+- `latest: Signal<T | null>` — most recent event (reactive)
+- `status: Signal<'connecting' | 'open' | 'closed' | 'error'>` (reactive)
+- `close(): void`
+
+---
+
+### Async Patterns
+
+```ts
+import { lazy, Suspense, SuspenseAll, ErrorBoundary, createResource } from 'onefold';
+```
+
+#### lazy(importFn: () => Promise<{ default: () => Node }>): () => Node
+Code-split a component. Load on demand.
+
+```ts
+const HeavyChart = lazy(() => import('./HeavyChart'));
+```
+
+#### Suspense(asyncNode: Node, fallback: () => Node): Node
+Show fallback while async content loads.
+
+```ts
+Suspense(HeavyChart(), () => html`<p>Loading chart...</p>`)
+```
+
+#### ErrorBoundary(render: () => Node, fallback: (error, retry) => Node): Node
+Catch render errors gracefully.
+
+```ts
+ErrorBoundary(
+  () => RiskyComponent(),
+  (error, retry) => html`<p>${error.message} <button onclick=${retry}>Retry</button></p>`
+)
+```
+
+#### createResource<T>(fetcher: () => Promise<T>): Resource<T>
+Async data fetching with loading/error states.
+
+```ts
+const users = createResource(() => fetch('/api/users').then(r => r.json()));
+// users.data(), users.loading(), users.error()
+```
+
+---
+
+### Accessibility
+
+```ts
+import { FocusTrap, announce, useKeyboard, SkipLink } from 'onefold';
+```
+
+- `FocusTrap(container: Element)` — trap keyboard focus (modals, dialogs)
+- `announce(message: string, priority?: 'polite' | 'assertive')` — screen reader announcements
+- `useKeyboard(shortcuts: Record<string, () => void>)` — declarative keyboard shortcuts
+- `SkipLink(targetId: string)` — skip navigation link
+
+---
+
+### Dependency Injection
+
+```ts
+import { createToken, provide, inject, tryInject, runWithProviders } from 'onefold';
+```
+
+```ts
+const AuthToken = createToken<AuthService>('auth');
+provide(AuthToken, new AuthService());
+const auth = inject(AuthToken);           // throws if not provided
+const maybeAuth = tryInject(AuthToken);   // returns undefined if not provided
+```
+
+---
+
+### Transitions & Animations
+
+```ts
+import { Transition, animateEnter, animateLeave } from 'onefold';
+```
+
+```ts
+Transition({
+  enter: 'fade-in 300ms ease',
+  leave: 'fade-out 200ms ease',
+  child: () => contentNode,
+})
+```
+
+---
+
+### Virtual List (Performance)
+
+```ts
+import { VirtualList } from 'onefold';
+```
+
+Use for lists over ~1000 items. Under 1000, use `.map()`.
+
+```ts
+VirtualList({
+  items: largeDataset,
+  itemHeight: 40,
+  height: 600,
+  renderRow: (row) => html`<div class="row">${row.name}</div>`,
+})
+```
+
+---
+
+### Interop (Third-party Libraries)
+
+```ts
+import { wrapImperative, embedForeign } from 'onefold';
+```
+
+- `wrapImperative(adapter)` — wrap imperative libraries (Chart.js, D3, Leaflet, etc.) with automatic cleanup
+- `embedForeign(adapter)` — embed React/Vue/Svelte components with lifecycle management
+
+---
+
+### Plugins & Observability
+
+```ts
+import { createPluginHost, createObserver } from 'onefold';
+```
+
+- `createPluginHost()` — plugin system with permission model
+- `createObserver()` — event bus for app-level observability
+
+---
+
+### Utilities
+
+```ts
+import { formatDate, timeAgo, formatCurrency, formatNumber, truncate, slugify, pluralize, capitalize, debounce, throttle, pipe } from 'onefold';
+```
+
+---
+
+### DevTools
+
+```ts
+import { enableDevtools, disableDevtools } from 'onefold';
+```
+
+Enable signal tracking, effect monitoring, route changes, and render timing in development.
+
+---
+
+## Component Pattern
+
+Components are plain functions. No classes. No decorators. No lifecycle hooks.
+
+```ts
+import { createSignal, html } from 'onefold';
+
+interface Props {
+  label: string;
+}
+
+export function Toggle({ label }: Props): Node {
+  const on = createSignal(false);
+
+  return html`
+    <button
+      onclick=${() => on.set(v => !v)}
+      class=${() => on() ? 'active' : ''}
+    >${() => `${label}: ${on() ? 'On' : 'Off'}`}</button>
+  `;
+}
+```
+
+---
+
+## Project Structure
+
+```
+src/
+  components/    One file per component, PascalCase filename
+  pages/         One file per route view
+  state/         Shared signals and stores
+  main.ts        Calls mount() once
+```
+
+---
+
+## Rules for AI Agents
+
+1. ALWAYS wrap signal reads in `() =>` closures for reactive updates in templates
+2. NEVER mutate arrays/objects in place — always produce a new reference
+3. NEVER use innerHTML directly — use `raw()` only for trusted content
+4. NEVER use eval, new Function, or string-based timers
+5. Event handlers start with `on` and take a function: `onclick=${() => save()}`
+6. Use the built-in APIs (router, forms, HTTP, i18n) — do not install external packages for these
+7. Use `VirtualList` for 1000+ items, `.map()` for smaller lists
+8. Use `wrapImperative()` for Chart.js, D3, Leaflet, etc.
+9. Use `embedForeign()` for React/Vue components
+10. Do not use React hooks, JSX, virtual DOM patterns, or class-based components
+11. `batch()` multiple signal writes that should trigger one effect run
+12. Forms need two-way binding: `value=${() => signal()} oninput=${(e) => signal.set(e.target.value)}`
+13. `configureRouter({ hash: true })` must be called BEFORE Router or navigate
+
+---
+
+## Documentation
+
+Full documentation: https://onefoldjs.com
+
+AI context file (code patterns): https://onefoldjs.com/ai-context.md
+Machine-readable schema: https://onefoldjs.com/framework.schema.json
