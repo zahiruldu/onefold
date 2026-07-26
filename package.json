@@ -26,8 +26,7 @@
   "files": [
     "dist",
     "AGENTS.md",
-    "README.md",
-    "docs"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc && node scripts/fix-extensions.mjs",

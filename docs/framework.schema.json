@@ -1,0 +1,356 @@
+{
+  "framework": "onefold",
+  "version": "0.1.2",
+  "author": "Md. Zahirul Haque",
+  "language": ["TypeScript", "JavaScript"],
+  "license": "MIT",
+  "website": "https://onefoldjs.com",
+  "repository": "https://github.com/zahiruldu/onefold",
+  "npm": "https://www.npmjs.com/package/onefold",
+  "bundleSize": "~3kb gzipped",
+  "dependencies": 0,
+  "compiler": false,
+  "virtualDOM": false,
+  "renderTarget": "real DOM",
+  "importPath": "onefold",
+
+  "reactivity": {
+    "model": "fine-grained signals",
+    "apis": {
+      "createSignal": {
+        "signature": "createSignal<T>(initial: T): Signal<T>",
+        "description": "Create a reactive state primitive. Reading inside an effect subscribes it.",
+        "returns": "Signal<T> with () read, .set() write, .peek() untracked read"
+      },
+      "createComputed": {
+        "signature": "createComputed<T>(fn: () => T): Signal<T>",
+        "description": "Read-only derived signal. Recomputes when dependencies change.",
+        "returns": "Signal<T> (read-only, .set throws)"
+      },
+      "createEffect": {
+        "signature": "createEffect(fn: () => void, label?: string): () => void",
+        "description": "Run fn immediately and re-run when any read signal changes. Returns dispose function."
+      },
+      "batch": {
+        "signature": "batch(fn: () => void): void",
+        "description": "Group signal writes — effects run once after batch completes."
+      }
+    },
+    "criticalRule": "Wrap signal reads in () => closure for reactive template bindings. html`${() => signal()}` NOT html`${signal()}`"
+  },
+
+  "templating": {
+    "syntax": "tagged template literal",
+    "api": "html",
+    "signature": "html`<tag attr=${value}>${children}</tag>`: Node",
+    "features": [
+      "reactive text: ${() => signal()}",
+      "reactive attributes: attr=${() => signal()}",
+      "event handlers: onclick=${handler}",
+      "style objects: style=${{ color: 'red' }}",
+      "boolean attributes: disabled=${() => bool()}",
+      "refs: ref=${(el) => ...}",
+      "spread props: ${{ id, role, class }}",
+      "conditionals: ${() => cond ? html`...` : html`...`}",
+      "lists: ${() => items().map(i => html`...`)}",
+      "directives: d-name=${value}",
+      "child nodes: ${Component()}"
+    ],
+    "security": "Text uses textContent (never innerHTML). XSS structurally impossible."
+  },
+
+  "mounting": {
+    "api": "mount",
+    "signature": "mount(node: Node, container: Element): void",
+    "description": "Replace container contents with node. Call once at app startup."
+  },
+
+  "routing": {
+    "builtin": true,
+    "apis": {
+      "configureRouter": {
+        "signature": "configureRouter(opts: { hash?: boolean }): void",
+        "description": "Set routing mode. Default: path (pushState). Set hash:true for static hosting. Must call BEFORE Router/navigate.",
+        "default": "path-based (auto hash on file: protocol)"
+      },
+      "Router": {
+        "signature": "Router(routes: Routes, notFound: () => Node): Node",
+        "description": "Client-side router. Swaps content reactively on navigation.",
+        "routeFormat": "{ path: string, view: (params, outlet?) => Node, children?: RouteDefinition[] }"
+      },
+      "navigate": {
+        "signature": "navigate(path: string): void",
+        "description": "Programmatic navigation without page reload."
+      },
+      "currentRoute": {
+        "signature": "currentRoute(): string",
+        "description": "Current path as reactive signal read."
+      },
+      "Link": {
+        "signature": "Link(href: string, child: Node | string, className?: string | (() => string)): Node",
+        "description": "Navigation link. Adapts to hash/path mode. Supports reactive className."
+      }
+    },
+    "features": ["nested routes with outlet", "dynamic :param segments", "hash mode", "path mode", "simple record syntax", "RouteDefinition array"]
+  },
+
+  "stateManagement": {
+    "builtin": true,
+    "apis": {
+      "createStore": {
+        "signature": "createStore<T extends object>(initial: T): Store<T>",
+        "description": "Signal holding an object with .update() for partial merges.",
+        "methods": ["(): T (read)", ".set(value)", ".update(partial | updaterFn)"]
+      },
+      "createPersisted": {
+        "signature": "createPersisted<T>(key: string, initial: T, options?: PersistOptions): PersistedSignal<T>",
+        "description": "Signal that auto-saves to localStorage/sessionStorage. Rehydrates on creation.",
+        "options": { "storage": "StorageAdapter (default: localStorage)", "debounce": "ms delay (default: 0)" },
+        "methods": ["(): T", ".set(value)", ".peek()", ".clear()"]
+      }
+    },
+    "storageAdapters": ["localStorageAdapter", "sessionStorageAdapter"]
+  },
+
+  "forms": {
+    "builtin": true,
+    "apis": {
+      "createForm": {
+        "signature": "createForm<T>(config: { [field]: { initial, rules? } }): Form<T>",
+        "description": "Reactive form with typed fields and validation.",
+        "formMethods": ["fields", "valid: Signal<boolean>", "dirty: Signal<boolean>", "values()", "submit(handler)", "reset()", "dispose()"],
+        "fieldMethods": ["value: Signal<T>", "error: Signal<string>", "touched: Signal<boolean>", "valid: Signal<boolean>", "handle: (e) => void", "set(value)", "reset()"]
+      }
+    },
+    "validationRules": {
+      "required": "required(msg?): ValidationRule",
+      "email": "email(msg?): ValidationRule<string>",
+      "minLength": "minLength(n, msg?): ValidationRule<string>",
+      "maxLength": "maxLength(n, msg?): ValidationRule<string>",
+      "pattern": "pattern(regex, msg?): ValidationRule<string>",
+      "min": "min(n, msg?): ValidationRule<number>",
+      "max": "max(n, msg?): ValidationRule<number>",
+      "custom": "custom<T>(predicate, msg): ValidationRule<T>"
+    }
+  },
+
+  "httpClient": {
+    "builtin": true,
+    "api": {
+      "createHttpClient": {
+        "signature": "createHttpClient(options?: HttpClientOptions): HttpClient",
+        "options": { "baseUrl": "string", "headers": "Record<string, string>", "interceptors": "HttpInterceptor[]", "timeout": "number (ms)" },
+        "methods": ["get<T>(url, opts?)", "post<T>(url, body?, opts?)", "put<T>(url, body?, opts?)", "patch<T>(url, body?, opts?)", "delete<T>(url, opts?)", "request<T>(config)", "addInterceptor(i)"],
+        "responseType": "{ data: T, status: number, statusText: string, headers: Headers, config: HttpConfig }"
+      }
+    },
+    "interceptor": {
+      "request": "(config: HttpConfig) => HttpConfig",
+      "response": "<T>(response: HttpResponse<T>) => HttpResponse<T>",
+      "error": "(error: HttpError) => HttpResponse | never"
+    }
+  },
+
+  "i18n": {
+    "builtin": true,
+    "api": {
+      "createI18n": {
+        "signature": "createI18n(config: { defaultLocale, messages, fallbackLocale? }): I18n",
+        "methods": ["locale: Signal<string>", "setLocale(locale)", "t(key, params?)", "addMessages(locale, msgs)", "availableLocales()"],
+        "interpolation": "t('greeting', { name: 'World' }) with {name} placeholders in messages"
+      }
+    }
+  },
+
+  "theming": {
+    "builtin": true,
+    "api": {
+      "createTheme": {
+        "signature": "createTheme(themes: Record<string, Record<string, string>>, defaultTheme?: string): Theme",
+        "methods": ["current: Signal<string>", "set(name)", "toggle()", "themes()", "tokens()"],
+        "mechanism": "Sets CSS custom properties (--key: value) on document.documentElement"
+      }
+    }
+  },
+
+  "css": {
+    "builtin": true,
+    "apis": {
+      "css": {
+        "signature": "css`selector { ... }`: ScopedStyle",
+        "description": "Scoped component styles. Apply as attribute: html`<div ${styles}>...</div>`"
+      },
+      "cssValue": {
+        "signature": "cssValue(property: string, value: Signal<string>): void",
+        "description": "Reactively bind a CSS custom property value."
+      }
+    }
+  },
+
+  "ssr": {
+    "builtin": true,
+    "api": {
+      "renderHTML": {
+        "signature": "renderHTML(componentFn: () => unknown | Promise<unknown>): string | Promise<string>",
+        "description": "Render to HTML string. No jsdom needed. Same html syntax. Strips event handlers. Evaluates reactive values once."
+      }
+    }
+  },
+
+  "microfrontends": {
+    "builtin": true,
+    "apis": {
+      "configureSecurity": {
+        "signature": "configureSecurity(config: SecurityConfig): void",
+        "config": { "trustedOrigins": "string[]", "requireIntegrity": "boolean", "blockAll": "boolean", "timeout": "number (ms)" }
+      },
+      "loadRemote": {
+        "signature": "loadRemote<P>(options: RemoteOptions<P>): (props?: P) => Node",
+        "options": { "url": "string (required)", "exportName": "string (default: 'default')", "isolate": "'none' | 'shadow' | 'iframe'", "integrity": "string (SRI hash)", "permissions": "RemotePermission[]", "fallback": "() => Node", "onError": "(err) => Node", "props": "P", "timeout": "number" }
+      },
+      "preloadRemote": {
+        "signature": "preloadRemote(url: string, integrity?: string): void"
+      },
+      "clearRemoteCache": {
+        "signature": "clearRemoteCache(): void"
+      }
+    },
+    "remoteModuleFormat": "ES module with default export: export default function(props): Node",
+    "securityLayers": ["origin allowlist", "SRI integrity", "timeout", "isolation (shadow/iframe)", "CSP compatible", "error containment", "kill switch"],
+    "permissions": ["dom", "storage", "network", "navigation", "clipboard"]
+  },
+
+  "streaming": {
+    "builtin": true,
+    "apis": {
+      "createWebSocket": {
+        "signature": "createWebSocket<T>(url: string, options?: WebSocketOptions): WebSocketStream<T>",
+        "options": { "maxMessages": 100, "autoReconnect": true, "reconnectDelay": 3000, "maxRetries": 5, "parse": "(raw) => T" },
+        "returns": { "data": "Signal<T[]>", "latest": "Signal<T | null>", "status": "Signal<'connecting'|'open'|'closed'|'error'>", "send": "(msg) => void", "close": "() => void", "reconnect": "() => void" }
+      },
+      "createEventSource": {
+        "signature": "createEventSource<T>(url: string, options?: EventSourceOptions): EventSourceStream<T>",
+        "options": { "maxEvents": 100, "eventName": "'message'", "parse": "(raw) => T" },
+        "returns": { "data": "Signal<T[]>", "latest": "Signal<T | null>", "status": "Signal<...>", "close": "() => void" }
+      }
+    }
+  },
+
+  "async": {
+    "builtin": true,
+    "apis": {
+      "lazy": "lazy(importFn: () => Promise<{ default: () => Node }>): () => Node",
+      "Suspense": "Suspense(asyncNode: Node, fallback: () => Node): Node",
+      "SuspenseAll": "SuspenseAll(nodes: Node[], fallback: () => Node): Node",
+      "ErrorBoundary": "ErrorBoundary(render: () => Node, fallback: (error, retry) => Node): Node",
+      "createResource": "createResource<T>(fetcher: () => Promise<T>): Resource<T>"
+    }
+  },
+
+  "accessibility": {
+    "builtin": true,
+    "apis": {
+      "FocusTrap": "FocusTrap(container: Element): { activate(), deactivate() }",
+      "announce": "announce(message: string, priority?: 'polite' | 'assertive'): void",
+      "useKeyboard": "useKeyboard(shortcuts: Record<string, () => void>): void",
+      "SkipLink": "SkipLink(targetId: string): Node"
+    }
+  },
+
+  "animations": {
+    "builtin": true,
+    "apis": {
+      "Transition": "Transition(options: { enter, leave, child }): Node",
+      "animateEnter": "animateEnter(el: Element, animation: string): void",
+      "animateLeave": "animateLeave(el: Element, animation: string): Promise<void>"
+    }
+  },
+
+  "dependencyInjection": {
+    "builtin": true,
+    "apis": {
+      "createToken": "createToken<T>(name: string): Token<T>",
+      "provide": "provide<T>(token: Token<T>, value: T): void",
+      "inject": "inject<T>(token: Token<T>): T (throws if not provided)",
+      "tryInject": "tryInject<T>(token: Token<T>): T | undefined",
+      "runWithProviders": "runWithProviders(providers: Map, fn: () => T): T"
+    }
+  },
+
+  "security": {
+    "builtin": true,
+    "apis": {
+      "raw": "raw(html: string): TrustedHTML — only for developer-authored content"
+    },
+    "guarantees": [
+      "Text interpolation uses textContent (never innerHTML)",
+      "No eval or Function constructor anywhere",
+      "CSP strict mode compatible",
+      "URL sanitization blocks javascript: and data: schemes",
+      "Prototype pollution guard on persisted data"
+    ]
+  },
+
+  "interop": {
+    "builtin": true,
+    "apis": {
+      "wrapImperative": "wrapImperative(adapter: { mount, update?, destroy }): Node — for Chart.js, D3, etc.",
+      "embedForeign": "embedForeign(adapter: { mount, unmount }): Node — for React/Vue components"
+    }
+  },
+
+  "plugins": {
+    "builtin": true,
+    "apis": {
+      "createPluginHost": "createPluginHost(): PluginHost",
+      "createObserver": "createObserver(): Observer — event bus"
+    }
+  },
+
+  "performance": {
+    "builtin": true,
+    "apis": {
+      "VirtualList": "VirtualList(options: { items, itemHeight, height, renderRow }): Node — for 1000+ item lists"
+    },
+    "rule": "Use .map() for < 1000 items. Use VirtualList for >= 1000."
+  },
+
+  "devtools": {
+    "builtin": true,
+    "apis": {
+      "enableDevtools": "enableDevtools(): DevtoolsAPI",
+      "disableDevtools": "disableDevtools(): void"
+    },
+    "tracks": ["signal updates", "effect runs", "route changes", "render timing"]
+  },
+
+  "utilities": {
+    "builtin": true,
+    "apis": ["formatDate", "timeAgo", "formatCurrency", "formatNumber", "truncate", "slugify", "pluralize", "capitalize", "debounce", "throttle", "pipe"]
+  },
+
+  "cli": {
+    "package": "create-onefold",
+    "command": "npm create onefold@latest my-app",
+    "templates": ["spa", "fullstack", "microfrontend"]
+  },
+
+  "componentModel": {
+    "type": "plain functions",
+    "returns": "Node (DOM node or DocumentFragment)",
+    "props": "function parameters (usually destructured object)",
+    "state": "signals declared inside the function (closure)",
+    "noClasses": true,
+    "noDecorators": true,
+    "noLifecycleHooks": true,
+    "noJSX": true,
+    "noVirtualDOM": true
+  },
+
+  "documentation": {
+    "website": "https://onefoldjs.com",
+    "llms": "https://onefoldjs.com/llms.txt",
+    "aiContext": "https://onefoldjs.com/ai-context.md",
+    "schema": "https://onefoldjs.com/framework.schema.json"
+  }
+}
