@@ -256,7 +256,7 @@ mount(Counter(), document.getElementById('app'));`,"Signals + Computed")}
 // No scheduler queue
 // Just: signal.set(newValue) \u2192 that one <span> updates`)}
 
-      <p>This is measurably faster than virtual DOM reconciliation on update-heavy workloads because it skips the diff step entirely. The same architecture powers SolidJS and Svelte 5.</p>
+      <p>This is measurably faster than virtual DOM reconciliation on update-heavy workloads because it skips the diff step entirely.</p>
 
       <h2>What's Included</h2>
       <table>
