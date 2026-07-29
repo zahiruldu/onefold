@@ -2,7 +2,8 @@
  * TaskCard — displays a single task.
  * Demonstrates: component metadata, html templates, event binding
  */
-import { html, component } from '../../../src/index';
+import { html } from '../../../src/index';
+import { component } from '../../../src/core/meta';
 import type { Task } from '../services/store';
 
 export const TaskCard = component<{ task: Task; onStatusChange: (id: number, status: Task['status']) => void }>({

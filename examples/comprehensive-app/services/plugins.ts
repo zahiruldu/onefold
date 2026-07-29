@@ -2,7 +2,7 @@
  * Plugin system setup.
  * Demonstrates: createPluginHost, plugin registration, lifecycle
  */
-import { createPluginHost } from '../../../src/index';
+import { createPluginHost } from '../../../src/core/plugin';
 import { observer } from './observer';
 
 export const plugins = createPluginHost();

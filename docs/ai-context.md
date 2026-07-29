@@ -4,45 +4,46 @@ This file teaches AI coding assistants how to write correct onefold code. It con
 every pattern, idiom, and rule needed to generate working onefold applications.
 
 Import: `import { ... } from 'onefold'`
-All APIs come from one package. No sub-packages.
+Core: `import { ... } from 'onefold'`
+Enterprise features via sub-paths: `import { ... } from 'onefold/form'`, `'onefold/http'`, etc.
 
 ---
 
 ## Quick Reference
 
-| Task | API |
-|------|-----|
-| Reactive state | `createSignal(value)` |
-| Derived state | `createComputed(() => expr)` |
-| Side effects | `createEffect(() => { ... })` |
-| Batch updates | `batch(() => { ... })` |
-| Build UI | `` html`<div>...</div>` `` |
-| Mount to DOM | `mount(node, container)` |
-| Routing | `Router(routes, notFound)` |
-| Navigation | `navigate('/path')` |
-| Current route | `currentRoute()` |
-| Nav link | `Link('/path', 'Label')` |
-| Hash routing | `configureRouter({ hash: true })` |
-| Store | `createStore({ key: value })` |
-| Persisted | `createPersisted('key', initial)` |
-| Forms | `createForm({ field: { initial, rules } })` |
-| HTTP | `createHttpClient({ baseUrl })` |
-| i18n | `createI18n({ defaultLocale, messages })` |
-| Theme | `createTheme({ light: {...}, dark: {...} })` |
-| Remote load | `loadRemote({ url, fallback })` |
-| SSR | `renderHTML(() => component)` |
-| WebSocket | `createWebSocket(url)` |
-| SSE | `createEventSource(url)` |
-| Scoped CSS | `` css`selector { ... }` `` |
-| Virtual list | `VirtualList({ items, renderRow })` |
-| Lazy load | `lazy(() => import('./Page'))` |
-| Suspense | `Suspense(node, fallback)` |
-| Error catch | `ErrorBoundary(render, fallback)` |
-| Focus trap | `FocusTrap(element)` |
-| Announce | `announce('message')` |
-| DI token | `createToken<T>('name')` |
-| DI provide | `provide(token, value)` |
-| DI inject | `inject(token)` |
+| Task           | API                                          |
+| ----------------| ----------------------------------------------|
+| Reactive state | `createSignal(value)`                        |
+| Derived state  | `createComputed(() => expr)`                 |
+| Side effects   | `createEffect(() => { ... })`                |
+| Batch updates  | `batch(() => { ... })`                       |
+| Build UI       | `` html`<div>...</div>` ``                   |
+| Mount to DOM   | `mount(node, container)`                     |
+| Routing        | `Router(routes, notFound)`                   |
+| Navigation     | `navigate('/path')`                          |
+| Current route  | `currentRoute()`                             |
+| Nav link       | `Link('/path', 'Label')`                     |
+| Hash routing   | `configureRouter({ hash: true })`            |
+| Store          | `createStore({ key: value })`                |
+| Persisted      | `createPersisted('key', initial)`            |
+| Forms          | `createForm({ field: { initial, rules } })`  |
+| HTTP           | `createHttpClient({ baseUrl })`              |
+| i18n           | `createI18n({ defaultLocale, messages })`    |
+| Theme          | `createTheme({ light: {...}, dark: {...} })` |
+| Remote load    | `loadRemote({ url, fallback })`              |
+| SSR            | `renderHTML(() => component)`                |
+| WebSocket      | `createWebSocket(url)`                       |
+| SSE            | `createEventSource(url)`                     |
+| Scoped CSS     | `` css`selector { ... }` ``                  |
+| Virtual list   | `VirtualList({ items, renderRow })`          |
+| Lazy load      | `lazy(() => import('./Page'))`               |
+| Suspense       | `Suspense(node, fallback)`                   |
+| Error catch    | `ErrorBoundary(render, fallback)`            |
+| Focus trap     | `FocusTrap(element)`                         |
+| Announce       | `announce('message')`                        |
+| DI token       | `createToken<T>('name')`                     |
+| DI provide     | `provide(token, value)`                      |
+| DI inject      | `inject(token)`                              |
 
 ---
 
@@ -177,7 +178,8 @@ const routes = [
 ## Forms — Full Example
 
 ```ts
-import { createForm, required, email, minLength, html } from 'onefold';
+import { html } from 'onefold';
+import { createForm, required, email, minLength } from 'onefold/form';
 
 function LoginForm(): Node {
   const form = createForm({
@@ -222,7 +224,8 @@ function LoginForm(): Node {
 ## HTTP Client — Full Example
 
 ```ts
-import { createHttpClient, createSignal, html } from 'onefold';
+import { createSignal, html } from 'onefold';
+import { createHttpClient } from 'onefold/http';
 
 interface User { id: number; name: string; email: string; }
 
@@ -298,7 +301,8 @@ html`<div class=${() => appStore().theme}>...</div>`
 ## i18n — Multilingual App
 
 ```ts
-import { createI18n, html } from 'onefold';
+import { html } from 'onefold';
+import { createI18n } from 'onefold/i18n';
 
 const i18n = createI18n({
   defaultLocale: 'en',
@@ -338,7 +342,8 @@ function Header(): Node {
 ## Theming
 
 ```ts
-import { createTheme, css, html } from 'onefold';
+import { css, html } from 'onefold';
+import { createTheme } from 'onefold/theme';
 
 const theme = createTheme({
   light: { bg: '#ffffff', fg: '#1f2937', accent: '#4f46e5', border: '#e5e7eb' },
@@ -366,7 +371,8 @@ const styles = css`
 ## Microfrontends
 
 ```ts
-import { loadRemote, configureSecurity, html } from 'onefold';
+import { html } from 'onefold';
+import { loadRemote, configureSecurity } from 'onefold/remote';
 
 // At app startup
 configureSecurity({
@@ -398,7 +404,7 @@ function Dashboard(): Node {
 ```ts
 // server.ts
 import express from 'express';
-import { renderHTML } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 
 const app = express();
 
@@ -425,7 +431,8 @@ app.get('*', async (req, res) => {
 ## WebSocket (Real-time)
 
 ```ts
-import { createWebSocket, html } from 'onefold';
+import { createSignal, html } from 'onefold';
+import { createWebSocket } from 'onefold/stream';
 
 interface ChatMessage { user: string; text: string; time: number; }
 
@@ -460,7 +467,7 @@ function Chat(): Node {
 ## Persisted State
 
 ```ts
-import { createPersisted, sessionStorageAdapter } from 'onefold';
+import { createPersisted, sessionStorageAdapter } from 'onefold/persist';
 
 // Persists to localStorage automatically
 const userPrefs = createPersisted('prefs', { theme: 'light', fontSize: 14 });
@@ -480,7 +487,8 @@ userPrefs.clear();
 ## Lazy Loading & Code Splitting
 
 ```ts
-import { lazy, Suspense, Router } from 'onefold';
+import { lazy, Router } from 'onefold';
+import { Suspense } from 'onefold/suspense';
 
 const AnalyticsPage = lazy(() => import('./pages/Analytics'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
@@ -519,7 +527,8 @@ function UserList(): Node {
 ## Accessibility
 
 ```ts
-import { FocusTrap, announce, useKeyboard, SkipLink, html } from 'onefold';
+import { html } from 'onefold';
+import { FocusTrap, announce, useKeyboard, SkipLink } from 'onefold/a11y';
 
 function Modal(content: Node, onClose: () => void): Node {
   return html`
@@ -579,7 +588,8 @@ function App(): Node {
 ## Directives (Custom Behaviors)
 
 ```ts
-import { registerDirective, html } from 'onefold';
+import { html } from 'onefold';
+import { registerDirective } from 'onefold/extend';
 
 // Register once at app startup
 registerDirective('tooltip', (el, value) => {
@@ -603,7 +613,8 @@ html`
 ## Imperative Library Integration
 
 ```ts
-import { wrapImperative, html } from 'onefold';
+import { html } from 'onefold';
+import { wrapImperative } from 'onefold/interop';
 
 function ChartComponent(data: Signal<number[]>): Node {
   return wrapImperative({

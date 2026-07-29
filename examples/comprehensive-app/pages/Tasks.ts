@@ -4,9 +4,10 @@
  */
 import {
   html, createSignal, inject,
-  createForm, required, minLength, maxLength,
-  guardedNode, FocusTrap,
 } from '../../../src/index';
+import { createForm, required, minLength, maxLength } from '../../../src/core/form';
+import { guardedNode } from '../../../src/core/guard';
+import { FocusTrap } from '../../../src/core/a11y';
 import { i18n } from '../config/i18n';
 import { appStore, filteredTasks, type Task, type AppState } from '../services/store';
 import { NotifyToken } from '../services/notifications';

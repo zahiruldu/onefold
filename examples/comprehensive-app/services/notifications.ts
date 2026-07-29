@@ -2,7 +2,8 @@
  * Notification service.
  * Demonstrates: DI (provide/inject), a11y (announce)
  */
-import { createSignal, createToken, provide, announce } from '../../../src/index';
+import { createSignal, createToken, provide } from '../../../src/index';
+import { announce } from '../../../src/core/a11y';
 
 export interface NotificationService {
   notifications: ReturnType<typeof createSignal<string[]>>;

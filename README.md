@@ -28,7 +28,8 @@
 
 - **Fine-grained reactivity:** Each signal update touches only the exact DOM node that depends on it. No virtual DOM, no tree diffing, no reconciliation pass. Updates are O(1) per change.
 - **Secure by default:** Text interpolation uses `textContent`, never `innerHTML`. XSS from dynamic data is structurally impossible in the default path. No `eval` anywhere — strict CSP works unmodified.
-- **Complete toolkit:** Routing, state, forms, i18n, theming, HTTP client, SSR, accessibility, microfrontend security, and more — all in one 3kb package with zero dependencies.
+- **Complete toolkit:** Routing, state, forms, i18n, theming, HTTP client, SSR, accessibility, microfrontend security, and more
+- **Tiny core:** Under 6kb gzipped for signals + templates + routing + store. Enterprise features tree-shake via sub-path imports.
 - **TypeScript-first:** Full strict mode, no `any` escape hatches, illegal states fail at compile time.
 
 [Learn how to use onefold in your project](https://onefoldjs.com).
@@ -94,6 +95,49 @@ mount(Counter(), document.getElementById('app')!);
 ```
 
 You'll notice we use a tagged template literal called `html`. It builds real DOM nodes with reactive bindings — no compiler, no JSX transform, no build step required for development.
+
+## Import Structure
+
+The core package (`import from 'onefold'`) ships under 6kb gzipped and includes everything most apps need: signals, templates, scoped CSS, routing, store, resources, error boundaries, DI, and lazy loading.
+
+Enterprise and specialized features are available via **sub-path imports** — you only pay for what you use:
+
+```ts
+// Core (~6kb gzipped)
+import { createSignal, html, mount, Router, createStore } from 'onefold';
+
+// Add features as needed — each tree-shakes independently
+import { createForm, required, email } from 'onefold/form';
+import { createHttpClient } from 'onefold/http';
+import { createI18n } from 'onefold/i18n';
+import { createPersisted } from 'onefold/persist';
+import { createTheme } from 'onefold/theme';
+import { setPermissions, guard } from 'onefold/guard';
+import { VirtualList } from 'onefold/virtual-list';
+import { Suspense } from 'onefold/suspense';
+import { Transition } from 'onefold/transition';
+import { createObserver } from 'onefold/observe';
+import { createPluginHost } from 'onefold/plugin';
+import { loadRemote } from 'onefold/remote';
+import { createWebSocket, createEventSource } from 'onefold/stream';
+import { FocusTrap, announce, useKeyboard } from 'onefold/a11y';
+import { wrapImperative, embedForeign } from 'onefold/interop';
+import { setEffectHook, registerDirective } from 'onefold/extend';
+import { component } from 'onefold/meta';
+import { enableDevtools } from 'onefold/devtools';
+import { renderHTML } from 'onefold/ssr';
+import { formatDate, debounce } from 'onefold/utils';
+```
+
+### CDN Usage
+
+```html
+<!-- Core only (~6kb gzipped) -->
+<script type="module" src="https://unpkg.com/onefold"></script>
+
+<!-- Full bundle with all features (~16kb gzipped) -->
+<script type="module" src="https://unpkg.com/onefold/dist/onefold.full.min.js"></script>
+```
 
 More examples are available in the repository:
 

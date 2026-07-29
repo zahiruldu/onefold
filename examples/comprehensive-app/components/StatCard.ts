@@ -2,7 +2,8 @@
  * StatCard — displays a single metric.
  * Demonstrates: component metadata registry
  */
-import { html, component } from '../../../src/index';
+import { html } from '../../../src/index';
+import { component } from '../../../src/core/meta';
 
 export const StatCard = component<{ value: string | number; label: string; color?: string }>({
   name: 'StatCard',

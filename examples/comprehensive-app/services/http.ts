@@ -2,7 +2,7 @@
  * HTTP client with interceptors.
  * Demonstrates: createHttpClient, HttpInterceptor, observability integration
  */
-import { createHttpClient } from '../../../src/index';
+import { createHttpClient } from '../../../src/core/http';
 import { authService } from './auth';
 import { observer } from './observer';
 
