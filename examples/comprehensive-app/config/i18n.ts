@@ -2,7 +2,7 @@
  * Internationalization configuration.
  * Demonstrates: createI18n with multiple locales
  */
-import { createI18n } from '../../../src/index';
+import { createI18n } from '../../../src/core/i18n';
 
 export const i18n = createI18n({
   defaultLocale: 'en',

@@ -1,4 +1,4 @@
-import { html, mount, Router, Link, currentRoute } from 'onefold';
+import { currentRoute, html, Link, mount, Router } from 'onefold';
 import { HomePage } from './pages/Home';
 import { AboutPage } from './pages/About';
 import { PostPage } from './pages/Post';

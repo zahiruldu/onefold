@@ -3,10 +3,11 @@
  * Demonstrates: Suspense, Transition, DevTools, Observer, Plugins, raw(), Guards
  */
 import {
-  html, createSignal, inject,
-  Suspense, Transition,
-  hasPermission, hasAnyPermission, guardedNode, raw,
+  html, createSignal, inject, raw,
 } from '../../../src/index';
+import { Suspense } from '../../../src/core/suspense';
+import { Transition } from '../../../src/core/transition';
+import { hasPermission, hasAnyPermission, guardedNode } from '../../../src/core/guard';
 import { i18n } from '../config/i18n';
 import { http } from '../services/http';
 import { observer } from '../services/observer';

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { renderHTML } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 import { htmlShell } from './html-shell';
 import { getUsers } from './data';
 import { HomePage } from '../pages/HomePage';

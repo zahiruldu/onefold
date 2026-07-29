@@ -1,17 +1,17 @@
 # onefold
 
 > A modern reactive UI framework for building web applications with TypeScript.
-> Everything included in one package. No virtual DOM. No compiler required. 3kb gzipped. Zero dependencies.
+> Everything included in one package. No virtual DOM. No compiler required. ~6kb gzipped core (full: ~16kb). Zero dependencies.
 
 Author: Md. Zahirul Haque
 Official website: https://onefoldjs.com
 GitHub: https://github.com/zahiruldu/onefold
 npm: https://www.npmjs.com/package/onefold
 CLI: https://www.npmjs.com/package/create-onefold
-Version: 0.1.2
+Version: 0.1.5
 License: MIT
 Language: TypeScript / JavaScript
-Bundle size: ~3kb gzipped (entire framework)
+Bundle size: ~6kb gzipped (core) / ~16kb gzipped (full bundle with all features)
 Dependencies: 0
 
 ---
@@ -32,7 +32,7 @@ changes. Nothing else re-renders. Components are plain functions that return DOM
 3. No virtual DOM — direct real DOM construction and patching
 4. No compiler or build step required
 5. TypeScript-first with strict mode (`noUncheckedIndexedAccess: true`)
-6. Everything ships in one package (routing, state, forms, HTTP, i18n, SSR, etc.)
+6. Core ships in one package, enterprise features via sub-path imports (onefold/form, onefold/http, etc.)
 7. Zero runtime dependencies
 8. Secure by default: text uses `textContent` (never `innerHTML`), no `eval`, CSP-compatible
 9. One way to build UI — no JSX, no hyperscript, no alternative APIs
@@ -51,7 +51,9 @@ npm install onefold
 
 All imports come from one package:
 ```ts
-import { createSignal, html, mount, Router, navigate, createForm, createHttpClient } from 'onefold';
+import { createSignal, html, mount, Router, navigate } from 'onefold';
+import { createForm } from 'onefold/form';
+import { createHttpClient } from 'onefold/http';
 ```
 
 ---
@@ -285,7 +287,7 @@ Store<T> extends Signal<T> with:
 Signal that auto-saves to storage. Rehydrates on creation.
 
 ```ts
-import { createPersisted, sessionStorageAdapter } from 'onefold';
+import { createPersisted, sessionStorageAdapter } from 'onefold/persist';
 
 // localStorage (default)
 const prefs = createPersisted('user-prefs', { theme: 'dark', lang: 'en' });
@@ -308,7 +310,7 @@ PersistOptions:
 ### Forms
 
 ```ts
-import { createForm, required, email, minLength, maxLength, pattern, min, max, custom } from 'onefold';
+import { createForm, required, email, minLength, maxLength, pattern, min, max, custom } from 'onefold/form';
 ```
 
 #### createForm<T>(config: T): Form<T>
@@ -372,7 +374,7 @@ html`
 ### HTTP Client
 
 ```ts
-import { createHttpClient } from 'onefold';
+import { createHttpClient } from 'onefold/http';
 ```
 
 #### createHttpClient(options?: HttpClientOptions): HttpClient
@@ -428,7 +430,7 @@ HttpInterceptor (all optional):
 ### Internationalization (i18n)
 
 ```ts
-import { createI18n } from 'onefold';
+import { createI18n } from 'onefold/i18n';
 ```
 
 #### createI18n(config: I18nConfig): I18n
@@ -465,7 +467,7 @@ i18n.setLocale('es');
 ### Theming
 
 ```ts
-import { createTheme } from 'onefold';
+import { createTheme } from 'onefold/theme';
 ```
 
 #### createTheme(themes: ThemeMap, defaultTheme?: string): Theme
@@ -514,7 +516,7 @@ Styles are scoped to the component — they do not leak to other elements.
 ### Microfrontends
 
 ```ts
-import { loadRemote, configureSecurity, preloadRemote, clearRemoteCache } from 'onefold';
+import { loadRemote, configureSecurity, preloadRemote, clearRemoteCache } from 'onefold/remote';
 ```
 
 #### configureSecurity(config: SecurityConfig): void
@@ -580,7 +582,7 @@ Clear all cached remote modules.
 ### Server-Side Rendering (SSR)
 
 ```ts
-import { renderHTML } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 ```
 
 #### renderHTML(componentFn: () => unknown): string | Promise<string>
@@ -611,7 +613,7 @@ app.get('*', async (req, res) => {
 ### Streaming (WebSocket & SSE)
 
 ```ts
-import { createWebSocket, createEventSource } from 'onefold';
+import { createWebSocket, createEventSource } from 'onefold/stream';
 ```
 
 #### createWebSocket<T>(url: string, options?: WebSocketOptions): WebSocketStream<T>
@@ -661,7 +663,8 @@ EventSourceStream<T>:
 ### Async Patterns
 
 ```ts
-import { lazy, Suspense, SuspenseAll, ErrorBoundary, createResource } from 'onefold';
+import { lazy, ErrorBoundary, createResource } from 'onefold';
+import { Suspense, SuspenseAll } from 'onefold/suspense';
 ```
 
 #### lazy(importFn: () => Promise<{ default: () => Node }>): () => Node
@@ -701,7 +704,7 @@ const users = createResource(() => fetch('/api/users').then(r => r.json()));
 ### Accessibility
 
 ```ts
-import { FocusTrap, announce, useKeyboard, SkipLink } from 'onefold';
+import { FocusTrap, announce, useKeyboard, SkipLink } from 'onefold/a11y';
 ```
 
 - `FocusTrap(container: Element)` — trap keyboard focus (modals, dialogs)
@@ -729,7 +732,7 @@ const maybeAuth = tryInject(AuthToken);   // returns undefined if not provided
 ### Transitions & Animations
 
 ```ts
-import { Transition, animateEnter, animateLeave } from 'onefold';
+import { Transition, animateEnter, animateLeave } from 'onefold/transition';
 ```
 
 ```ts
@@ -745,7 +748,7 @@ Transition({
 ### Virtual List (Performance)
 
 ```ts
-import { VirtualList } from 'onefold';
+import { VirtualList } from 'onefold/virtual-list';
 ```
 
 Use for lists over ~1000 items. Under 1000, use `.map()`.
@@ -764,7 +767,7 @@ VirtualList({
 ### Interop (Third-party Libraries)
 
 ```ts
-import { wrapImperative, embedForeign } from 'onefold';
+import { wrapImperative, embedForeign } from 'onefold/interop';
 ```
 
 - `wrapImperative(adapter)` — wrap imperative libraries (Chart.js, D3, Leaflet, etc.) with automatic cleanup
@@ -775,7 +778,8 @@ import { wrapImperative, embedForeign } from 'onefold';
 ### Plugins & Observability
 
 ```ts
-import { createPluginHost, createObserver } from 'onefold';
+import { createPluginHost } from 'onefold/plugin';
+import { createObserver } from 'onefold/observe';
 ```
 
 - `createPluginHost()` — plugin system with permission model
@@ -786,7 +790,7 @@ import { createPluginHost, createObserver } from 'onefold';
 ### Utilities
 
 ```ts
-import { formatDate, timeAgo, formatCurrency, formatNumber, truncate, slugify, pluralize, capitalize, debounce, throttle, pipe } from 'onefold';
+import { formatDate, timeAgo, formatCurrency, formatNumber, truncate, slugify, pluralize, capitalize, debounce, throttle, pipe } from 'onefold/utils';
 ```
 
 ---
@@ -794,7 +798,7 @@ import { formatDate, timeAgo, formatCurrency, formatNumber, truncate, slugify, p
 ### DevTools
 
 ```ts
-import { enableDevtools, disableDevtools } from 'onefold';
+import { enableDevtools, disableDevtools } from 'onefold/devtools';
 ```
 
 Enable signal tracking, effect monitoring, route changes, and render timing in development.

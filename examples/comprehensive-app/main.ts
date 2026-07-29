@@ -30,9 +30,10 @@
 
 import {
   html, mount, css,
-  Router, navigate, guard,
-  useKeyboard, SkipLink, announce,
+  Router, navigate,
 } from '../../src/index';
+import { guard } from '../../src/core/guard';
+import { useKeyboard, SkipLink, announce } from '../../src/core/a11y';
 
 // ─── Config & Services ───────────────────────────────────────────
 import { theme } from './config/theme';

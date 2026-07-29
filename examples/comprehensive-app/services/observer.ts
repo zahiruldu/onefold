@@ -2,7 +2,7 @@
  * Observability — structured event system for monitoring.
  * Demonstrates: createObserver with typed events
  */
-import { createObserver } from '../../../src/index';
+import { createObserver } from '../../../src/core/observe';
 
 export const observer = createObserver();
 

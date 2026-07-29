@@ -2,7 +2,7 @@
  * DevTools initialization.
  * Demonstrates: enableDevtools, effect monitoring
  */
-import { enableDevtools } from '../../../src/index';
+import { enableDevtools } from '../../../src/core/devtools';
 
 export const devtools = enableDevtools();
 

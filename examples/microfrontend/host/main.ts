@@ -16,10 +16,8 @@ import {
   html,
   css,
   mount,
-  loadRemote,
-  preloadRemote,
-  configureSecurity,
 } from 'onefold';
+import { loadRemote, preloadRemote} from 'onefold/remote'
 
 // ─── Scoped styles for the host shell ─────────────────────────────────────
 const shell = css`

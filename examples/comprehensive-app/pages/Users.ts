@@ -3,9 +3,9 @@
  * Demonstrates: createResource, ErrorBoundary, Suspense, VirtualList, HTTP
  */
 import {
-  html, createSignal, createResource,
-  ErrorBoundary, VirtualList,
+  html, createSignal, createResource, ErrorBoundary,
 } from '../../../src/index';
+import { VirtualList } from '../../../src/core/virtual-list';
 import { i18n } from '../config/i18n';
 import { http } from '../services/http';
 

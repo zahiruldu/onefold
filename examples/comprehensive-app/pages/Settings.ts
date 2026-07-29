@@ -2,10 +2,9 @@
  * Settings page — preferences + profile form.
  * Demonstrates: persisted signals, theme, i18n, createForm, validation, announce
  */
-import {
-  html, inject, announce,
-  createForm, required, email, minLength, maxLength,
-} from '../../../src/index';
+import { html, inject } from '../../../src/index';
+import { announce } from '../../../src/core/a11y';
+import { createForm, required, email, minLength, maxLength } from '../../../src/core/form';
 import { i18n } from '../config/i18n';
 import { theme } from '../config/theme';
 import { sidebarCollapsed, preferredLocale, notificationsEnabled } from '../services/store';

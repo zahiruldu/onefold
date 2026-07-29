@@ -2,7 +2,7 @@
  * Theme configuration — light/dark mode via CSS custom properties.
  * Demonstrates: createTheme, persisted signals
  */
-import { createTheme } from '../../../src/index';
+import { createTheme } from '../../../src/core/theme';
 
 export const theme = createTheme({
   light: {

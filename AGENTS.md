@@ -21,6 +21,28 @@ Key documentation pages:
 
 onefold has no virtual DOM and no compiler. The `html` tagged template literal parses its template string at runtime and builds real DOM nodes directly. Reactivity is per-binding: a signal read inside a closure creates one effect that updates only that specific DOM node when the signal changes. Nothing else re-renders.
 
+## Imports
+
+The core package exports rendering primitives. Enterprise features use sub-path imports:
+
+```ts
+import { createSignal, html, mount, Router, createStore } from 'onefold';       // core
+import { createForm, required } from 'onefold/form';                             // forms
+import { createHttpClient } from 'onefold/http';                                 // http
+import { createI18n } from 'onefold/i18n';                                       // i18n
+import { createPersisted } from 'onefold/persist';                               // persistence
+import { createTheme } from 'onefold/theme';                                     // theming
+import { setPermissions, guard } from 'onefold/guard';                           // RBAC
+import { VirtualList } from 'onefold/virtual-list';                              // windowing
+import { Suspense } from 'onefold/suspense';                                     // async
+import { Transition } from 'onefold/transition';                                 // animations
+import { enableDevtools } from 'onefold/devtools';                               // dev tools
+import { renderHTML } from 'onefold/ssr';                                        // server
+import { setEffectHook, registerDirective } from 'onefold/extend';               // extensibility
+```
+
+Do NOT import enterprise features from `'onefold'` — they are not exported there.
+
 ## Rules
 
 These are non-negotiable. Violating them breaks security or reactivity guarantees.

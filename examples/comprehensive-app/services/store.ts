@@ -2,7 +2,8 @@
  * Application store — global state management.
  * Demonstrates: createStore, createComputed, createPersisted, createEffect
  */
-import { createStore, createComputed, createPersisted, createEffect } from '../../../src/index';
+import { createStore, createComputed, createEffect } from '../../../src/index';
+import { createPersisted } from '../../../src/core/persist';
 import { i18n } from '../config/i18n';
 
 // ─── Types ───────────────────────────────────────────

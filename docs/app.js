@@ -1,25 +1,25 @@
-var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return Ot.get(t)}var E=null,Ut=0,Bt=new Set;var _=class{constructor(o,n){this.deps=new Set,this.active=!0,this.fn=o,this.label=n}run(){if(!this.active)return;this.cleanup();let o=E;E=this;try{ie(this.label,this.fn)}finally{E=o}}cleanup(){for(let o of this.deps)o.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},z=class{constructor(o){this.value=o,this.subscribers=new Set}get(){return E&&(this.subscribers.add(E),E.deps.add(this)),this.value}set(o){let n=typeof o=="function"?o(this.value):o;Object.is(n,this.value)||(this.value=n,this.notify())}peek(){return this.value}notify(){if(Ut>0)for(let o of this.subscribers)Bt.add(o);else{let o=Array.from(this.subscribers);for(let n=0;n<o.length;n++)o[n].run()}}};function b(t){let o=new z(t),n=(()=>o.get());return n.set=s=>o.set(s),n.peek=()=>o.peek(),n}function P(t,o="effect"){let n=o,s=new _(t,n);return s.run(),()=>s.dispose()}var jt=/^\s*(javascript|data|vbscript):/i,Ft=/^on/i;function q(t){return jt.test(t)}function B(t){return Ft.test(t)}function se(t){let o=document.createElement("template");o.innerHTML=t;let n=s=>{let d=[];s.childNodes.forEach(l=>{if(l.nodeType===Node.ELEMENT_NODE){let i=l,c=i.tagName.toLowerCase();if(c==="script"||c==="style"||c==="iframe"||c==="object"||c==="embed"||c==="form"){d.push(l);return}Array.from(i.attributes).forEach(p=>{(B(p.name)||(p.name==="href"||p.name==="src")&&q(p.value))&&i.removeAttribute(p.name)}),n(i)}}),d.forEach(l=>l.remove())};return n(o.content),o.innerHTML}var U=null;function Wt(){return U||(typeof window<"u"&&window.trustedTypes&&(U=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:t=>se(t)})),U)}function V(t){let o=Wt();return o?o.createHTML(t):se(t)}function G(t){return typeof t=="object"&&t!==null&&t.__onefoldRaw===!0}function J(t,o){o.replaceChildren(t)}var j=new WeakMap,Y=null;function _t(){if(Y||typeof MutationObserver>"u"||typeof document>"u")return;Y=new MutationObserver(o=>{for(let n of o)n.removedNodes.forEach(de)});let t=document.documentElement??document;Y.observe(t,{childList:!0,subtree:!0})}function de(t){let o=j.get(t);if(o){for(let n of o)try{n()}catch(s){console.error("[onefold] Error while disposing a reactive binding:",s)}j.delete(t)}t.childNodes.forEach(de)}function D(t,o){_t();let n=j.get(t);n||(n=new Set,j.set(t,n)),n.add(o)}var le=null;var R="\0nf_",N=/\x00nf_(\d+)\x00/g;function zt(t){return`${R}${t}\0`}function y(t,o){return t.charAt(o)}function K(t){return parseInt(t[1]??"0",10)}function qt(t,o){let n="";for(let i=0;i<t.length;i++)n+=t[i],i<o.length&&(n+=zt(i));let s=[],d=0,l=n.length;for(;d<l;){if(y(n,d)==="<"){if(n.startsWith("<!--",d)){let S=n.indexOf("-->",d+4);d=S===-1?l:S+3;continue}if(y(n,d+1)==="/"){let S=n.indexOf(">",d),A=n.slice(d+2,S).trim();s.push({kind:1,tag:A}),d=S+1;continue}let p=Vt(n,d),f=y(n,p-1)==="/",v=n.slice(d+1,f?p-1:p),{tag:g,attrs:x}=Gt(v,o);s.push({kind:0,tag:g});for(let S of x)s.push(S);f&&s.push({kind:1,tag:g}),d=p+1;continue}let i=n.indexOf("<",d),c=i===-1?n.slice(d):n.slice(d,i);if(d=i===-1?l:i,c.trim()||N.test(c)){N.lastIndex=0;let p=0,f;for(;(f=N.exec(c))!==null;){let g=c.slice(p,f.index);g&&s.push({kind:3,value:g}),s.push({kind:4,value:o[K(f)]}),p=f.index+f[0].length}let v=c.slice(p);v&&v.trim()&&s.push({kind:3,value:v})}}return s}function Vt(t,o){let n=null;for(let s=o+1;s<t.length;s++){let d=y(t,s);if(n)d===n&&(n=null);else if(d==='"'||d==="'")n=d;else if(d===">")return s}return t.length-1}function L(t){return t===" "||t==="	"||t===`
-`||t==="\r"||t==="\f"}function Gt(t,o){let n=t.search(/[\s/]/),s=n===-1?t:t.slice(0,n),d=[];if(n===-1)return{tag:s,attrs:d};let l=t.slice(n).trim();if(!l)return{tag:s,attrs:d};let i=0,c=l.length;for(;i<c;){for(;i<c&&L(y(l,i));)i++;if(i>=c)break;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10),x=o[g];if(x&&typeof x=="object")for(let[S,A]of Object.entries(x))d.push({kind:2,name:S,value:A});i=v+1;continue}let p=i;for(;i<c&&y(l,i)!=="="&&!L(y(l,i));)i++;let f=l.slice(p,i);if(!f){i++;continue}for(;i<c&&L(y(l,i));)i++;if(i>=c||y(l,i)!=="="){d.push({kind:2,name:f,value:!0});continue}for(i++;i<c&&L(y(l,i));)i++;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10);d.push({kind:2,name:f,value:o[g]}),i=v+1}else if(y(l,i)==='"'||y(l,i)==="'"){let v=y(l,i);i++;let g=i;for(;i<c&&y(l,i)!==v;)i++;let x=l.slice(g,i);i++,d.push({kind:2,name:f,value:ce(x,o)})}else{let v=i;for(;i<c&&!L(y(l,i));)i++;let g=l.slice(v,i);d.push({kind:2,name:f,value:ce(g,o)})}}return{tag:s,attrs:d}}function ce(t,o){N.lastIndex=0;let n=N.exec(t);if(!n)return t;if(n.index===0&&n[0].length===t.length)return o[K(n)];N.lastIndex=0;let s=[],d=0,l;for(;(l=N.exec(t))!==null;){l.index>d&&s.push(t.slice(d,l.index));let i=o[K(l)];s.push(typeof i=="function"?i:()=>i),d=l.index+l[0].length}return d<t.length&&s.push(t.slice(d)),()=>s.map(i=>typeof i=="function"?i():i).join("")}function Jt(t){let o=document.createDocumentFragment(),n=[o],s=o;for(let d of t)switch(d.kind){case 0:{let l=document.createElement(d.tag);s.appendChild(l),n.push(l),s=l;break}case 1:{n.pop(),s=n.length>0?n[n.length-1]:o;break}case 2:{Yt(s,d.name,d.value);break}case 3:{s.appendChild(document.createTextNode(d.value));break}case 4:{pe(s,d.value);break}}return o.childNodes.length===1&&o.firstChild instanceof HTMLElement?o.firstChild:o}function Yt(t,o,n){if(o==="ref"){typeof n=="function"&&n(t);return}if(o==="class"){F(n,s=>Kt(t,s),t);return}if(o==="style"){F(n,s=>{typeof s=="string"?t.style.cssText=s:Object.assign(t.style,s??{})},t);return}if(B(o)&&typeof n=="function"){t.addEventListener(o.slice(2).toLowerCase(),n);return}if(o.startsWith("d-")){let s=ae(o.slice(2));s?F(n,d=>s(t,d),t):console.warn(`[onefold] No directive registered for "${o}". Call registerDirective() first.`);return}F(n,s=>Xt(t,o,s),t)}function F(t,o,n){if(typeof t=="function"){let s=P(()=>o(t()));D(n,s)}else o(t)}function Kt(t,o){o?typeof o=="string"?t.className=o:typeof o=="object"&&(t.className=Object.entries(o).filter(([,n])=>n).map(([n])=>n).join(" ")):t.className=""}function Xt(t,o,n){if(n===!1||n==null){t.removeAttribute(o);return}if(n===!0){t.setAttribute(o,"");return}let s=String(n);if(B(o)){console.warn(`[onefold] Blocked string event handler "${o}". Use a function instead.`);return}if((o==="href"||o==="src"||o==="action"||o==="formaction"||o==="xlink:href")&&q(s)){console.warn(`[onefold] Blocked unsafe "${o}" value:`,s),t.removeAttribute(o);return}if(o==="value"&&"value"in t){t.value=s;return}if(o==="checked"&&t instanceof HTMLInputElement){t.checked=n===!0||s==="true"||s==="";return}if(o==="selected"&&t instanceof HTMLOptionElement){t.selected=n===!0||s==="true"||s==="";return}t.setAttribute(o,s)}function pe(t,o){if(!(o==null||o===!1||o===!0)){if(o instanceof Node){t.appendChild(o);return}if(Array.isArray(o)){for(let n of o)pe(t,n);return}if(typeof o=="function"){let n=document.createComment("expr-start"),s=document.createComment("expr-end");t.appendChild(n),t.appendChild(s);let d=P(()=>{let l=o(),i=n.parentNode;if(!i)return;let c=n.nextSibling;for(;c&&c!==s;){let f=c.nextSibling;i.removeChild(c),c=f}let p=ue(l);i.insertBefore(p,s)});D(t,d);return}if(G(o)){let n=document.createElement("span");n.innerHTML=V(o.html),t.appendChild(n);return}t.appendChild(document.createTextNode(String(o)))}}function ue(t){if(t==null||t===!1||t===!0)return document.createComment("");if(t instanceof Node)return t;if(G(t)){let o=document.createElement("span");return o.innerHTML=V(t.html),o}if(Array.isArray(t)){let o=document.createDocumentFragment();for(let n of t)o.appendChild(ue(n));return o}return document.createTextNode(String(t))}function r(t,...o){if(le)return le(t,...o);let n=qt(t,o);return Jt(n)}var M=null,W=null;function X(t){t.hash!==void 0&&(W=t.hash)}function Q(){return W===null&&(W=typeof window<"u"&&window.location.protocol==="file:"),W}function he(){return typeof window>"u"?"/":Q()?window.location.hash.slice(1)||"/":window.location.pathname}function Z(){if(M)return M;if(M=b(he()),typeof window<"u"){let t=Q()?"hashchange":"popstate";window.addEventListener(t,()=>M.set(he()))}return M}function k(t){if(typeof window>"u")return;let o=Z();Q()?(window.location.hash=t,o.set(t)):(window.history.pushState({},"",t),o.set(t))}function I(){return Z()()}function Qt(t,o){let n=t.split("/"),s=o.split("/");if(n.length!==s.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function Zt(t,o){if(t==="/")return{};let n=t.split("/").filter(Boolean),s=o.split("/").filter(Boolean);if(s.length<n.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function me(t,o,n,s=""){for(let d of t){let l=eo(s,d.path);if(d.children&&d.children.length>0){let i=Zt(l,o);if(i!==null){let p=me(d.children,o,n,l)??n();return d.view(i,p)}}else{let i=Qt(l,o);if(i!==null)return d.view(i)}}return null}function eo(t,o){if(!t||t==="/")return o;if(o==="/")return t;let n=t.endsWith("/")?t.slice(0,-1):t,s=o.startsWith("/")?o:"/"+o;return n+s}function ee(t,o){let n=Z(),s=document.createElement("div"),d=P(()=>{let l=n(),i=null;if(Array.isArray(t))i=me(t,l,o,"");else{let c=t[l];c&&(i=c())}s.textContent="",s.appendChild(i??o())});return D(s,d),s}function te(t,o){let n=new Map(Object.entries(t)),s=o??document;function d(i){let c=[];(i.ctrlKey||i.metaKey)&&c.push("Ctrl"),i.shiftKey&&c.push("Shift"),i.altKey&&c.push("Alt");let p=i.key.length===1?i.key.toUpperCase():i.key;return c.push(p),c.join("+")}function l(i){let c=d(i),p=n.get(c);p&&(i.preventDefault(),p(i))}return s.addEventListener("keydown",l),{destroy:()=>s.removeEventListener("keydown",l),add:(i,c)=>n.set(i,c),remove:i=>n.delete(i)}}var T=[{title:"Get Started",links:[{label:"Introduction",path:"/"},{label:"Installation",path:"/getting-started/install"},{label:"Quick Start",path:"/getting-started/quickstart"}]},{title:"Fundamentals",links:[{label:"Signals (Reactivity)",path:"/core/signals"},{label:"Templates (html)",path:"/core/templates"},{label:"Mounting (mount)",path:"/core/mounting"},{label:"Scoped CSS (css)",path:"/core/css"}]},{title:"UI & Styling",links:[{label:"Theming",path:"/theming"},{label:"Transitions",path:"/transitions"},{label:"Accessibility",path:"/a11y"}]},{title:"Routing",links:[{label:"Router",path:"/routing/router"},{label:"configureRouter",path:"/routing/configure"},{label:"Nested Routes",path:"/routing/nested"},{label:"Dynamic Params",path:"/routing/params"},{label:"Navigate",path:"/routing/navigate"},{label:"Link",path:"/routing/link"}]},{title:"State Management",links:[{label:"Store",path:"/state/store"},{label:"Persisted Signals",path:"/state/persisted"},{label:"Dependency Injection",path:"/di"}]},{title:"Data Fetching",links:[{label:"Resource",path:"/data/resource"},{label:"HTTP Client",path:"/data/http-client"},{label:"Interceptors",path:"/data/interceptors"}]},{title:"Forms",links:[{label:"createForm",path:"/forms/create-form"},{label:"Validation Rules",path:"/forms/validation"}]},{title:"Real-time",links:[{label:"WebSocket",path:"/streaming/websocket"},{label:"Server-Sent Events",path:"/streaming/sse"}]},{title:"Async Patterns",links:[{label:"Suspense",path:"/async/suspense"},{label:"Lazy Loading",path:"/async/lazy-loading"},{label:"Error Boundaries",path:"/async/error-boundaries"}]},{title:"Security",links:[{label:"XSS Prevention",path:"/security/xss"},{label:"RBAC Guards",path:"/security/guards"}]},{title:"Performance",links:[{label:"VirtualList",path:"/performance/virtual-list"},{label:"Code Splitting",path:"/performance/code-splitting"}]},{title:"Server-Side Rendering",links:[{label:"renderHTML",path:"/ssr"}]},{title:"Internationalization",links:[{label:"i18n",path:"/i18n"}]},{title:"Microfrontends",links:[{label:"loadRemote",path:"/microfrontends/load-remote"},{label:"Isolation Modes",path:"/microfrontends/isolation"},{label:"Communication",path:"/microfrontends/communication"},{label:"configureSecurity",path:"/microfrontends/security"},{label:"SRI Integrity",path:"/microfrontends/sri"},{label:"Shared Dependencies",path:"/microfrontends/shared-deps"},{label:"Cross-Framework",path:"/microfrontends/cross-framework"},{label:"Deployment",path:"/microfrontends/deployment"},{label:"API Reference",path:"/microfrontends/api-reference"}]},{title:"Interop",links:[{label:"wrapImperative",path:"/interop/wrap-imperative"},{label:"embedForeign",path:"/interop/embed-foreign"}]},{title:"Plugins & Observability",links:[{label:"Plugins",path:"/plugins"},{label:"Observability",path:"/observability"},{label:"Component Metadata",path:"/meta"}]},{title:"Tooling",links:[{label:"CLI (create-onefold)",path:"/cli"},{label:"DevTools",path:"/devtools"},{label:"Extensions",path:"/extensions"},{label:"Utilities",path:"/utilities"}]},{title:"Deployment",links:[{label:"GitHub Pages",path:"/deployment/github-pages"},{label:"Vercel",path:"/deployment/vercel"},{label:"Netlify",path:"/deployment/netlify"},{label:"Cloudflare Pages",path:"/deployment/cloudflare"},{label:"AWS S3 + CloudFront",path:"/deployment/aws"},{label:"Docker / Node",path:"/deployment/docker"}]},{title:"Playground",links:[{label:"Live Editor",path:"/playground"}]}];function $(t){let o=document.createElement("div");return o.innerHTML=t,o.firstElementChild??document.createComment("svg-empty")}var fe=()=>$(`<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+var re=null;function ne(t,o){re?re(t,o):o()}var Ot=new Map;function ie(t){return Ot.get(t)}var E=null,Ut=0,Bt=new Set;var _=class{constructor(o,n){this.deps=new Set,this.active=!0,this.fn=o,this.label=n}run(){if(!this.active)return;this.cleanup();let o=E;E=this;try{ne(this.label,this.fn)}finally{E=o}}cleanup(){for(let o of this.deps)o.subscribers.delete(this);this.deps.clear()}dispose(){this.active=!1,this.cleanup()}},z=class{constructor(o){this.value=o,this.subscribers=new Set}get(){return E&&(this.subscribers.add(E),E.deps.add(this)),this.value}set(o){let n=typeof o=="function"?o(this.value):o;Object.is(n,this.value)||(this.value=n,this.notify())}peek(){return this.value}notify(){if(Ut>0)for(let o of this.subscribers)Bt.add(o);else{let o=Array.from(this.subscribers);for(let n=0;n<o.length;n++)o[n].run()}}};function b(t){let o=new z(t),n=(()=>o.get());return n.set=s=>o.set(s),n.peek=()=>o.peek(),n}function P(t,o="effect"){let n=o,s=new _(t,n);return s.run(),()=>s.dispose()}var jt=/^\s*(javascript|data|vbscript):/i,Ft=/^on/i;function q(t){return jt.test(t)}function B(t){return Ft.test(t)}function ae(t){let o=document.createElement("template");o.innerHTML=t;let n=s=>{let d=[];s.childNodes.forEach(l=>{if(l.nodeType===Node.ELEMENT_NODE){let i=l,c=i.tagName.toLowerCase();if(c==="script"||c==="style"||c==="iframe"||c==="object"||c==="embed"||c==="form"){d.push(l);return}Array.from(i.attributes).forEach(p=>{(B(p.name)||(p.name==="href"||p.name==="src")&&q(p.value))&&i.removeAttribute(p.name)}),n(i)}}),d.forEach(l=>l.remove())};return n(o.content),o.innerHTML}var U=null;function Wt(){return U||(typeof window<"u"&&window.trustedTypes&&(U=window.trustedTypes.createPolicy("onefold-sanitized",{createHTML:t=>ae(t)})),U)}function V(t){let o=Wt();return o?o.createHTML(t):ae(t)}function G(t){return typeof t=="object"&&t!==null&&t.__onefoldRaw===!0}function J(t,o){o.replaceChildren(t)}var j=new WeakMap,Y=null;function _t(){if(Y||typeof MutationObserver>"u"||typeof document>"u")return;Y=new MutationObserver(o=>{for(let n of o)n.removedNodes.forEach(se)});let t=document.documentElement??document;Y.observe(t,{childList:!0,subtree:!0})}function se(t){let o=j.get(t);if(o){for(let n of o)try{n()}catch(s){console.error("[onefold] Error while disposing a reactive binding:",s)}j.delete(t)}t.childNodes.forEach(se)}function D(t,o){_t();let n=j.get(t);n||(n=new Set,j.set(t,n)),n.add(o)}var de=null;var R="\0nf_",N=/\x00nf_(\d+)\x00/g;function zt(t){return`${R}${t}\0`}function y(t,o){return t.charAt(o)}function X(t){return parseInt(t[1]??"0",10)}function qt(t,o){let n="";for(let i=0;i<t.length;i++)n+=t[i],i<o.length&&(n+=zt(i));let s=[],d=0,l=n.length;for(;d<l;){if(y(n,d)==="<"){if(n.startsWith("<!--",d)){let S=n.indexOf("-->",d+4);d=S===-1?l:S+3;continue}if(y(n,d+1)==="/"){let S=n.indexOf(">",d),A=n.slice(d+2,S).trim();s.push({kind:1,tag:A}),d=S+1;continue}let p=Vt(n,d),f=y(n,p-1)==="/",v=n.slice(d+1,f?p-1:p),{tag:g,attrs:x}=Gt(v,o);s.push({kind:0,tag:g});for(let S of x)s.push(S);f&&s.push({kind:1,tag:g}),d=p+1;continue}let i=n.indexOf("<",d),c=i===-1?n.slice(d):n.slice(d,i);if(d=i===-1?l:i,c.trim()||N.test(c)){N.lastIndex=0;let p=0,f;for(;(f=N.exec(c))!==null;){let g=c.slice(p,f.index);g&&s.push({kind:3,value:g}),s.push({kind:4,value:o[X(f)]}),p=f.index+f[0].length}let v=c.slice(p);v&&v.trim()&&s.push({kind:3,value:v})}}return s}function Vt(t,o){let n=null;for(let s=o+1;s<t.length;s++){let d=y(t,s);if(n)d===n&&(n=null);else if(d==='"'||d==="'")n=d;else if(d===">")return s}return t.length-1}function L(t){return t===" "||t==="	"||t===`
+`||t==="\r"||t==="\f"}function Gt(t,o){let n=t.search(/[\s/]/),s=n===-1?t:t.slice(0,n),d=[];if(n===-1)return{tag:s,attrs:d};let l=t.slice(n).trim();if(!l)return{tag:s,attrs:d};let i=0,c=l.length;for(;i<c;){for(;i<c&&L(y(l,i));)i++;if(i>=c)break;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10),x=o[g];if(x&&typeof x=="object")for(let[S,A]of Object.entries(x))d.push({kind:2,name:S,value:A});i=v+1;continue}let p=i;for(;i<c&&y(l,i)!=="="&&!L(y(l,i));)i++;let f=l.slice(p,i);if(!f){i++;continue}for(;i<c&&L(y(l,i));)i++;if(i>=c||y(l,i)!=="="){d.push({kind:2,name:f,value:!0});continue}for(i++;i<c&&L(y(l,i));)i++;if(l.startsWith(R,i)){let v=l.indexOf("\0",i+R.length),g=parseInt(l.slice(i+R.length,v),10);d.push({kind:2,name:f,value:o[g]}),i=v+1}else if(y(l,i)==='"'||y(l,i)==="'"){let v=y(l,i);i++;let g=i;for(;i<c&&y(l,i)!==v;)i++;let x=l.slice(g,i);i++,d.push({kind:2,name:f,value:le(x,o)})}else{let v=i;for(;i<c&&!L(y(l,i));)i++;let g=l.slice(v,i);d.push({kind:2,name:f,value:le(g,o)})}}return{tag:s,attrs:d}}function le(t,o){N.lastIndex=0;let n=N.exec(t);if(!n)return t;if(n.index===0&&n[0].length===t.length)return o[X(n)];N.lastIndex=0;let s=[],d=0,l;for(;(l=N.exec(t))!==null;){l.index>d&&s.push(t.slice(d,l.index));let i=o[X(l)];s.push(typeof i=="function"?i:()=>i),d=l.index+l[0].length}return d<t.length&&s.push(t.slice(d)),()=>s.map(i=>typeof i=="function"?i():i).join("")}function Jt(t){let o=document.createDocumentFragment(),n=[o],s=o;for(let d of t)switch(d.kind){case 0:{let l=document.createElement(d.tag);s.appendChild(l),n.push(l),s=l;break}case 1:{n.pop(),s=n.length>0?n[n.length-1]:o;break}case 2:{Yt(s,d.name,d.value);break}case 3:{s.appendChild(document.createTextNode(d.value));break}case 4:{ce(s,d.value);break}}return o.childNodes.length===1&&o.firstChild instanceof HTMLElement?o.firstChild:o}function Yt(t,o,n){if(o==="ref"){typeof n=="function"&&n(t);return}if(o==="class"){F(n,s=>Xt(t,s),t);return}if(o==="style"){F(n,s=>{typeof s=="string"?t.style.cssText=s:Object.assign(t.style,s??{})},t);return}if(B(o)&&typeof n=="function"){t.addEventListener(o.slice(2).toLowerCase(),n);return}if(o.startsWith("d-")){let s=ie(o.slice(2));s?F(n,d=>s(t,d),t):console.warn(`[onefold] No directive registered for "${o}". Call registerDirective() first.`);return}F(n,s=>Kt(t,o,s),t)}function F(t,o,n){if(typeof t=="function"){let s=P(()=>o(t()));D(n,s)}else o(t)}function Xt(t,o){o?typeof o=="string"?t.className=o:typeof o=="object"&&(t.className=Object.entries(o).filter(([,n])=>n).map(([n])=>n).join(" ")):t.className=""}function Kt(t,o,n){if(n===!1||n==null){t.removeAttribute(o);return}if(n===!0){t.setAttribute(o,"");return}let s=String(n);if(B(o)){console.warn(`[onefold] Blocked string event handler "${o}". Use a function instead.`);return}if((o==="href"||o==="src"||o==="action"||o==="formaction"||o==="xlink:href")&&q(s)){console.warn(`[onefold] Blocked unsafe "${o}" value:`,s),t.removeAttribute(o);return}if(o==="value"&&"value"in t){t.value=s;return}if(o==="checked"&&t instanceof HTMLInputElement){t.checked=n===!0||s==="true"||s==="";return}if(o==="selected"&&t instanceof HTMLOptionElement){t.selected=n===!0||s==="true"||s==="";return}t.setAttribute(o,s)}function ce(t,o){if(!(o==null||o===!1||o===!0)){if(o instanceof Node){t.appendChild(o);return}if(Array.isArray(o)){for(let n of o)ce(t,n);return}if(typeof o=="function"){let n=document.createComment("expr-start"),s=document.createComment("expr-end");t.appendChild(n),t.appendChild(s);let d=P(()=>{let l=o(),i=n.parentNode;if(!i)return;let c=n.nextSibling;for(;c&&c!==s;){let f=c.nextSibling;i.removeChild(c),c=f}let p=pe(l);i.insertBefore(p,s)});D(t,d);return}if(G(o)){let n=document.createElement("span");n.innerHTML=V(o.html),t.appendChild(n);return}t.appendChild(document.createTextNode(String(o)))}}function pe(t){if(t==null||t===!1||t===!0)return document.createComment("");if(t instanceof Node)return t;if(G(t)){let o=document.createElement("span");return o.innerHTML=V(t.html),o}if(Array.isArray(t)){let o=document.createDocumentFragment();for(let n of t)o.appendChild(pe(n));return o}return document.createTextNode(String(t))}function r(t,...o){if(de)return de(t,...o);let n=qt(t,o);return Jt(n)}var M=null,W=null;function K(t){t.hash!==void 0&&(W=t.hash)}function Q(){return W===null&&(W=typeof window<"u"&&window.location.protocol==="file:"),W}function ue(){return typeof window>"u"?"/":Q()?window.location.hash.slice(1)||"/":window.location.pathname}function Z(){if(M)return M;if(M=b(ue()),typeof window<"u"){let t=Q()?"hashchange":"popstate";window.addEventListener(t,()=>M.set(ue()))}return M}function k(t){if(typeof window>"u")return;let o=Z();Q()?(window.location.hash=t,o.set(t)):(window.history.pushState({},"",t),o.set(t))}function I(){return Z()()}function Qt(t,o){let n=t.split("/"),s=o.split("/");if(n.length!==s.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function Zt(t,o){if(t==="/")return{};let n=t.split("/").filter(Boolean),s=o.split("/").filter(Boolean);if(s.length<n.length)return null;let d={};for(let l=0;l<n.length;l++){let i=n[l],c=s[l];if(i.startsWith(":"))try{d[i.slice(1)]=decodeURIComponent(c)}catch{d[i.slice(1)]=c}else if(i!==c)return null}return d}function he(t,o,n,s=""){for(let d of t){let l=eo(s,d.path);if(d.children&&d.children.length>0){let i=Zt(l,o);if(i!==null){let p=he(d.children,o,n,l)??n();return d.view(i,p)}}else{let i=Qt(l,o);if(i!==null)return d.view(i)}}return null}function eo(t,o){if(!t||t==="/")return o;if(o==="/")return t;let n=t.endsWith("/")?t.slice(0,-1):t,s=o.startsWith("/")?o:"/"+o;return n+s}function ee(t,o){let n=Z(),s=document.createElement("div"),d=P(()=>{let l=n(),i=null;if(Array.isArray(t))i=he(t,l,o,"");else{let c=t[l];c&&(i=c())}s.textContent="",s.appendChild(i??o())});return D(s,d),s}var T=[{title:"Get Started",links:[{label:"Introduction",path:"/"},{label:"Installation",path:"/getting-started/install"},{label:"Quick Start",path:"/getting-started/quickstart"}]},{title:"Fundamentals",links:[{label:"Signals (Reactivity)",path:"/core/signals"},{label:"Templates (html)",path:"/core/templates"},{label:"Mounting (mount)",path:"/core/mounting"},{label:"Scoped CSS (css)",path:"/core/css"}]},{title:"UI & Styling",links:[{label:"Theming",path:"/theming"},{label:"Transitions",path:"/transitions"},{label:"Accessibility",path:"/a11y"}]},{title:"Routing",links:[{label:"Router",path:"/routing/router"},{label:"configureRouter",path:"/routing/configure"},{label:"Nested Routes",path:"/routing/nested"},{label:"Dynamic Params",path:"/routing/params"},{label:"Navigate",path:"/routing/navigate"},{label:"Link",path:"/routing/link"}]},{title:"State Management",links:[{label:"Store",path:"/state/store"},{label:"Persisted Signals",path:"/state/persisted"},{label:"Dependency Injection",path:"/di"}]},{title:"Data Fetching",links:[{label:"Resource",path:"/data/resource"},{label:"HTTP Client",path:"/data/http-client"},{label:"Interceptors",path:"/data/interceptors"}]},{title:"Forms",links:[{label:"createForm",path:"/forms/create-form"},{label:"Validation Rules",path:"/forms/validation"}]},{title:"Real-time",links:[{label:"WebSocket",path:"/streaming/websocket"},{label:"Server-Sent Events",path:"/streaming/sse"}]},{title:"Async Patterns",links:[{label:"Suspense",path:"/async/suspense"},{label:"Lazy Loading",path:"/async/lazy-loading"},{label:"Error Boundaries",path:"/async/error-boundaries"}]},{title:"Security",links:[{label:"XSS Prevention",path:"/security/xss"},{label:"RBAC Guards",path:"/security/guards"}]},{title:"Performance",links:[{label:"VirtualList",path:"/performance/virtual-list"},{label:"Code Splitting",path:"/performance/code-splitting"}]},{title:"Server-Side Rendering",links:[{label:"renderHTML",path:"/ssr"}]},{title:"Internationalization",links:[{label:"i18n",path:"/i18n"}]},{title:"Microfrontends",links:[{label:"loadRemote",path:"/microfrontends/load-remote"},{label:"Isolation Modes",path:"/microfrontends/isolation"},{label:"Communication",path:"/microfrontends/communication"},{label:"configureSecurity",path:"/microfrontends/security"},{label:"SRI Integrity",path:"/microfrontends/sri"},{label:"Shared Dependencies",path:"/microfrontends/shared-deps"},{label:"Cross-Framework",path:"/microfrontends/cross-framework"},{label:"Deployment",path:"/microfrontends/deployment"},{label:"API Reference",path:"/microfrontends/api-reference"}]},{title:"Interop",links:[{label:"wrapImperative",path:"/interop/wrap-imperative"},{label:"embedForeign",path:"/interop/embed-foreign"}]},{title:"Plugins & Observability",links:[{label:"Plugins",path:"/plugins"},{label:"Observability",path:"/observability"},{label:"Component Metadata",path:"/meta"}]},{title:"Tooling",links:[{label:"CLI (create-onefold)",path:"/cli"},{label:"DevTools",path:"/devtools"},{label:"Extensions",path:"/extensions"},{label:"Utilities",path:"/utilities"}]},{title:"Deployment",links:[{label:"GitHub Pages",path:"/deployment/github-pages"},{label:"Vercel",path:"/deployment/vercel"},{label:"Netlify",path:"/deployment/netlify"},{label:"Cloudflare Pages",path:"/deployment/cloudflare"},{label:"AWS S3 + CloudFront",path:"/deployment/aws"},{label:"Docker / Node",path:"/deployment/docker"}]},{title:"Playground",links:[{label:"Live Editor",path:"/playground"}]}];function $(t){let o=document.createElement("div");return o.innerHTML=t,o.firstElementChild??document.createComment("svg-empty")}var me=()=>$(`<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <rect y="3" width="20" height="2" rx="1"/>
     <rect y="9" width="20" height="2" rx="1"/>
     <rect y="15" width="20" height="2" rx="1"/>
-  </svg>`),ge=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),fe=()=>$(`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/>
-  </svg>`),ve=()=>$(`<svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ge=()=>$(`<svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
     <polygon points="83.8,39.8 108,64 64,108 20,64 44.2,39.8" fill="#4338CA"/>
     <polygon points="83.8,39.8 44.2,39.8 64,59.6" fill="#818CF8"/>
-  </svg>`),be=()=>$(`<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ve=()=>$(`<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2l10 6-10 6V2z"/>
-  </svg>`),ye=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),be=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M1 1h5v2H3.414L6.707 6.293l-1.414 1.414L2 4.414V7H0V1h1zm14 0h-5v2h2.586L9.293 6.293l1.414 1.414L14 4.414V7h2V1h-1zM1 15h5v-2H3.414l3.293-3.293-1.414-1.414L2 11.586V9H0v6h1zm14 0h-5v-2h2.586l-3.293-3.293 1.414-1.414L14 11.586V9h2v6h-1z"/>
-  </svg>`),we=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  </svg>`),ye=()=>$(`<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M5 1v4H1v2h5a1 1 0 001-1V1H5zm6 0v5a1 1 0 001 1h5V5h-4V1h-2zM1 9v2h4v4h2v-5a1 1 0 00-1-1H1zm9 0a1 1 0 00-1 1v5h2v-4h4V9h-5z"/>
-  </svg>`);function Se(){let t=b(new Set(["Get Started"]));P(()=>{let s=I();for(let d of T)for(let l of d.links)if(l.path===s){t.set(i=>{let c=new Set(i);return c.add(d.title),c});return}});let o=s=>{t.set(d=>{let l=new Set(d);return l.has(s)?l.delete(s):l.add(s),l})},n=s=>{k(s),document.getElementById("sidebar")?.classList.remove("open"),document.getElementById("overlay")?.classList.remove("open")};return r`
+  </svg>`);function we(){let t=b(new Set(["Get Started"]));P(()=>{let s=I();for(let d of T)for(let l of d.links)if(l.path===s){t.set(i=>{let c=new Set(i);return c.add(d.title),c});return}});let o=s=>{t.set(d=>{let l=new Set(d);return l.has(s)?l.delete(s):l.add(s),l})},n=s=>{k(s),document.getElementById("sidebar")?.classList.remove("open"),document.getElementById("overlay")?.classList.remove("open")};return r`
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-logo">
-        ${ve()}
+        ${ge()}
         <span class="wordmark">one<span>fold</span></span>
-        <span class="version">v0.1.3</span>
+        <span class="version">v0.1.5</span>
       </div>
       <nav class="sidebar-nav">
         ${()=>T.map(s=>r`
@@ -42,14 +42,14 @@ var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return
         `)}
       </nav>
     </aside>
-  `}function ke(){let t=b(""),o=b(!1),n=T.flatMap(c=>c.links.map(p=>({...p,section:c.title}))),s=()=>{let c=t().toLowerCase().trim();return c?n.filter(p=>p.label.toLowerCase().includes(c)||p.section.toLowerCase().includes(c)).slice(0,10):[]},d=c=>{t.set(c.target.value),o.set(t().trim().length>0)},l=c=>{k(c),t.set(""),o.set(!1)};return r`
+  `}function Se(){let t=b(""),o=b(!1),n=T.flatMap(c=>c.links.map(p=>({...p,section:c.title}))),s=()=>{let c=t().toLowerCase().trim();return c?n.filter(p=>p.label.toLowerCase().includes(c)||p.section.toLowerCase().includes(c)).slice(0,10):[]},d=c=>{t.set(c.target.value),o.set(t().trim().length>0)},l=c=>{k(c),t.set(""),o.set(!1)};return r`
     <header class="header">
       <div class="header-left">
         <button class="sidebar-toggle" onclick=${()=>{document.getElementById("sidebar")?.classList.toggle("open"),document.getElementById("overlay")?.classList.toggle("open")}} aria-label="Toggle menu">
-          ${fe()}
+          ${me()}
         </button>
         <div class="search">
-          <span class="s-icon">${ge()}</span>
+          <span class="s-icon">${fe()}</span>
           <input
             type="text"
             placeholder="Search docs..."
@@ -72,28 +72,28 @@ var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return
         <a href="https://www.npmjs.com/package/onefold" target="_blank">npm</a>
       </div>
     </header>
-  `}function xe(){let t=new Map;for(let s of T)for(let d of s.links)t.set(d.path,{section:s.title,label:d.label});let o=new Map;for(let s of T)s.links.length>0&&o.set(s.title,s.links[0].path);let n=s=>d=>{d.preventDefault(),k(s)};return r`
+  `}function ke(){let t=new Map;for(let s of T)for(let d of s.links)t.set(d.path,{section:s.title,label:d.label});let o=new Map;for(let s of T)s.links.length>0&&o.set(s.title,s.links[0].path);let n=s=>d=>{d.preventDefault(),k(s)};return r`
     <nav class="breadcrumbs" aria-label="Breadcrumb">
       ${()=>{let s=I(),d=t.get(s);if(s==="/")return document.createTextNode("");let l=[];if(l.push(r`<a class="breadcrumb-link" href="/" onclick=${n("/")}>Home</a>`),l.push(r`<span class="breadcrumb-sep" aria-hidden="true">/</span>`),d){let c=o.get(d.section)??"/";c!==s&&(l.push(r`<a class="breadcrumb-link" href="${c}" onclick=${n(c)}>${d.section}</a>`),l.push(r`<span class="breadcrumb-sep" aria-hidden="true">/</span>`)),l.push(r`<span class="breadcrumb-current" aria-current="page">${d.label}</span>`)}else{let c=s.split("/").filter(Boolean),p=c[c.length-1]??"Page";l.push(r`<span class="breadcrumb-current" aria-current="page">${p}</span>`)}let i=document.createDocumentFragment();for(let c of l)i.appendChild(c);return i}}
     </nav>
-  `}function Ce(t){return r`
+  `}function xe(t){return r`
     <div class="overlay" id="overlay"></div>
     <div class="app-shell">
+      ${we()}
       ${Se()}
-      ${ke()}
       <main class="content">
-        ${xe()}
+        ${ke()}
         ${t}
       </main>
     </div>
-  `}function to(t){return t.replace(/^(export\s+)?(interface|type)\s+\w+[^]*?\n\}/gm,"").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*\{/g,") {").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=>/g,") =>").replace(/(const|let|var)\s+(\w+)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=/g,"$1 $2 =").replace(/(\w)\s*:\s*(?:[A-Z]\w*(?:<[^>]*>)?(?:\[\])?|string|number|boolean|void|any|unknown|never)(\s*[,)=])/g,"$1$2").replace(/(\w)<[^>]+>\(/g,"$1(").replace(/\s+as\s+[A-Z]\w*(?:<[^>]*>)?/g,"").replace(/\n{3,}/g,`
+  `}function Ce(t,o){let n=new Map(Object.entries(t)),s=o??document;function d(i){let c=[];(i.ctrlKey||i.metaKey)&&c.push("Ctrl"),i.shiftKey&&c.push("Shift"),i.altKey&&c.push("Alt");let p=i.key.length===1?i.key.toUpperCase():i.key;return c.push(p),c.join("+")}function l(i){let c=d(i),p=n.get(c);p&&(i.preventDefault(),p(i))}return s.addEventListener("keydown",l),{destroy:()=>s.removeEventListener("keydown",l),add:(i,c)=>n.set(i,c),remove:i=>n.delete(i)}}function to(t){return t.replace(/^(export\s+)?(interface|type)\s+\w+[^]*?\n\}/gm,"").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*\{/g,") {").replace(/\)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=>/g,") =>").replace(/(const|let|var)\s+(\w+)\s*:\s*[A-Za-z<>\[\]|&\s,]+\s*=/g,"$1 $2 =").replace(/(\w)\s*:\s*(?:[A-Z]\w*(?:<[^>]*>)?(?:\[\])?|string|number|boolean|void|any|unknown|never)(\s*[,)=])/g,"$1$2").replace(/(\w)<[^>]+>\(/g,"$1(").replace(/\s+as\s+[A-Z]\w*(?:<[^>]*>)?/g,"").replace(/\n{3,}/g,`
 
 `)}function u(t,o="Live Example"){let n=b(t.trim()),s=b(null),d=b("result"),l=b([]),i=b(t.trim().split(`
-`).length),c=b(!1),p=b(!1),f=()=>{p.set(h=>!h),document.body.style.overflow=p()?"hidden":""};te({Escape:()=>{p()&&(p.set(!1),document.body.style.overflow="")},"Ctrl+Enter":()=>g()});let v=h=>{let m=to(h);return['<!DOCTYPE html><html><head><meta charset="utf-8">',"<style>","* { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }","body { padding: 12px; font-size: 14px; line-height: 1.6; color: #1a1a2e; }","button { padding: 6px 12px; border-radius: 4px; border: 1px solid #e5e7eb; cursor: pointer; margin: 4px 4px 4px 0; background: #fff; }","button:hover { background: #f3f4f6; }","h1,h2,h3 { margin-bottom: 8px; }","p { margin-bottom: 8px; }","input,textarea,select { padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 4px; margin: 4px 0; font-size: 14px; }","ul,ol { padding-left: 20px; }","li { margin: 4px 0; }",".error { color: #dc2626; font-family: monospace; font-size: 12px; white-space: pre-wrap; padding: 8px; background: #fef2f2; border-radius: 4px; }","</style></head><body>",'<div id="app"></div>','<script type="module">',"const CODE = "+JSON.stringify(m)+";","","// Console capture","const _logs = [];","const _origLog = console.log;",'console.log = (...a) => { _logs.push(a.map(x => typeof x === "object" ? JSON.stringify(x,null,2) : String(x)).join(" ")); _origLog(...a); window.parent.postMessage({type:"pg-log",logs:[..._logs]},"*"); };','console.warn = (...a) => console.log("[warn]", ...a);','console.error = (...a) => console.log("[error]", ...a);',"","// Minimal reactive runtime","let _ae = null;","function createSignal(init) {","  let val = init; const subs = new Set();","  const sig = () => { if (_ae) subs.add(_ae); return val; };",'  sig.set = (v) => { const nv = typeof v === "function" ? v(val) : v; if (Object.is(nv, val)) return; val = nv; for (const s of [...subs]) s(); };',"  sig.peek = () => val; return sig;","}","function createEffect(fn) { const eff = () => { const p = _ae; _ae = eff; try { fn(); } finally { _ae = p; } }; eff(); return () => {}; }",'function createComputed(fn) { const s = createSignal(undefined); createEffect(() => s.set(fn())); const r = () => s(); r.peek = s.peek; r.set = () => { throw new Error("Cannot write to computed"); }; return r; }',"function batch(fn) { fn(); }","","function html(strings, ...values) {",'  const PH = "\\x01PH";','  let markup = "";','  for (let i = 0; i < strings.length; i++) { markup += strings[i]; if (i < values.length) { const v = values[i]; if (typeof v === "string" || typeof v === "number") markup += String(v); else markup += PH + i + "\\x01"; } }','  const tpl = document.createElement("template"); tpl.innerHTML = markup; const frag = tpl.content;',"","  const walker = document.createTreeWalker(frag, NodeFilter.SHOW_TEXT);","  const tns = []; while (walker.nextNode()) tns.push(walker.currentNode);","  for (const tn of tns) {","    const re = /\\x01PH(\\d+)\\x01/g; let m;","    if ((m = re.exec(tn.textContent)) !== null) {","      const idx = parseInt(m[1]); const val = values[idx];",'      if (typeof val === "function") {','        const marker = document.createTextNode(""); tn.replaceWith(marker); let cur = [];',"        createEffect(() => {","          const r = val(); for (const n of cur) n.remove(); cur = [];",'          if (Array.isArray(r)) { const p = marker.parentNode; if (p) for (const c of r) { if (c instanceof Node) { p.insertBefore(c, marker); cur.push(c); } else { const t = document.createTextNode(String(c??"")); p.insertBefore(t, marker); cur.push(t); } } }',"          else if (r instanceof Node) { if (marker.parentNode) { marker.parentNode.insertBefore(r, marker); cur.push(r); } }",'          else { const t = document.createTextNode(String(r??"")); if (marker.parentNode) { marker.parentNode.insertBefore(t, marker); cur.push(t); } }',"        });","      } else if (val instanceof Node) { tn.replaceWith(val); }","    }","  }","",'  frag.querySelectorAll("*").forEach(el => {',"    for (const attr of [...el.attributes]) {","      const m2 = attr.value.match(/\\x01PH(\\d+)\\x01/);","      if (m2) {","        const idx = parseInt(m2[1]); const val = values[idx];",'        if (attr.name.startsWith("on") && typeof val === "function") { el.removeAttribute(attr.name); el.addEventListener(attr.name.slice(2), val); }','        else if (attr.name === "class" && typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { el.className = val() || ""; }); }','        else if (attr.name === "style" && typeof val === "object") { el.removeAttribute(attr.name); Object.assign(el.style, val); }','        else if (typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { const v = val(); if (v === false || v == null) el.removeAttribute(attr.name); else el.setAttribute(attr.name, String(v)); }); }','        else { el.setAttribute(attr.name, String(val ?? "")); }',"      }","    }","  });","","  if (frag.childNodes.length === 1 && frag.firstChild instanceof HTMLElement) return frag.firstChild;",'  const w = document.createElement("div"); w.appendChild(frag); return w;',"}","","function mount(node, container) { container.replaceChildren(node); }",'function css() { return { scope: "", css: "" }; }',"","try {",'  const fn = new Function("createSignal","createEffect","createComputed","batch","html","mount","css",','    CODE + "\\n\\n" +','    "if (typeof App===\\"function\\") mount(App(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Counter===\\"function\\") mount(Counter(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Main===\\"function\\") mount(Main(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Todo===\\"function\\") mount(Todo(), document.getElementById(\\"app\\"));\\n"',"  );","  fn(createSignal, createEffect, createComputed, batch, html, mount, css);",'  window.parent.postMessage({type:"pg-ready"},"*");',"} catch(e) {",`  document.getElementById("app").innerHTML = '<div class="error">' + e.message + '</div>';`,'  window.parent.postMessage({type:"pg-log",logs:["[error] " + e.message]},"*");',"}","<\/script></body></html>"].join(`
+`).length),c=b(!1),p=b(!1),f=()=>{p.set(h=>!h),document.body.style.overflow=p()?"hidden":""};Ce({Escape:()=>{p()&&(p.set(!1),document.body.style.overflow="")},"Ctrl+Enter":()=>g()});let v=h=>{let m=to(h);return['<!DOCTYPE html><html><head><meta charset="utf-8">',"<style>","* { box-sizing: border-box; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }","body { padding: 12px; font-size: 14px; line-height: 1.6; color: #1a1a2e; }","button { padding: 6px 12px; border-radius: 4px; border: 1px solid #e5e7eb; cursor: pointer; margin: 4px 4px 4px 0; background: #fff; }","button:hover { background: #f3f4f6; }","h1,h2,h3 { margin-bottom: 8px; }","p { margin-bottom: 8px; }","input,textarea,select { padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 4px; margin: 4px 0; font-size: 14px; }","ul,ol { padding-left: 20px; }","li { margin: 4px 0; }",".error { color: #dc2626; font-family: monospace; font-size: 12px; white-space: pre-wrap; padding: 8px; background: #fef2f2; border-radius: 4px; }","</style></head><body>",'<div id="app"></div>','<script type="module">',"const CODE = "+JSON.stringify(m)+";","","// Console capture","const _logs = [];","const _origLog = console.log;",'console.log = (...a) => { _logs.push(a.map(x => typeof x === "object" ? JSON.stringify(x,null,2) : String(x)).join(" ")); _origLog(...a); window.parent.postMessage({type:"pg-log",logs:[..._logs]},"*"); };','console.warn = (...a) => console.log("[warn]", ...a);','console.error = (...a) => console.log("[error]", ...a);',"","// Minimal reactive runtime","let _ae = null;","function createSignal(init) {","  let val = init; const subs = new Set();","  const sig = () => { if (_ae) subs.add(_ae); return val; };",'  sig.set = (v) => { const nv = typeof v === "function" ? v(val) : v; if (Object.is(nv, val)) return; val = nv; for (const s of [...subs]) s(); };',"  sig.peek = () => val; return sig;","}","function createEffect(fn) { const eff = () => { const p = _ae; _ae = eff; try { fn(); } finally { _ae = p; } }; eff(); return () => {}; }",'function createComputed(fn) { const s = createSignal(undefined); createEffect(() => s.set(fn())); const r = () => s(); r.peek = s.peek; r.set = () => { throw new Error("Cannot write to computed"); }; return r; }',"function batch(fn) { fn(); }","","function html(strings, ...values) {",'  const PH = "\\x01PH";','  let markup = "";','  for (let i = 0; i < strings.length; i++) { markup += strings[i]; if (i < values.length) { const v = values[i]; if (typeof v === "string" || typeof v === "number") markup += String(v); else markup += PH + i + "\\x01"; } }','  const tpl = document.createElement("template"); tpl.innerHTML = markup; const frag = tpl.content;',"","  const walker = document.createTreeWalker(frag, NodeFilter.SHOW_TEXT);","  const tns = []; while (walker.nextNode()) tns.push(walker.currentNode);","  for (const tn of tns) {","    const re = /\\x01PH(\\d+)\\x01/g; let m;","    if ((m = re.exec(tn.textContent)) !== null) {","      const idx = parseInt(m[1]); const val = values[idx];",'      if (typeof val === "function") {','        const marker = document.createTextNode(""); tn.replaceWith(marker); let cur = [];',"        createEffect(() => {","          const r = val(); for (const n of cur) n.remove(); cur = [];",'          if (Array.isArray(r)) { const p = marker.parentNode; if (p) for (const c of r) { if (c instanceof Node) { p.insertBefore(c, marker); cur.push(c); } else { const t = document.createTextNode(String(c??"")); p.insertBefore(t, marker); cur.push(t); } } }',"          else if (r instanceof Node) { if (marker.parentNode) { marker.parentNode.insertBefore(r, marker); cur.push(r); } }",'          else { const t = document.createTextNode(String(r??"")); if (marker.parentNode) { marker.parentNode.insertBefore(t, marker); cur.push(t); } }',"        });","      } else if (val instanceof Node) { tn.replaceWith(val); }","    }","  }","",'  frag.querySelectorAll("*").forEach(el => {',"    for (const attr of [...el.attributes]) {","      const m2 = attr.value.match(/\\x01PH(\\d+)\\x01/);","      if (m2) {","        const idx = parseInt(m2[1]); const val = values[idx];",'        if (attr.name.startsWith("on") && typeof val === "function") { el.removeAttribute(attr.name); el.addEventListener(attr.name.slice(2), val); }','        else if (attr.name === "class" && typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { el.className = val() || ""; }); }','        else if (attr.name === "style" && typeof val === "object") { el.removeAttribute(attr.name); Object.assign(el.style, val); }','        else if (typeof val === "function") { el.removeAttribute(attr.name); createEffect(() => { const v = val(); if (v === false || v == null) el.removeAttribute(attr.name); else el.setAttribute(attr.name, String(v)); }); }','        else { el.setAttribute(attr.name, String(val ?? "")); }',"      }","    }","  });","","  if (frag.childNodes.length === 1 && frag.firstChild instanceof HTMLElement) return frag.firstChild;",'  const w = document.createElement("div"); w.appendChild(frag); return w;',"}","","function mount(node, container) { container.replaceChildren(node); }",'function css() { return { scope: "", css: "" }; }',"","try {",'  const fn = new Function("createSignal","createEffect","createComputed","batch","html","mount","css",','    CODE + "\\n\\n" +','    "if (typeof App===\\"function\\") mount(App(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Counter===\\"function\\") mount(Counter(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Main===\\"function\\") mount(Main(), document.getElementById(\\"app\\"));\\n" +','    "else if (typeof Todo===\\"function\\") mount(Todo(), document.getElementById(\\"app\\"));\\n"',"  );","  fn(createSignal, createEffect, createComputed, batch, html, mount, css);",'  window.parent.postMessage({type:"pg-ready"},"*");',"} catch(e) {",`  document.getElementById("app").innerHTML = '<div class="error">' + e.message + '</div>';`,'  window.parent.postMessage({type:"pg-log",logs:["[error] " + e.message]},"*");',"}","<\/script></body></html>"].join(`
 `)},g=()=>{let h=s();h&&(c.set(!0),l.set([]),h.srcdoc=v(n()),setTimeout(()=>c.set(!1),300))},x=null,S=()=>{x&&clearTimeout(x),x=setTimeout(g,800)},A=h=>{let m=h.target.value;n.set(m),i.set(m.split(`
 `).length),S()},It=h=>{if(h.key==="Tab"){h.preventDefault();let m=h.target,C=m.selectionStart,H=m.selectionEnd;m.value=m.value.substring(0,C)+"  "+m.value.substring(H),m.selectionStart=m.selectionEnd=C+2,n.set(m.value),i.set(m.value.split(`
 `).length),S()}},At=h=>{let m=h.target,C=m.previousElementSibling;C&&(C.scrollTop=m.scrollTop)},Dt=()=>{n.set(t.trim()),i.set(t.trim().split(`
-`).length);let h=document.querySelector(".playground-editor");h&&(h.value=t.trim()),g()};typeof window<"u"&&window.addEventListener("message",h=>{h.data?.type==="pg-log"&&l.set(h.data.logs??[])});let Lt=h=>{let m=!1,C=0,H=0;h.addEventListener("mousedown",O=>{m=!0,C=O.clientX,H=h.previousElementSibling.getBoundingClientRect().width,document.body.style.cursor="col-resize",document.body.style.userSelect="none",O.preventDefault()}),document.addEventListener("mousemove",O=>{if(!m)return;let re=h.parentElement,Mt=re.getBoundingClientRect().width-120,Ht=Math.max(120,Math.min(Mt,H+(O.clientX-C)))/re.getBoundingClientRect().width*100;h.previousElementSibling.style.cssText=`flex:none;width:${Ht}%;min-width:120px`,h.nextElementSibling.style.flex="1"}),document.addEventListener("mouseup",()=>{m&&(m=!1,document.body.style.cursor="",document.body.style.userSelect="")})};return setTimeout(g,200),r`
+`).length);let h=document.querySelector(".playground-editor");h&&(h.value=t.trim()),g()};typeof window<"u"&&window.addEventListener("message",h=>{h.data?.type==="pg-log"&&l.set(h.data.logs??[])});let Lt=h=>{let m=!1,C=0,H=0;h.addEventListener("mousedown",O=>{m=!0,C=O.clientX,H=h.previousElementSibling.getBoundingClientRect().width,document.body.style.cursor="col-resize",document.body.style.userSelect="none",O.preventDefault()}),document.addEventListener("mousemove",O=>{if(!m)return;let oe=h.parentElement,Mt=oe.getBoundingClientRect().width-120,Ht=Math.max(120,Math.min(Mt,H+(O.clientX-C)))/oe.getBoundingClientRect().width*100;h.previousElementSibling.style.cssText=`flex:none;width:${Ht}%;min-width:120px`,h.nextElementSibling.style.flex="1"}),document.addEventListener("mouseup",()=>{m&&(m=!1,document.body.style.cursor="",document.body.style.userSelect="")})};return setTimeout(g,200),r`
     <div class=${()=>"playground"+(p()?" playground-fullscreen":"")}>
       <div class="playground-toolbar">
         <div class="playground-toolbar-left">
@@ -101,12 +101,12 @@ var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return
         </div>
         <div class="playground-toolbar-right">
           <button class="pg-btn pg-btn-run" onclick=${g}>
-            ${be()}
+            ${ve()}
             Run
           </button>
           <button class="pg-btn" onclick=${Dt}>Reset</button>
           <button class="pg-btn" onclick=${f} title="Toggle fullscreen (Esc to exit)">
-            ${()=>p()?we():ye()}
+            ${()=>p()?ye():be()}
           </button>
         </div>
       </div>
@@ -166,7 +166,7 @@ var ne=null;function ie(t,o){ne?ne(t,o):o()}var Ot=new Map;function ae(t){return
       </div>
 
       <div class="hero-stats">
-        <div class="hero-stat"><span class="val">3kb</span><span class="lbl">Core (gzipped)</span></div>
+        <div class="hero-stat"><span class="val">~6kb</span><span class="lbl">Core (gzipped)</span></div>
         <div class="hero-stat"><span class="val">0</span><span class="lbl">Dependencies</span></div>
         <div class="hero-stat"><span class="val">TypeScript</span><span class="lbl">First-class</span></div>
         <div class="hero-stat"><span class="val">ES2022</span><span class="lbl">Target</span></div>
@@ -181,7 +181,7 @@ npm run dev`)}
       <h2>Why onefold?</h2>
 
       <h3>Fine-grained Reactivity</h3>
-      <p>Each signal update touches only the exact DOM node that depends on it. No virtual DOM diffing. No tree reconciliation. Updates are O(1) per change — the same architecture class as SolidJS and Svelte 5 runes.</p>
+      <p>Each signal update touches only the exact DOM node that depends on it. No virtual DOM diffing. No tree reconciliation. Updates are O(1) per change.</p>
 
       <h3>Secure by Default</h3>
       <p>Text interpolation always goes through <code>textContent</code>, never <code>innerHTML</code>. XSS from dynamic data is structurally impossible. Event handler strings are blocked. URL schemes are validated. Trusted Types integration for CSP compliance.</p>
@@ -282,13 +282,18 @@ mount(Counter(), document.getElementById('app'));`,"Signals + Computed")}
 
       <h2>Comparison</h2>
       <table>
-        <tr><th>Framework</th><th>Core Size (gzip)</th><th>Includes</th><th>Compiler</th></tr>
-        <tr><td><strong>onefold</strong></td><td>~3kb</td><td>Everything (router, forms, i18n, MFE, SSR...)</td><td>None</td></tr>
-        <tr><td>React 19 + ReactDOM</td><td>~42kb</td><td>VDOM + reconciler only (need router, state, forms...)</td><td>JSX transform</td></tr>
-        <tr><td>Vue 3</td><td>~16-33kb</td><td>Reactivity + templates (need vue-router, Pinia...)</td><td>SFC compiler</td></tr>
-        <tr><td>SolidJS</td><td>~7kb</td><td>Signals + JSX (need @solidjs/router, store...)</td><td>JSX + Babel plugin</td></tr>
-        <tr><td>Svelte 5</td><td>~3-5kb runtime</td><td>Runes + compiled output (need SvelteKit for routing)</td><td>Svelte compiler (required)</td></tr>
+        <tr><th>Framework</th><th>Core Size (gzip)</th><th>Core Includes</th><th>Full Ecosystem</th><th>Compiler</th></tr>
+        <tr><td><strong>onefold</strong></td><td><strong>~6kb</strong></td><td>Signals, html, Router, Store, CSS, DI, lazy</td><td>~16kb (forms, http, i18n, MFE, SSR, a11y...)</td><td>None</td></tr>
+        <tr><td>React 19 + ReactDOM</td><td>~42kb</td><td>VDOM + reconciler</td><td>70-120kb+ (router, state, forms via npm)</td><td>JSX transform</td></tr>
+        <tr><td>Vue 3</td><td>~16-33kb</td><td>Reactivity + templates</td><td>50-80kb+ (vue-router, Pinia via npm)</td><td>SFC compiler</td></tr>
+        <tr><td>SolidJS</td><td>~7kb</td><td>Signals + JSX</td><td>30-50kb+ (@solidjs/router, store via npm)</td><td>JSX + Babel plugin</td></tr>
+        <tr><td>Svelte 5</td><td>~3-5kb runtime</td><td>Runes + compiled output</td><td>30-50kb+ (SvelteKit for routing, forms)</td><td>Svelte compiler (required)</td></tr>
       </table>
+      <p style=${{marginTop:"12px",fontSize:"13px",color:"var(--muted)"}}>
+        onefold's ~6kb core covers what most apps need. Enterprise features (forms, HTTP, i18n, microfrontends, SSR) 
+        are available via sub-path imports and tree-shake independently — you only pay for what you use.
+        Other frameworks require installing separate npm packages for equivalent functionality.
+      </p>
 
       <h2>Next Steps</h2>
       <ul>
@@ -1274,7 +1279,7 @@ mount(App(), document.getElementById('app'));`,"Todo List with Store")}
       <p><code>createPersisted</code> creates a signal that automatically syncs with <code>localStorage</code>. The value persists across page refreshes and browser sessions.</p>
 
       <h2>Basic Usage</h2>
-      ${e(`import { createPersisted } from 'onefold';
+      ${e(`import { createPersisted } from 'onefold/persist';
 
 // Persists under key 'user-theme' in localStorage
 const theme = createPersisted('user-theme', 'light');
@@ -1452,7 +1457,7 @@ posts.refetch();`)}
       <p><code>createHttpClient</code> provides a typed HTTP client with interceptors, automatic JSON handling, and a clean API for <code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code>, and <code>delete</code> methods.</p>
 
       <h2>Setup</h2>
-      ${e(`import { createHttpClient } from 'onefold';
+      ${e(`import { createHttpClient } from 'onefold/http';
 
 const http = createHttpClient({
   baseUrl: 'https://api.example.com',
@@ -1528,7 +1533,7 @@ const user = createResource(userId, (id) => http.get<User>(\`/users/\${id}\`));
       <p>Interceptors let you transform requests before they're sent, process responses before they reach your code, and handle errors globally.</p>
 
       <h2>Adding Interceptors</h2>
-      ${e(`import { createHttpClient } from 'onefold';
+      ${e(`import { createHttpClient } from 'onefold/http';
 
 const http = createHttpClient({
   baseUrl: '/api',
@@ -1618,7 +1623,7 @@ const http = createHttpClient({
       <p><code>createForm</code> provides reactive form management with field-level state tracking, validation, dirty/touched states, and submission handling.</p>
 
       <h2>Basic Usage</h2>
-      ${e(`import { createForm, required, email } from 'onefold';
+      ${e(`import { createForm, required, email } from 'onefold/form';
 
 const form = createForm({
   fields: {
@@ -1786,7 +1791,7 @@ mount(App(), document.getElementById('app'));`,"Login Form with Validation")}
       </table>
 
       <h2>Usage</h2>
-      ${e(`import { createForm, required, email, minLength, maxLength, min, max, pattern, custom } from 'onefold';
+      ${e(`import { createForm, required, email, minLength, maxLength, min, max, pattern, custom } from 'onefold/form';
 
 const form = createForm({
   fields: {
@@ -1871,7 +1876,7 @@ const form = createForm({
       <p><code>loadRemote</code> works without <code>configureSecurity</code> — but in production you should always configure it to prevent untrusted code from executing in your app. It answers: <em>which origins can load code into my application?</em></p>
 
       <h2>Configuration</h2>
-      ${e(`import { configureSecurity } from 'onefold';
+      ${e(`import { configureSecurity } from 'onefold/remote';
 
 configureSecurity({
   trustedOrigins: ['https://cdn.example.com', 'https://widgets.example.com'],
@@ -1936,7 +1941,8 @@ configureSecurity({
 
       <h2>Basic Usage</h2>
       <p>The simplest way to load a remote module — provide a URL and an optional fallback:</p>
-      ${e(`import { loadRemote, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { loadRemote } from 'onefold/remote';
 
 function App(): Node {
   return html\`
@@ -2237,7 +2243,7 @@ console.log(\`sha384-\${hash}\`);`)}
 'sha512-abc123def456...'
 'sha256-xyz789...'`)}
     </div>
-  `}function Ke(){return r`
+  `}function Xe(){return r`
     <div>
       <h1>Deployment</h1>
       <p>Microfrontends in onefold are independently deployable ES modules. Each team owns their remote, deploys on their own schedule, and the host loads them at runtime.</p>
@@ -2307,7 +2313,7 @@ console.log(\`sha384-\${hash}\`);`)}
 
       ${a("Each remote should be served with immutable cache headers (e.g., Cache-Control: public, max-age=31536000, immutable) and content-addressed filenames for cache busting.")}
     </div>
-  `}function Xe(){return r`
+  `}function Ke(){return r`
     <div>
       <h1>Shared Dependencies</h1>
       <p>When multiple remotes use onefold (or other shared libraries), Import Maps prevent duplicate downloads and ensure a single instance.</p>
@@ -2381,7 +2387,7 @@ esbuild.build({
       <p>Embed React, Vue, or other framework components inside onefold apps — or load legacy apps in isolated iframes.</p>
 
       <h2>embedForeign (React/Vue)</h2>
-      ${e(`import { embedForeign } from 'onefold';
+      ${e(`import { embedForeign } from 'onefold/interop';
 
 // Embed a React component
 const ReactWidget = embedForeign({
@@ -2481,7 +2487,8 @@ const node: Node = embedForeign({ mount: ..., unmount: ... });`)}
       <p><code>Suspense</code> shows a fallback UI while async children are loading. <code>SuspenseAll</code> waits for multiple async components before revealing content.</p>
 
       <h2>Suspense</h2>
-      ${e(`import { Suspense, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { Suspense } from 'onefold/suspense';
 
 function App(): Node {
   return html\`
@@ -2496,7 +2503,8 @@ function App(): Node {
 
       <h2>SuspenseAll</h2>
       <p>Wait for multiple async resources before showing any content:</p>
-      ${e(`import { SuspenseAll, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { SuspenseAll } from 'onefold/suspense';
 
 function Dashboard(): Node {
   return html\`
@@ -2550,7 +2558,8 @@ function Dashboard(): Node {
       <p><code>lazy()</code> enables code splitting by loading components on demand. The module is only fetched when the component is first rendered.</p>
 
       <h2>Basic Usage</h2>
-      ${e(`import { lazy, Suspense, html } from 'onefold';
+      ${e(`import { lazy, html } from 'onefold';
+import { Suspense } from 'onefold/suspense';
 
 const HeavyChart = lazy(() => import('./components/HeavyChart'));
 
@@ -2643,7 +2652,8 @@ function App(): Node {
 
       <h2>With Suspense</h2>
       <p>Combine ErrorBoundary with Suspense for complete async handling:</p>
-      ${e(`import { ErrorBoundary, Suspense, html } from 'onefold';
+      ${e(`import { ErrorBoundary, html } from 'onefold';
+import { Suspense } from 'onefold/suspense';
 
 function App(): Node {
   return html\`
@@ -2743,7 +2753,8 @@ mount(App(), document.getElementById('app'));
       <p><code>createWebSocket</code> wraps the native WebSocket API in reactive signals with auto-reconnect, typed messages, and connection state tracking.</p>
 
       <h2>Client Usage</h2>
-      ${e(`import { createWebSocket, html, mount } from 'onefold';
+      ${e(`import { html, mount } from 'onefold';
+import { createWebSocket } from 'onefold/stream';
 
 interface ChatMessage {
   user: string;
@@ -2766,7 +2777,8 @@ chat.close();
 chat.reconnect();`)}
 
       <h2>Chat App Example</h2>
-      ${e(`import { createSignal, createWebSocket, html, mount } from 'onefold';
+      ${e(`import { createSignal, html, mount } from 'onefold';
+import { createWebSocket } from 'onefold/stream';
 
 interface ChatMessage { user: string; text: string; ts: number; }
 
@@ -3109,7 +3121,8 @@ mount(App(), document.getElementById('app'));
       <p><code>createEventSource</code> wraps the native EventSource API in reactive signals. One-way server push — the server sends events to the client over a persistent HTTP connection.</p>
 
       <h2>Client Usage</h2>
-      ${e(`import { createEventSource, html, mount } from 'onefold';
+      ${e(`import { html, mount } from 'onefold';
+import { createEventSource } from 'onefold/stream';
 
 interface Notification {
   id: string;
@@ -3129,7 +3142,8 @@ feed.status()    // Signal<'connecting' | 'open' | 'closed' | 'error'>
 feed.close();`)}
 
       <h2>Live Notifications Example</h2>
-      ${e(`import { createEventSource, html, mount } from 'onefold';
+      ${e(`import { html, mount } from 'onefold';
+import { createEventSource } from 'onefold/stream';
 
 interface Notification { id: string; message: string; type: string; timestamp: number; }
 
@@ -3499,7 +3513,7 @@ curl -N -b "session_id=abc123" http://localhost:3000/api/notifications`)}
       <p><code>createI18n</code> provides reactive translations with interpolation. When the locale changes, all translated text in the UI updates automatically.</p>
 
       <h2>Setup</h2>
-      ${e(`import { createI18n } from 'onefold';
+      ${e(`import { createI18n } from 'onefold/i18n';
 
 const { t, setLocale, locale } = createI18n({
   defaultLocale: 'en',
@@ -3609,7 +3623,7 @@ mount(App(), document.getElementById('app'));`,"i18n Language Switcher")}
       <p><code>createTheme</code> manages CSS custom properties reactively. Switch between light/dark (or any custom themes) and the UI updates instantly via CSS variables.</p>
 
       <h2>Setup</h2>
-      ${e(`import { createTheme } from 'onefold';
+      ${e(`import { createTheme } from 'onefold/theme';
 
 const { theme, setTheme, toggle } = createTheme({
   light: {
@@ -3709,7 +3723,8 @@ mount(App(), document.getElementById('app'));`,"Light/Dark Theme Toggle")}
 
       <h2>FocusTrap</h2>
       <p>Trap keyboard focus within a container (modals, dialogs, drawers):</p>
-      ${e(`import { FocusTrap, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { FocusTrap } from 'onefold/a11y';
 
 function Modal(content: Node): Node {
   return FocusTrap(html\`
@@ -3724,7 +3739,7 @@ function Modal(content: Node): Node {
 
       <h2>announce</h2>
       <p>Send messages to screen readers via a live region:</p>
-      ${e(`import { announce } from 'onefold';
+      ${e(`import { announce } from 'onefold/a11y';
 
 // Polite announcement (waits for current speech to finish)
 announce('Item added to cart');
@@ -3734,7 +3749,7 @@ announce('Form has errors. Please fix highlighted fields.', 'assertive');`)}
 
       <h2>useKeyboard</h2>
       <p>Declarative keyboard shortcut handling:</p>
-      ${e(`import { useKeyboard } from 'onefold';
+      ${e(`import { useKeyboard } from 'onefold/a11y';
 
 useKeyboard({
   'Ctrl+K': () => openSearch(),
@@ -3746,7 +3761,8 @@ useKeyboard({
 
       <h2>SkipLink</h2>
       <p>Skip navigation link for keyboard users:</p>
-      ${e(`import { SkipLink, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { SkipLink } from 'onefold/a11y';
 
 function App(): Node {
   return html\`
@@ -3820,7 +3836,8 @@ mount(App(), document.getElementById('app'));`,"Focus Trap & Announcements")}
 
       <h2>Inline Style Transitions</h2>
       <p>Define enter/leave styles directly — no CSS classes needed:</p>
-      ${e(`import { Transition, createSignal, html } from 'onefold';
+      ${e(`import { createSignal, html } from 'onefold';
+import { Transition } from 'onefold/transition';
 
 const view = createSignal('home');
 
@@ -3846,7 +3863,7 @@ Transition(() => currentView(), {
 
       <h2>animateEnter / animateLeave</h2>
       <p>Lower-level utilities for custom animation logic on individual elements:</p>
-      ${e(`import { animateEnter, animateLeave } from 'onefold';
+      ${e(`import { animateEnter, animateLeave } from 'onefold/transition';
 
 // Animate an element entering
 animateEnter(element, {
@@ -4093,13 +4110,13 @@ mount(App(), document.getElementById('app'));`,"Provide / Inject Demo")}
       <p>Control UI visibility and route access based on user permissions using <code>setPermissions</code>, <code>hasPermission</code>, <code>guard</code>, and <code>guardedNode</code>.</p>
 
       <h2>Setup Permissions</h2>
-      ${e(`import { setPermissions } from 'onefold';
+      ${e(`import { setPermissions } from 'onefold/guard';
 
 // Set after login \u2014 pass the user's permission list
 setPermissions(['read:users', 'write:posts', 'admin:settings']);`)}
 
       <h2>Check Permissions</h2>
-      ${e(`import { hasPermission } from 'onefold';
+      ${e(`import { hasPermission } from 'onefold/guard';
 
 // Returns a reactive boolean signal
 hasPermission('admin:settings')  // true
@@ -4107,7 +4124,8 @@ hasPermission('delete:users')    // false`)}
 
       <h2>guardedNode</h2>
       <p>Conditionally render UI based on permissions:</p>
-      ${e(`import { guardedNode, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { guardedNode } from 'onefold/guard';
 
 function AdminPanel(): Node {
   return html\`
@@ -4126,7 +4144,8 @@ function AdminPanel(): Node {
 
       <h2>Route Guards</h2>
       <p>Protect entire routes with the <code>guard</code> wrapper:</p>
-      ${e(`import { Router, guard, navigate } from 'onefold';
+      ${e(`import { Router, navigate } from 'onefold';
+import { guard } from 'onefold/guard';
 
 const App = Router([
   { path: '/', view: () => Home() },
@@ -4197,7 +4216,8 @@ Content-Security-Policy: require-trusted-types-for 'script'
       <p><code>VirtualList</code> renders only visible items in a scrollable list. Handles thousands of items without DOM overhead.</p>
 
       <h2>Basic Usage</h2>
-      ${e(`import { VirtualList, html, createSignal } from 'onefold';
+      ${e(`import { html, createSignal } from 'onefold';
+import { VirtualList } from 'onefold/virtual-list';
 
 function UserList(): Node {
   const users = createSignal(Array.from({ length: 10000 }, (_, i) => ({
@@ -4266,6 +4286,7 @@ function FilterableList(): Node {
 
       <h2>Route-Based Splitting</h2>
       ${e(`import { Router, lazy, Suspense, html, mount } from 'onefold';
+import { Suspense } from 'onefold/suspense';
 
 // Each import() creates a separate chunk at build time
 const Home = lazy(() => import('./pages/Home'));
@@ -4350,7 +4371,8 @@ console.log(text);`)}
       <p><code>wrapImperative</code> bridges imperative libraries (Chart.js, D3, Three.js) with onefold's reactive system. It manages lifecycle and re-renders when signals change.</p>
 
       <h2>Chart.js Example</h2>
-      ${e(`import { wrapImperative, createSignal, html } from 'onefold';
+      ${e(`import { createSignal, html } from 'onefold';
+import { wrapImperative } from 'onefold/interop';
 import Chart from 'chart.js/auto';
 
 function ReactiveChart(): Node {
@@ -4386,7 +4408,8 @@ function ReactiveChart(): Node {
 }`)}
 
       <h2>D3 Example</h2>
-      ${e(`import { wrapImperative, createSignal } from 'onefold';
+      ${e(`import { createSignal } from 'onefold';
+import { wrapImperative } from 'onefold/interop';
 import * as d3 from 'd3';
 
 function D3Visualization(): Node {
@@ -4429,7 +4452,7 @@ function D3Visualization(): Node {
       <p><code>embedForeign</code> mounts React, Vue, Svelte, or any framework component inside an onefold application. You control the mount/unmount lifecycle.</p>
 
       <h2>React Integration</h2>
-      ${e(`import { embedForeign } from 'onefold';
+      ${e(`import { embedForeign } from 'onefold/interop';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { DatePicker } from './react-components/DatePicker';
@@ -4459,7 +4482,7 @@ function App(): Node {
 }`)}
 
       <h2>Vue Integration</h2>
-      ${e(`import { embedForeign } from 'onefold';
+      ${e(`import { embedForeign } from 'onefold/interop';
 import { createApp } from 'vue';
 import ChartComponent from './vue-components/Chart.vue';
 
@@ -4478,7 +4501,7 @@ const vueChart = embedForeign({
       ${a("embedForeign creates a container div and passes it to your mount function. You own the lifecycle \u2014 mount however the foreign framework requires.")}
 
       <h2>Svelte Integration</h2>
-      ${e(`import { embedForeign } from 'onefold';
+      ${e(`import { embedForeign } from 'onefold/interop';
 import Counter from './svelte-components/Counter.svelte';
 
 const svelteCounter = embedForeign({
@@ -4506,7 +4529,7 @@ const svelteCounter = embedForeign({
       <p><code>createPluginHost</code> enables an extensible plugin architecture with sandboxed permissions and lifecycle hooks.</p>
 
       <h2>Creating a Plugin Host</h2>
-      ${e(`import { createPluginHost } from 'onefold';
+      ${e(`import { createPluginHost } from 'onefold/plugin';
 
 const plugins = createPluginHost({
   permissions: ['read:state', 'write:state', 'ui:render'],
@@ -4577,7 +4600,7 @@ ctx.setState(partial)    // update state (if permitted)`)}
       <p><code>createObserver</code> provides structured logging, metrics collection, and performance tracking for production applications.</p>
 
       <h2>Setup</h2>
-      ${e(`import { createObserver } from 'onefold';
+      ${e(`import { createObserver } from 'onefold/observe';
 
 const observer = createObserver({
   onLog: (level, message, data) => {
@@ -4641,7 +4664,8 @@ const observer = createObserver({
       <p><code>component()</code> registers components with metadata for dev tools, documentation generation, and design system catalogs.</p>
 
       <h2>Registering Components</h2>
-      ${e(`import { component, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { component } from 'onefold/meta';
 
 const Button = component({
   name: 'Button',
@@ -4660,7 +4684,7 @@ const Button = component({
 
       <h2>getComponentRegistry</h2>
       <p>Retrieve all registered components (useful for dev tools and design systems):</p>
-      ${e(`import { getComponentRegistry } from 'onefold';
+      ${e(`import { getComponentRegistry } from 'onefold/meta';
 
 const registry = getComponentRegistry();
 // Map<string, ComponentMeta>
@@ -4671,7 +4695,7 @@ for (const [name, meta] of registry) {
 
       <h2>exportManifest</h2>
       <p>Export a JSON manifest of all components for documentation tools:</p>
-      ${e(`import { exportManifest } from 'onefold';
+      ${e(`import { exportManifest } from 'onefold/meta';
 
 const manifest = exportManifest();
 // {
@@ -4696,7 +4720,8 @@ fs.writeFileSync('component-manifest.json', JSON.stringify(manifest, null, 2));`
     </div>
   `}var ao=`// server.ts \u2014 Express SSR with onefold
 import express from 'express';
-import { renderHTML, html } from 'onefold';
+import { html } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 
 const app = express();
 app.use('/public', express.static('dist/public'));
@@ -4813,7 +4838,8 @@ dist/                  Build output (deployable)
       <p><code>renderHTML</code> converts onefold components to HTML strings on the server. Zero dependencies. No jsdom. Fully tree-shakable.</p>
 
       <h2>How It Works</h2>
-      ${e(`import { renderHTML, html } from 'onefold';
+      ${e(`import { html } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 
 // Sync render
 const result = renderHTML(() => html\`<h1>Hello</h1>\`);
@@ -4938,7 +4964,7 @@ npm start
       <p><code>enableDevtools</code> activates browser console integration for inspecting signals, effects, and component trees during development.</p>
 
       <h2>Enable in Development</h2>
-      ${e(`import { enableDevtools } from 'onefold';
+      ${e(`import { enableDevtools } from 'onefold/devtools';
 
 if (import.meta.env?.MODE === 'development') {
   enableDevtools();
@@ -4954,7 +4980,7 @@ if (import.meta.env?.MODE === 'development') {
       </ul>
 
       <h2>Disable</h2>
-      ${e(`import { disableDevtools } from 'onefold';
+      ${e(`import { disableDevtools } from 'onefold/devtools';
 
 // Turn off devtools (e.g., before production build check)
 disableDevtools();`)}
@@ -4982,7 +5008,7 @@ __ONEFOLD__.inspect(signal) // Detailed info about a signal`)}
       <p>onefold ships common utility functions to reduce external dependencies. All are tree-shakeable — only imported functions are bundled.</p>
 
       <h2>Date & Time</h2>
-      ${e(`import { formatDate, timeAgo } from 'onefold';
+      ${e(`import { formatDate, timeAgo } from 'onefold/utils';
 
 formatDate(new Date(), 'YYYY-MM-DD')    // '2024-01-15'
 formatDate(new Date(), 'MMM D, YYYY')   // 'Jan 15, 2024'
@@ -4993,7 +5019,7 @@ timeAgo(new Date(Date.now() - 3600000)) // '1 hour ago'
 timeAgo(new Date('2024-01-01'))         // '2 weeks ago'`)}
 
       <h2>Formatting</h2>
-      ${e(`import { formatCurrency, truncate, slugify, pluralize } from 'onefold';
+      ${e(`import { formatCurrency, truncate, slugify, pluralize } from 'onefold/utils';
 
 formatCurrency(1234.5, 'USD')  // '$1,234.50'
 formatCurrency(999, 'EUR')     // '\u20AC999.00'
@@ -5011,7 +5037,7 @@ pluralize('item', 5)   // 'items'
 pluralize('child', 3, 'children')  // 'children'`)}
 
       <h2>Function Utilities</h2>
-      ${e(`import { debounce, throttle, pipe } from 'onefold';
+      ${e(`import { debounce, throttle, pipe } from 'onefold/utils';
 
 // Debounce \u2014 only fires after 300ms of inactivity
 const search = debounce((query: string) => {
@@ -5107,7 +5133,7 @@ mount(App(), document.getElementById('app'));`,"Utilities Live Output")}
 
       <h2>registerDirective</h2>
       <p>Add custom behavior to elements via attribute directives:</p>
-      ${e(`import { registerDirective } from 'onefold';
+      ${e(`import { registerDirective } from 'onefold/extend';
 
 // Register a tooltip directive
 registerDirective('tooltip', (element, value) => {
@@ -5147,7 +5173,7 @@ registerDirective('visible', (element, callback) => {
 
       <h2>setEffectHook</h2>
       <p>Intercept or wrap the effect system for logging, profiling, or debugging:</p>
-      ${e(`import { setEffectHook } from 'onefold';
+      ${e(`import { setEffectHook } from 'onefold/extend';
 
 // Log every effect execution
 setEffectHook({
@@ -5338,7 +5364,7 @@ mount(App(), document.getElementById('app'));`,"Todo List")}
 
 mount(App(), document.getElementById('app'));`,"Theme Toggle")}
     </div>
-  `}function oe(){return r`
+  `}function te(){return r`
     <div>
       <h1>Page Not Found</h1>
       <p>The page you're looking for doesn't exist.</p>
@@ -5881,5 +5907,5 @@ services:
         <li><a href="/ssr">Server-Side Rendering</a> — pre-render pages for SEO</li>
       </ul>
     </div>
-  `}X({hash:!0});var w=(t,o)=>o??oe(),po=[{path:"/",view:()=>$e()},{path:"/getting-started",view:w,children:[{path:"/install",view:()=>Pe()},{path:"/quickstart",view:()=>Te()}]},{path:"/core",view:w,children:[{path:"/signals",view:()=>Re()},{path:"/templates",view:()=>Ne()},{path:"/css",view:()=>Ee()},{path:"/mounting",view:()=>Ie()}]},{path:"/routing",view:w,children:[{path:"/router",view:()=>Ae()},{path:"/configure",view:()=>De()},{path:"/nested",view:()=>Le()},{path:"/navigate",view:()=>Me()},{path:"/link",view:()=>He()},{path:"/params",view:()=>Oe()}]},{path:"/state",view:w,children:[{path:"/store",view:()=>Ue()},{path:"/persisted",view:()=>Be()}]},{path:"/data",view:w,children:[{path:"/resource",view:()=>je()},{path:"/http-client",view:()=>Fe()},{path:"/interceptors",view:()=>We()}]},{path:"/forms",view:w,children:[{path:"/create-form",view:()=>_e()},{path:"/validation",view:()=>ze()}]},{path:"/microfrontends",view:w,children:[{path:"/load-remote",view:()=>Ve()},{path:"/isolation",view:()=>Ge()},{path:"/communication",view:()=>Je()},{path:"/security",view:()=>qe()},{path:"/sri",view:()=>Ye()},{path:"/shared-deps",view:()=>Xe()},{path:"/cross-framework",view:()=>Qe()},{path:"/deployment",view:()=>Ke()},{path:"/api-reference",view:()=>Ze()}]},{path:"/async",view:w,children:[{path:"/suspense",view:()=>et()},{path:"/lazy-loading",view:()=>tt()},{path:"/error-boundaries",view:()=>ot()}]},{path:"/streaming",view:w,children:[{path:"/websocket",view:()=>rt()},{path:"/sse",view:()=>nt()}]},{path:"/security",view:w,children:[{path:"/guards",view:()=>ct()},{path:"/xss",view:()=>pt()}]},{path:"/performance",view:w,children:[{path:"/virtual-list",view:()=>ut()},{path:"/code-splitting",view:()=>ht()}]},{path:"/interop",view:w,children:[{path:"/wrap-imperative",view:()=>mt()},{path:"/embed-foreign",view:()=>ft()}]},{path:"/i18n",view:()=>it()},{path:"/theming",view:()=>at()},{path:"/a11y",view:()=>st()},{path:"/transitions",view:()=>dt()},{path:"/di",view:()=>lt()},{path:"/plugins",view:()=>gt()},{path:"/observability",view:()=>vt()},{path:"/meta",view:()=>bt()},{path:"/ssr",view:()=>yt()},{path:"/devtools",view:()=>wt()},{path:"/utilities",view:()=>St()},{path:"/extensions",view:()=>kt()},{path:"/cli",view:()=>xt()},{path:"/playground",view:()=>Ct()},{path:"/deployment",view:w,children:[{path:"/github-pages",view:()=>$t()},{path:"/vercel",view:()=>Pt()},{path:"/netlify",view:()=>Tt()},{path:"/cloudflare",view:()=>Rt()},{path:"/aws",view:()=>Nt()},{path:"/docker",view:()=>Et()}]}],uo=Ce(ee(po,()=>oe()));J(uo,document.getElementById("app"));document.addEventListener("click",t=>{let o=t.target.closest("a");if(!o)return;let n=o.getAttribute("href");!n||n.startsWith("http")||n.startsWith("#")||n.startsWith("mailto:")||(t.preventDefault(),k(n))});(!location.hash||location.hash==="#/")&&k("/");
+  `}K({hash:!0});var w=(t,o)=>o??te(),po=[{path:"/",view:()=>$e()},{path:"/getting-started",view:w,children:[{path:"/install",view:()=>Pe()},{path:"/quickstart",view:()=>Te()}]},{path:"/core",view:w,children:[{path:"/signals",view:()=>Re()},{path:"/templates",view:()=>Ne()},{path:"/css",view:()=>Ee()},{path:"/mounting",view:()=>Ie()}]},{path:"/routing",view:w,children:[{path:"/router",view:()=>Ae()},{path:"/configure",view:()=>De()},{path:"/nested",view:()=>Le()},{path:"/navigate",view:()=>Me()},{path:"/link",view:()=>He()},{path:"/params",view:()=>Oe()}]},{path:"/state",view:w,children:[{path:"/store",view:()=>Ue()},{path:"/persisted",view:()=>Be()}]},{path:"/data",view:w,children:[{path:"/resource",view:()=>je()},{path:"/http-client",view:()=>Fe()},{path:"/interceptors",view:()=>We()}]},{path:"/forms",view:w,children:[{path:"/create-form",view:()=>_e()},{path:"/validation",view:()=>ze()}]},{path:"/microfrontends",view:w,children:[{path:"/load-remote",view:()=>Ve()},{path:"/isolation",view:()=>Ge()},{path:"/communication",view:()=>Je()},{path:"/security",view:()=>qe()},{path:"/sri",view:()=>Ye()},{path:"/shared-deps",view:()=>Ke()},{path:"/cross-framework",view:()=>Qe()},{path:"/deployment",view:()=>Xe()},{path:"/api-reference",view:()=>Ze()}]},{path:"/async",view:w,children:[{path:"/suspense",view:()=>et()},{path:"/lazy-loading",view:()=>tt()},{path:"/error-boundaries",view:()=>ot()}]},{path:"/streaming",view:w,children:[{path:"/websocket",view:()=>rt()},{path:"/sse",view:()=>nt()}]},{path:"/security",view:w,children:[{path:"/guards",view:()=>ct()},{path:"/xss",view:()=>pt()}]},{path:"/performance",view:w,children:[{path:"/virtual-list",view:()=>ut()},{path:"/code-splitting",view:()=>ht()}]},{path:"/interop",view:w,children:[{path:"/wrap-imperative",view:()=>mt()},{path:"/embed-foreign",view:()=>ft()}]},{path:"/i18n",view:()=>it()},{path:"/theming",view:()=>at()},{path:"/a11y",view:()=>st()},{path:"/transitions",view:()=>dt()},{path:"/di",view:()=>lt()},{path:"/plugins",view:()=>gt()},{path:"/observability",view:()=>vt()},{path:"/meta",view:()=>bt()},{path:"/ssr",view:()=>yt()},{path:"/devtools",view:()=>wt()},{path:"/utilities",view:()=>St()},{path:"/extensions",view:()=>kt()},{path:"/cli",view:()=>xt()},{path:"/playground",view:()=>Ct()},{path:"/deployment",view:w,children:[{path:"/github-pages",view:()=>$t()},{path:"/vercel",view:()=>Pt()},{path:"/netlify",view:()=>Tt()},{path:"/cloudflare",view:()=>Rt()},{path:"/aws",view:()=>Nt()},{path:"/docker",view:()=>Et()}]}],uo=xe(ee(po,()=>te()));J(uo,document.getElementById("app"));document.addEventListener("click",t=>{let o=t.target.closest("a");if(!o)return;let n=o.getAttribute("href");!n||n.startsWith("http")||n.startsWith("#")||n.startsWith("mailto:")||(t.preventDefault(),k(n))});(!location.hash||location.hash==="#/")&&k("/");
 //# sourceMappingURL=app.js.map

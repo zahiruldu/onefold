@@ -2,7 +2,7 @@ import express from 'express';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { router } from './routes';
-import { renderHTML } from 'onefold';
+import { renderHTML } from 'onefold/ssr';
 import { htmlShell } from './html-shell';
 import { NotFoundPage } from '../pages/NotFoundPage';
 

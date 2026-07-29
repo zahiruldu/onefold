@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 // src/server/routes.ts
 import { Router } from "express";
-import { renderHTML } from "onefold";
+import { renderHTML } from "onefold/ssr";
 
 // src/server/html-shell.ts
 function htmlShell(title, body) {
@@ -203,7 +203,7 @@ router.get("/search", (_req, res) => {
 });
 
 // src/server/index.ts
-import { renderHTML as renderHTML2 } from "onefold";
+import { renderHTML as renderHTML2 } from "onefold/ssr";
 
 // src/pages/NotFoundPage.ts
 import { html as html9 } from "onefold";
